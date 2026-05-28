@@ -59,7 +59,7 @@ pub struct BackendInterfaceFunctions {
 
 impl PartialEq for BackendInterfaceFunctions {
     fn eq(&self, other: &Self) -> bool {
-        std::sync::Arc::ptr_eq(&self.cevalInteractiveFunctions, &other.cevalInteractiveFunctions) && std::sync::Arc::ptr_eq(&self.cevalCallFunction, &other.cevalCallFunction) && std::sync::Arc::ptr_eq(&self.elabCallInteractive, &other.elabCallInteractive)
+        std::sync::Arc::ptr_eq((&self.cevalInteractiveFunctions), (&other.cevalInteractiveFunctions)) && std::sync::Arc::ptr_eq((&self.cevalCallFunction), (&other.cevalCallFunction)) && std::sync::Arc::ptr_eq((&self.elabCallInteractive), (&other.elabCallInteractive))
     }
 }
 impl Eq for BackendInterfaceFunctions {}
@@ -68,23 +68,33 @@ impl PartialOrd for BackendInterfaceFunctions {
 }
 impl Ord for BackendInterfaceFunctions {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        (std::sync::Arc::as_ptr(&self.cevalInteractiveFunctions) as *const ()).cmp(&(std::sync::Arc::as_ptr(&other.cevalInteractiveFunctions) as *const ())).then_with(|| (std::sync::Arc::as_ptr(&self.cevalCallFunction) as *const ()).cmp(&(std::sync::Arc::as_ptr(&other.cevalCallFunction) as *const ())).then_with(|| (std::sync::Arc::as_ptr(&self.elabCallInteractive) as *const ()).cmp(&(std::sync::Arc::as_ptr(&other.elabCallInteractive) as *const ()))))
+        (std::sync::Arc::as_ptr((&self.cevalInteractiveFunctions)) as *const ()).cmp(&(std::sync::Arc::as_ptr((&other.cevalInteractiveFunctions)) as *const ())).then_with(|| (std::sync::Arc::as_ptr((&self.cevalCallFunction)) as *const ()).cmp(&(std::sync::Arc::as_ptr((&other.cevalCallFunction)) as *const ())).then_with(|| (std::sync::Arc::as_ptr((&self.elabCallInteractive)) as *const ()).cmp(&(std::sync::Arc::as_ptr((&other.elabCallInteractive)) as *const ()))))
     }
 }
 impl std::hash::Hash for BackendInterfaceFunctions {
     fn hash<__H: std::hash::Hasher>(&self, __state: &mut __H) {
-        (std::sync::Arc::as_ptr(&self.cevalInteractiveFunctions) as *const ()).hash(__state);
-        (std::sync::Arc::as_ptr(&self.cevalCallFunction) as *const ()).hash(__state);
-        (std::sync::Arc::as_ptr(&self.elabCallInteractive) as *const ()).hash(__state);
+        (std::sync::Arc::as_ptr((&self.cevalInteractiveFunctions)) as *const ()).hash(__state);
+        (std::sync::Arc::as_ptr((&self.cevalCallFunction)) as *const ()).hash(__state);
+        (std::sync::Arc::as_ptr((&self.elabCallInteractive)) as *const ()).hash(__state);
     }
 }
 impl std::fmt::Debug for BackendInterfaceFunctions {
     fn fmt(&self, __f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut __ds = __f.debug_struct("BackendInterfaceFunctions");
-        __ds.field("cevalInteractiveFunctions", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(&self.cevalInteractiveFunctions)));
-        __ds.field("cevalCallFunction", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(&self.cevalCallFunction)));
-        __ds.field("elabCallInteractive", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(&self.elabCallInteractive)));
+        __ds.field("cevalInteractiveFunctions", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr((&self.cevalInteractiveFunctions))));
+        __ds.field("cevalCallFunction", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr((&self.cevalCallFunction))));
+        __ds.field("elabCallInteractive", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr((&self.elabCallInteractive))));
         __ds.finish()
+    }
+}
+
+impl Default for BackendInterfaceFunctions {
+    fn default() -> Self {
+        Self {
+            cevalInteractiveFunctions: { let __placeholder: partialCevalInteractiveFunctions = std::sync::Arc::new(|_, _, _, _, _| panic!("default-constructed placeholder fn must not be called")); __placeholder },
+            cevalCallFunction: { let __placeholder: partialCevalCallFunction = std::sync::Arc::new(|_, _, _, _, _, _, _| panic!("default-constructed placeholder fn must not be called")); __placeholder },
+            elabCallInteractive: { let __placeholder: partialElabCallInteractive = std::sync::Arc::new(|_, _, _, _, _, _, _, _| panic!("default-constructed placeholder fn must not be called")); __placeholder },
+        }
     }
 }
 
@@ -99,7 +109,7 @@ pub fn initializeBackendInterface(mut inFunctions: BackendInterfaceFunctions) ->
 pub fn cevalInteractiveFunctions(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inExp: Arc<DAE::Exp>, mut inMsg: Absyn::Msg, mut inNumIter: i32) -> (FCore::Cache, Arc<Values::Value>) {
     let mut outCache: FCore::Cache = FCore::Cache::NO_CACHE;
     let mut outValue: Arc<Values::Value> = Arc::new(Values::Value::META_FAIL);
-    let mut functions: BackendInterfaceFunctions;
+    let mut functions: BackendInterfaceFunctions = <BackendInterfaceFunctions as ::std::default::Default>::default();
     let mut func: partialCevalInteractiveFunctions;
     functions = crate::Globals::backendCevalInterface.with(|__root| __root.borrow().clone());
     func = functions.cevalInteractiveFunctions.clone();
@@ -110,7 +120,7 @@ pub fn cevalInteractiveFunctions(mut inCache: FCore::Cache, mut inEnv: FCore::Gr
 pub fn cevalCallFunction(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inExp: Arc<DAE::Exp>, mut inValues: Arc<metamodelica::List<Arc<Values::Value>>>, mut inImplInst: bool, mut inMsg: Absyn::Msg, mut inNumIter: i32) -> (FCore::Cache, Arc<Values::Value>) {
     let mut outCache: FCore::Cache = FCore::Cache::NO_CACHE;
     let mut outValue: Arc<Values::Value> = Arc::new(Values::Value::META_FAIL);
-    let mut functions: BackendInterfaceFunctions;
+    let mut functions: BackendInterfaceFunctions = <BackendInterfaceFunctions as ::std::default::Default>::default();
     let mut func: partialCevalCallFunction;
     functions = crate::Globals::backendCevalInterface.with(|__root| __root.borrow().clone());
     func = functions.cevalCallFunction.clone();
@@ -122,7 +132,7 @@ pub fn elabCallInteractive(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, m
     let mut outCache: FCore::Cache = FCore::Cache::NO_CACHE;
     let mut outExp: Arc<DAE::Exp>;
     let mut outProperties: DAE::Properties;
-    let mut functions: BackendInterfaceFunctions;
+    let mut functions: BackendInterfaceFunctions = <BackendInterfaceFunctions as ::std::default::Default>::default();
     let mut func: partialElabCallInteractive;
     functions = crate::Globals::backendCevalInterface.with(|__root| __root.borrow().clone());
     func = functions.elabCallInteractive.clone();

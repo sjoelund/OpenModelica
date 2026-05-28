@@ -65,13 +65,29 @@ pub struct SCodeDumpOptions {
     pub stripOutputBindings: bool,
 }
 
+impl Default for SCodeDumpOptions {
+    fn default() -> Self {
+        Self {
+            stripAlgorithmSections: Default::default(),
+            stripProtectedImports: Default::default(),
+            stripProtectedClasses: Default::default(),
+            stripProtectedComponents: Default::default(),
+            stripMetaRecords: Default::default(),
+            stripGraphicalAnnotations: Default::default(),
+            stripStringComments: Default::default(),
+            stripExternalDecl: Default::default(),
+            stripOutputBindings: Default::default(),
+        }
+    }
+}
+
 pub type OPTIONS = SCodeDumpOptions;
 
 
 pub static defaultOptions: SCodeDumpOptions = SCodeDumpOptions { stripAlgorithmSections: false, stripProtectedImports: false, stripProtectedClasses: false, stripProtectedComponents: false, stripMetaRecords: true, stripGraphicalAnnotations: true, stripStringComments: false, stripExternalDecl: false, stripOutputBindings: false };
 
 pub fn generateOptions(mut stripAlgorithmSections: bool, mut stripProtectedImports: bool, mut stripProtectedClasses: bool, mut stripProtectedComponents: bool, mut stripMetaRecords: bool, mut stripGraphicalAnnotations: bool, mut stripStringComments: bool, mut stripExternalDecl: bool, mut stripOutputBindings: bool) -> SCodeDumpOptions {
-    let mut options: SCodeDumpOptions;
+    let mut options: SCodeDumpOptions = <SCodeDumpOptions as ::std::default::Default>::default();
     options = SCodeDumpOptions { stripAlgorithmSections: stripAlgorithmSections.clone(), stripProtectedImports: stripProtectedImports.clone(), stripProtectedClasses: stripProtectedClasses.clone(), stripProtectedComponents: stripProtectedComponents.clone(), stripMetaRecords: stripMetaRecords.clone(), stripGraphicalAnnotations: stripGraphicalAnnotations.clone(), stripStringComments: stripStringComments.clone(), stripExternalDecl: stripExternalDecl.clone(), stripOutputBindings: stripOutputBindings.clone() };
     options
 }

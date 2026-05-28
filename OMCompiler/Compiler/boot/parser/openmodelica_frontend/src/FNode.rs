@@ -162,7 +162,7 @@ pub fn toRef(mut inNode: Node) -> Ref {
 }
 
 pub fn fromRef(mut inRef: Ref) -> Result<Node> {
-    let mut outNode: Node;
+    let mut outNode: Node = <FCore::Node as ::std::default::Default>::default();
     outNode = inRef.clone().borrow()[(1-1) as usize].clone();
     Ok(outNode)
 }
@@ -219,7 +219,7 @@ pub fn refPushParents(mut inRef: Ref, mut inParents: Parents) -> Result<Ref> {
 }
 
 pub fn setParents(mut inNode: Node, mut inParents: Parents) -> Result<Node> {
-    let mut outNode: Node;
+    let mut outNode: Node = <FCore::Node as ::std::default::Default>::default();
     let mut n: Name = arcstr::literal!("");
     let mut i: Id = 0;
     let mut p: Parents = metamodelica::nil();
@@ -255,13 +255,13 @@ pub fn targetScope(mut inNode: Node) -> Result<Scope> {
 }
 
 pub fn new(mut inName: Name, mut inId: Id, mut inParents: Parents, mut inData: Data) -> Node {
-    let mut node: Node;
+    let mut node: Node = <FCore::Node as ::std::default::Default>::default();
     node = FCore::Node { name: (inName.clone()).clone(), id: inId.clone(), parents: inParents.clone(), children: FCore::RefTree::new(), data: inData.clone() };
     node
 }
 
 pub fn addImport(mut inImport: Arc<SCode::Element>, mut inImportTable: ImportTable) -> Result<ImportTable> {
-    let mut outImportTable: ImportTable;
+    let mut outImportTable: ImportTable = <FCore::ImportTable as ::std::default::Default>::default();
     outImportTable = (::match_deref::match_deref! { match &((inImport.clone(), inImportTable.clone())) {
         (Deref @ SCode::Element::IMPORT { imp: imp @ Absyn::Import::UNQUAL_IMPORT { .. }, .. }, FCore::ImportTable { hidden, qualifiedImports: qual_imps, unqualifiedImports: unqual_imps }) => {
             let mut unqual_imps = (*unqual_imps).clone();
@@ -377,7 +377,7 @@ pub fn addImportToRef(mut r#ref: Ref, mut imp: Arc<SCode::Element>) -> Result<()
     let mut d: Data = FCore::Data::TOP;
     let mut e: Arc<SCode::Element>;
     let mut t: Kind = FCore::Kind::BASIC_TYPE;
-    let mut it: ImportTable;
+    let mut it: ImportTable = <FCore::ImportTable as ::std::default::Default>::default();
     let mut r: Ref;
     let FCore::N { name: __pa0, id: __pa1, parents: __pa2, children: __pa3, data: FCore::IM { i: __pa4 } } = (fromRef(r#ref.clone())?) else { bail!("pattern mismatch") };
     n = __pa0.clone();
@@ -398,7 +398,7 @@ pub fn addTypesToRef(mut r#ref: Ref, mut inTys: Arc<metamodelica::List<Arc<DAE::
     let mut d: Data = FCore::Data::TOP;
     let mut e: Arc<SCode::Element>;
     let mut t: Kind = FCore::Kind::BASIC_TYPE;
-    let mut it: ImportTable;
+    let mut it: ImportTable = <FCore::ImportTable as ::std::default::Default>::default();
     let mut tys: Arc<metamodelica::List<Arc<DAE::Type>>> = metamodelica::nil();
     let mut r: Ref;
     let FCore::N { name: __pa0, id: __pa1, parents: __pa2, children: __pa3, data: FCore::FT { tys: __pa4 } } = (fromRef(r#ref.clone())?) else { bail!("pattern mismatch") };
@@ -440,7 +440,7 @@ pub fn addDefinedUnitToRef(mut r#ref: Ref, mut du: Arc<SCode::Element>) -> Resul
     let mut d: Data = FCore::Data::TOP;
     let mut e: Arc<SCode::Element>;
     let mut t: Kind = FCore::Kind::BASIC_TYPE;
-    let mut it: ImportTable;
+    let mut it: ImportTable = <FCore::ImportTable as ::std::default::Default>::default();
     let mut r: Ref;
     let mut dus: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
     let FCore::N { name: __pa0, id: __pa1, parents: __pa2, children: __pa3, data: FCore::DU { els: __pa4 } } = (fromRef(r#ref.clone())?) else { bail!("pattern mismatch") };
@@ -526,7 +526,7 @@ pub fn refHasChild(mut inRef: Ref, mut inName: Name) -> Result<bool> {
 }
 
 pub fn setChildren(mut inNode: Node, mut inChildren: Children) -> Result<Node> {
-    let mut outNode: Node;
+    let mut outNode: Node = <FCore::Node as ::std::default::Default>::default();
     let mut n: Name = arcstr::literal!("");
     let mut i: Id = 0;
     let mut p: Parents = metamodelica::nil();
@@ -543,7 +543,7 @@ pub fn setChildren(mut inNode: Node, mut inChildren: Children) -> Result<Node> {
 }
 
 pub fn setData(mut inNode: Node, mut inData: Data) -> Result<Node> {
-    let mut outNode: Node;
+    let mut outNode: Node = <FCore::Node as ::std::default::Default>::default();
     let mut n: Name = arcstr::literal!("");
     let mut i: Id = 0;
     let mut p: Parents = metamodelica::nil();
@@ -574,11 +574,11 @@ pub fn childFromNode(mut inNode: Node, mut inName: Name) -> Result<Ref> {
 
 pub fn element2Data(mut inElement: Arc<SCode::Element>, mut inKind: Kind) -> Result<(Data, Arc<DAE::Var>)> {
     let mut outData: Data = FCore::Data::TOP;
-    let mut outVar: Arc<DAE::Var>;
+    let mut outVar: Arc<DAE::Var> = Arc::new(<DAE::Var as ::std::default::Default>::default());
     (outData, outVar) = (::match_deref::match_deref! { match &((inElement.clone(), inKind.clone())) {
         (Deref @ SCode::Element::COMPONENT { name: n, prefixes: Deref @ SCode::Prefixes { visibility: vis, redeclarePrefix: _, finalPrefix: _, innerOuter: io, replaceablePrefix: _ }, attributes: SCode::Attributes { arrayDims: _, connectorType: ct, parallelism: prl, variability: var, direction: dir, .. }, typeSpec: _, modifications: _, comment: _, condition: _, info: _ }, _) => {
             let mut nd: Data = FCore::Data::TOP;
-            let mut i: Arc<DAE::Var>;
+            let mut i: Arc<DAE::Var> = Arc::new(<DAE::Var as ::std::default::Default>::default());
             nd = FCore::Data::CO { e: inElement.clone(), r#mod: Arc::new(openmodelica_frontend_types::DAE::Mod::NOMOD), kind: inKind.clone(), status: crate::FCore::Status::VAR_UNTYPED };
             i = Arc::new(DAE::Var { name: (n.clone()).clone(), attributes: Arc::new(DAE::Attributes { connectorType: DAEUtil::toConnectorTypeNoState(ct.clone(), None), parallelism: prl.clone(), variability: var.clone(), direction: dir.clone(), innerOuter: io.clone(), visibility: vis.clone() }), ty: DAE::T_UNKNOWN_DEFAULT().clone(), binding: Arc::new(openmodelica_frontend_types::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None });
             (nd.clone(), i.clone())
@@ -1502,7 +1502,7 @@ pub fn clone(mut inNode: Node, mut inParentRef: Ref, mut inGraph: Graph) -> Resu
     let mut outRef: Ref;
     (outGraph, outRef) = (match (inNode.clone(), inParentRef.clone(), inGraph.clone()) {
         (FCore::Node { name: mut name, id: mut id, parents: mut parents, children: mut children, data: mut data }, _, mut g) => {
-            let mut n: Node;
+            let mut n: Node = <FCore::Node as ::std::default::Default>::default();
             let mut r: Ref;
             let mut parents = parents.clone();
             let mut children = children.clone();
@@ -1671,7 +1671,7 @@ pub fn isImplicitRefName(mut r: Ref) -> Result<bool> {
 }
 
 pub fn refInstVar(mut inRef: Ref) -> Result<Arc<DAE::Var>> {
-    let mut v: Arc<DAE::Var>;
+    let mut v: Arc<DAE::Var> = Arc::new(<DAE::Var as ::std::default::Default>::default());
     let mut r: Ref;
     r = refInstance(inRef.clone())?;
     let FCore::IT { i: __pa0 } = (refData(r.clone())?) else { bail!("pattern mismatch") };
@@ -1732,7 +1732,7 @@ pub fn refImport(mut inRef: Ref) -> Result<Ref> {
 }
 
 pub fn importTable(mut inNode: Node) -> Result<ImportTable> {
-    let mut it: ImportTable;
+    let mut it: ImportTable = <FCore::ImportTable as ::std::default::Default>::default();
     it = (match inNode.clone() {
         FCore::Node { data: FCore::Data::IM { i: mut it }, .. } => it.clone(),
         _ => bail!("match: no arm matched"),

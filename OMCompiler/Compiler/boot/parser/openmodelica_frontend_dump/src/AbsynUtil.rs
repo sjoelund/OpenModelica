@@ -406,7 +406,7 @@ pub fn traverseExpBidirNamedArg<Arg: Clone + 'static>(mut inArg: Arc<Absyn::Name
 pub fn traverseExpBidirIterator<Arg: Clone + 'static>(mut inIterator: Arc<Absyn::ForIterator>, mut enterFunc: Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>, Arg) -> Result<(Arc<Absyn::Exp>, Arg)> + 'static>, mut exitFunc: Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>, Arg) -> Result<(Arc<Absyn::Exp>, Arg)> + 'static>, mut inArg: Arg) -> Result<(Arc<Absyn::ForIterator>, Arg)> {
     pub type FuncType<Arg: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>, Arg) -> Result<(Arc<Absyn::Exp>, Arg)> + 'static>;
 
-    let mut outIterator: Arc<Absyn::ForIterator>;
+    let mut outIterator: Arc<Absyn::ForIterator> = Arc::new(<Absyn::ForIterator as ::std::default::Default>::default());
     let mut outArg: Arg;
     let mut name: ArcStr = arcstr::literal!("");
     let mut guardExp1: Option<Arc<Absyn::Exp>> = None;
@@ -3827,7 +3827,7 @@ pub fn mergeCommentAnnotation(mut inAnnotation: Arc<Absyn::Annotation>, mut inCo
 }
 
 pub fn mergeModifiers(mut outerMod: Arc<Absyn::Modification>, mut innerMod: Arc<Absyn::Modification>) -> Result<Arc<Absyn::Modification>> {
-    let mut outMod: Arc<Absyn::Modification>;
+    let mut outMod: Arc<Absyn::Modification> = Arc::new(<Absyn::Modification as ::std::default::Default>::default());
     outMod = Arc::new(Absyn::Modification { elementArgLst: mergeAnnotations2(innerMod.elementArgLst.clone(), outerMod.elementArgLst.clone(), false, false)?, eqMod: mergeEqMods(outerMod.eqMod.clone(), innerMod.eqMod.clone()) });
     Ok(outMod)
 }
@@ -4241,7 +4241,7 @@ pub fn transformAnnotationInArgs(mut args: Arc<metamodelica::List<Arc<Absyn::Ele
 
     fn apply_fn(mut arg: Arc<Absyn::ElementArg>, mut path: Arc<Absyn::Path>, mut r#fn: Arc<dyn ::std::ops::Fn(Arc<Absyn::ElementArg>) -> Result<Arc<Absyn::ElementArg>> + 'static>, mut insert: bool) -> Result<Arc<Absyn::ElementArg>> {
         let mut arg: Arc<Absyn::ElementArg> = arg;
-        let mut r#mod: Arc<Absyn::Modification>;
+        let mut r#mod: Arc<Absyn::Modification> = Arc::new(<Absyn::Modification as ::std::default::Default>::default());
         if pathIsIdent(path.clone()) {
             arg = r#fn(arg.clone())?;
         } else {
@@ -4894,7 +4894,7 @@ fn traverseExpShallowFuncArgs<ArgT: Clone + 'static>(mut inArgs: Arc<Absyn::Func
 fn traverseExpShallowIterator<ArgT: Clone + 'static>(mut inIterator: Arc<Absyn::ForIterator>, mut inArg: ArgT, mut inFunc: Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>, ArgT) -> Result<Arc<Absyn::Exp>> + 'static>) -> Result<Arc<Absyn::ForIterator>> {
     pub type FuncT<ArgT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>, ArgT) -> Result<Arc<Absyn::Exp>> + 'static>;
 
-    let mut outIterator: Arc<Absyn::ForIterator>;
+    let mut outIterator: Arc<Absyn::ForIterator> = Arc::new(<Absyn::ForIterator as ::std::default::Default>::default());
     let mut name: ArcStr = arcstr::literal!("");
     let mut guard_exp: Option<Arc<Absyn::Exp>> = None;
     let mut range_exp: Option<Arc<Absyn::Exp>> = None;
@@ -5375,10 +5375,10 @@ fn traverseInnerClass<Arg: Clone + 'static>(mut inClass: Arc<Absyn::Class>, mut 
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ Absyn::ClassDef::PARTS { .. }, Some(pa)) => {
                     let mut pa = (*pa).clone();
-                    let mut cdef: Arc<Absyn::ClassDef> = cdef.clone();
                     let mut args: Arg;
-                    let mut opt_pa: Option<Arc<Absyn::Path>> = opt_pa.clone();
+                    let mut cdef: Arc<Absyn::ClassDef> = cdef.clone();
                     let mut parts: Arc<metamodelica::List<Arc<Absyn::ClassPart>>> = parts.clone();
+                    let mut opt_pa: Option<Arc<Absyn::Path>> = opt_pa.clone();
                     pa = joinPaths(pa.clone(), Arc::new(Absyn::Path::IDENT { name: (cls.name.clone()).clone() }))?;
                     (parts, opt_pa, args) = traverseInnerClassParts(var_field!((*cdef).classParts, Absyn::ClassDef::PARTS).clone(), Some(pa.clone()), visitor.clone(), arg.clone(), visitProtected.clone())?;
                     assign_variant_field!(cdef => Absyn::ClassDef::PARTS; classParts = parts.clone());
@@ -5390,10 +5390,10 @@ fn traverseInnerClass<Arg: Clone + 'static>(mut inClass: Arc<Absyn::Class>, mut 
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ Absyn::ClassDef::PARTS { .. }, None) => {
+                    let mut opt_pa: Option<Arc<Absyn::Path>> = opt_pa.clone();
                     let mut parts: Arc<metamodelica::List<Arc<Absyn::ClassPart>>> = parts.clone();
                     let mut args: Arg;
                     let mut cdef: Arc<Absyn::ClassDef> = cdef.clone();
-                    let mut opt_pa: Option<Arc<Absyn::Path>> = opt_pa.clone();
                     (parts, opt_pa, args) = traverseInnerClassParts(var_field!((*cdef).classParts, Absyn::ClassDef::PARTS).clone(), Some(Arc::new(Absyn::Path::IDENT { name: (cls.name.clone()).clone() })), visitor.clone(), arg.clone(), visitProtected.clone())?;
                     assign_variant_field!(cdef => Absyn::ClassDef::PARTS; classParts = parts.clone());
                     Ok((cdef.clone(), opt_pa.clone(), args.clone()))
@@ -5405,8 +5405,8 @@ fn traverseInnerClass<Arg: Clone + 'static>(mut inClass: Arc<Absyn::Class>, mut 
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ Absyn::ClassDef::PARTS { .. }, opt_pa) => {
                     let mut opt_pa = (*opt_pa).clone();
-                    let mut args: Arg;
                     let mut parts: Arc<metamodelica::List<Arc<Absyn::ClassPart>>> = parts.clone();
+                    let mut args: Arg;
                     let mut cdef: Arc<Absyn::ClassDef> = cdef.clone();
                     (parts, opt_pa, args) = traverseInnerClassParts(var_field!((*cdef).classParts, Absyn::ClassDef::PARTS).clone(), opt_pa.clone(), visitor.clone(), arg.clone(), visitProtected.clone())?;
                     assign_variant_field!(cdef => Absyn::ClassDef::PARTS; classParts = parts.clone());
@@ -5419,10 +5419,10 @@ fn traverseInnerClass<Arg: Clone + 'static>(mut inClass: Arc<Absyn::Class>, mut 
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ Absyn::ClassDef::CLASS_EXTENDS { .. }, Some(pa)) => {
                     let mut pa = (*pa).clone();
-                    let mut opt_pa: Option<Arc<Absyn::Path>> = opt_pa.clone();
                     let mut args: Arg;
                     let mut cdef: Arc<Absyn::ClassDef> = cdef.clone();
                     let mut parts: Arc<metamodelica::List<Arc<Absyn::ClassPart>>> = parts.clone();
+                    let mut opt_pa: Option<Arc<Absyn::Path>> = opt_pa.clone();
                     pa = joinPaths(pa.clone(), Arc::new(Absyn::Path::IDENT { name: (cls.name.clone()).clone() }))?;
                     (parts, opt_pa, args) = traverseInnerClassParts(var_field!((*cdef).parts, Absyn::ClassDef::CLASS_EXTENDS).clone(), Some(pa.clone()), visitor.clone(), arg.clone(), visitProtected.clone())?;
                     assign_variant_field!(cdef => Absyn::ClassDef::CLASS_EXTENDS; parts = parts.clone());
@@ -5435,8 +5435,8 @@ fn traverseInnerClass<Arg: Clone + 'static>(mut inClass: Arc<Absyn::Class>, mut 
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ Absyn::ClassDef::CLASS_EXTENDS { .. }, None) => {
                     let mut parts: Arc<metamodelica::List<Arc<Absyn::ClassPart>>> = parts.clone();
-                    let mut opt_pa: Option<Arc<Absyn::Path>> = opt_pa.clone();
                     let mut args: Arg;
+                    let mut opt_pa: Option<Arc<Absyn::Path>> = opt_pa.clone();
                     let mut cdef: Arc<Absyn::ClassDef> = cdef.clone();
                     (parts, opt_pa, args) = traverseInnerClassParts(var_field!((*cdef).parts, Absyn::ClassDef::CLASS_EXTENDS).clone(), Some(Arc::new(Absyn::Path::IDENT { name: (cls.name.clone()).clone() })), visitor.clone(), arg.clone(), visitProtected.clone())?;
                     assign_variant_field!(cdef => Absyn::ClassDef::CLASS_EXTENDS; parts = parts.clone());
@@ -5449,9 +5449,9 @@ fn traverseInnerClass<Arg: Clone + 'static>(mut inClass: Arc<Absyn::Class>, mut 
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ Absyn::ClassDef::CLASS_EXTENDS { .. }, opt_pa) => {
                     let mut opt_pa = (*opt_pa).clone();
-                    let mut parts: Arc<metamodelica::List<Arc<Absyn::ClassPart>>> = parts.clone();
-                    let mut args: Arg;
                     let mut cdef: Arc<Absyn::ClassDef> = cdef.clone();
+                    let mut args: Arg;
+                    let mut parts: Arc<metamodelica::List<Arc<Absyn::ClassPart>>> = parts.clone();
                     (parts, opt_pa, args) = traverseInnerClassParts(var_field!((*cdef).parts, Absyn::ClassDef::CLASS_EXTENDS).clone(), opt_pa.clone(), visitor.clone(), arg.clone(), visitProtected.clone())?;
                     assign_variant_field!(cdef => Absyn::ClassDef::CLASS_EXTENDS; parts = parts.clone());
                     Ok((cdef.clone(), opt_pa.clone(), args.clone()))
@@ -5938,7 +5938,7 @@ pub fn mapAnnotationBindingInArg(mut arg: Arc<Absyn::ElementArg>, mut path: Arc<
 
     let mut arg: Arc<Absyn::ElementArg> = arg;
     let mut found: bool = false;
-    let mut r#mod: Arc<Absyn::Modification>;
+    let mut r#mod: Arc<Absyn::Modification> = Arc::new(<Absyn::Modification as ::std::default::Default>::default());
     let mut mod_args: Arc<metamodelica::List<Arc<Absyn::ElementArg>>> = metamodelica::nil();
     let mut mod_eq: Arc<Absyn::EqMod> = Arc::new(Absyn::EqMod::NOMOD);
     let mut rest_path: Arc<Absyn::Path>;
@@ -6210,7 +6210,7 @@ pub fn getElementSpecAnnotation(mut spec: Arc<Absyn::ElementSpec>, mut name: Arc
 pub fn getComponentItemsAnnotation(mut items: Arc<metamodelica::List<Arc<Absyn::ComponentItem>>>, mut name: ArcStr) -> Result<Option<Arc<Absyn::Annotation>>> {
     let mut outAnnotation: Option<Arc<Absyn::Annotation>> = None;
     let mut oi: Option<Arc<Absyn::ComponentItem>> = None;
-    let mut i: Arc<Absyn::ComponentItem>;
+    let mut i: Arc<Absyn::ComponentItem> = Arc::new(<Absyn::ComponentItem as ::std::default::Default>::default());
     oi = List::findOption(items.clone(), Arc::new({ let __pe_b0 = (name.clone()).clone(); move |__pe_a1| Ok(isComponentItemNamed(__pe_b0.clone(), __pe_a1)) }));
     if isSome(oi.clone()) {
         let __pa0 = ::match_deref::match_deref! { match &(oi.clone()) {

@@ -809,7 +809,7 @@ pub mod Iterator {
             let mut cref: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
             let mut invert: Solve::RelationInversion = Solve::RelationInversion::TRUE;
             let mut range: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-            let mut operator: Arc<Operator::NFOperator>;
+            let mut operator: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
             (names, ranges, maps) = getFrames(iter.clone())?;
             for mut frame in &*List::zip3(names.clone(), ranges.clone(), maps.clone()) {
                 let mut frame = frame.clone();
@@ -1120,7 +1120,7 @@ pub mod Iterator {
         Ok(r#str)
     }
 
-    pub fn map(mut iter: Arc<Iterator>, mut funcExp: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>, mut funcCrefOpt: Option<MapFuncCref>, mut mapFunc: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, MapFuncExp) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Result<Arc<Iterator>> {
+    pub fn map(mut iter: Arc<Iterator>, mut funcExp: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>, mut funcCrefOpt: Option<MapFuncCref>, mut mapFunc: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Result<Arc<Iterator>> {
         let mut iter: Arc<Iterator> = iter;
         let mut funcCref: MapFuncCref;
         iter = (::match_deref::match_deref! { match &(iter.clone()) {
@@ -1555,7 +1555,7 @@ pub mod Equation {
 
     pub fn makeAlgorithm(mut stmts: Arc<metamodelica::List<Arc<Statement::NFStatement>>>, mut init: bool) -> Result<Pointer::Pointer<Arc<Equation>>> {
         let mut eqn: Pointer::Pointer<Arc<Equation>>;
-        let mut alg: Arc<Algorithm::NFAlgorithm>;
+        let mut alg: Arc<Algorithm::NFAlgorithm> = Arc::new(<Algorithm::NFAlgorithm as ::std::default::Default>::default());
         alg = Arc::new(Algorithm::NFAlgorithm { statements: stmts.clone(), inputs: metamodelica::nil(), outputs: metamodelica::nil(), stmtDiffInfo: None, scope: Arc::new(openmodelica_nf_frontend::NFInstNode::InstNode::EMPTY_NODE), source: DAE::emptyElementSource().clone() });
         alg = Algorithm::setInputsOutputs(alg.clone())?;
         eqn = BackendDAE::lowerAlgorithm(alg.clone(), init.clone());
@@ -1578,7 +1578,7 @@ pub mod Equation {
     // NOTE: #[tailcall::tailcall] disabled: function body contains a `match_deref!{…}` match,
     // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
     pub fn getAttributes(mut eq: Arc<Equation>) -> Arc<EquationAttributes::EquationAttributes> {
-        let mut attr: Arc<EquationAttributes::EquationAttributes>;
+        let mut attr: Arc<EquationAttributes::EquationAttributes> = Arc::new(<EquationAttributes::EquationAttributes as ::std::default::Default>::default());
         attr = (::match_deref::match_deref! { match &(eq.clone()) {
         Deref @ SCALAR_EQUATION { .. } => {
             var_field!((*eq).attr, Equation::SCALAR_EQUATION).clone()
@@ -1731,14 +1731,14 @@ pub mod Equation {
 
     pub fn setDerivative(mut eq: Arc<Equation>, mut derivative: Pointer::Pointer<Arc<Equation>>) -> Result<Arc<Equation>> {
         let mut eq: Arc<Equation> = eq;
-        let mut attr: Arc<EquationAttributes::EquationAttributes>;
+        let mut attr: Arc<EquationAttributes::EquationAttributes> = Arc::new(<EquationAttributes::EquationAttributes as ::std::default::Default>::default());
         attr = getAttributes(eq.clone());
         assign_field!(attr.derivative = Some(derivative.clone()));
         eq = setAttributes(eq.clone(), attr.clone())?;
         Ok(eq)
     }
 
-    pub fn map(mut eq: Arc<Equation>, mut funcExp: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>, mut funcCrefOpt: Option<MapFuncCref>, mut mapFunc: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, MapFuncExp) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Result<Arc<Equation>> {
+    pub fn map(mut eq: Arc<Equation>, mut funcExp: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>, mut funcCrefOpt: Option<MapFuncCref>, mut mapFunc: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Result<Arc<Equation>> {
         let mut eq: Arc<Equation> = eq;
         eq = (::match_deref::match_deref! { match &(eq.clone()) {
         Deref @ SCALAR_EQUATION { .. } => {
@@ -1781,7 +1781,7 @@ pub mod Equation {
             eq.clone()
         },
         Deref @ ALGORITHM { .. } => {
-            let mut alg: Arc<Algorithm::NFAlgorithm>;
+            let mut alg: Arc<Algorithm::NFAlgorithm> = Arc::new(<Algorithm::NFAlgorithm as ::std::default::Default>::default());
             alg = Algorithm::mapExp(var_field!((*eq).alg, Equation::ALGORITHM).clone(), Arc::new({ let __pe_b1 = funcExp.clone(); move |__pe_a0| mapFunc(__pe_a0, __pe_b1.clone()) }));
             if !(referenceEq(&alg.clone(),&var_field!((*eq).alg, Equation::ALGORITHM).clone())) {
                 assign_variant_field!(eq => Equation::ALGORITHM; alg = Algorithm::setInputsOutputs(alg.clone())?);
@@ -1789,7 +1789,7 @@ pub mod Equation {
             eq.clone()
         },
         Deref @ IF_EQUATION { .. } => {
-            let mut ifEqBody: Arc<IfEquationBody::IfEquationBody>;
+            let mut ifEqBody: Arc<IfEquationBody::IfEquationBody> = Arc::new(<IfEquationBody::IfEquationBody as ::std::default::Default>::default());
             ifEqBody = IfEquationBody::map(var_field!((*eq).body, Equation::IF_EQUATION).clone(), funcExp.clone(), funcCrefOpt.clone(), mapFunc.clone())?;
             if !(referenceEq(&ifEqBody.clone(),&var_field!((*eq).body, Equation::IF_EQUATION).clone())) {
                 assign_variant_field!(eq => Equation::IF_EQUATION; body = ifEqBody.clone());
@@ -1813,7 +1813,7 @@ pub mod Equation {
             eq.clone()
         },
         Deref @ WHEN_EQUATION { .. } => {
-            let mut whenEqBody: Arc<WhenEquationBody::WhenEquationBody>;
+            let mut whenEqBody: Arc<WhenEquationBody::WhenEquationBody> = Arc::new(<WhenEquationBody::WhenEquationBody as ::std::default::Default>::default());
             whenEqBody = WhenEquationBody::map(var_field!((*eq).body, Equation::WHEN_EQUATION).clone(), funcExp.clone(), funcCrefOpt.clone(), mapFunc.clone());
             if !(referenceEq(&whenEqBody.clone(),&var_field!((*eq).body, Equation::WHEN_EQUATION).clone())) {
                 assign_variant_field!(eq => Equation::WHEN_EQUATION; body = whenEqBody.clone());
@@ -1840,11 +1840,11 @@ pub mod Equation {
         Ok(eq)
     }
 
-    pub fn mapCondition(mut eq: Arc<Equation>, mut funcExp: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>, mut funcCrefOpt: Option<MapFuncCref>, mut mapFunc: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, MapFuncExp) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Arc<Equation> {
+    pub fn mapCondition(mut eq: Arc<Equation>, mut funcExp: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>, mut funcCrefOpt: Option<MapFuncCref>, mut mapFunc: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Arc<Equation> {
         let mut eq: Arc<Equation> = eq;
         eq = (::match_deref::match_deref! { match &(eq.clone()) {
         Deref @ IF_EQUATION { .. } => {
-            let mut ifEqBody: Arc<IfEquationBody::IfEquationBody>;
+            let mut ifEqBody: Arc<IfEquationBody::IfEquationBody> = Arc::new(<IfEquationBody::IfEquationBody as ::std::default::Default>::default());
             ifEqBody = IfEquationBody::mapCondition(var_field!((*eq).body, Equation::IF_EQUATION).clone(), funcExp.clone(), funcCrefOpt.clone(), mapFunc.clone());
             if !(referenceEq(&ifEqBody.clone(),&var_field!((*eq).body, Equation::IF_EQUATION).clone())) {
                 assign_variant_field!(eq => Equation::IF_EQUATION; body = ifEqBody.clone());
@@ -1863,7 +1863,7 @@ pub mod Equation {
             eq.clone()
         },
         Deref @ WHEN_EQUATION { .. } => {
-            let mut whenEqBody: Arc<WhenEquationBody::WhenEquationBody>;
+            let mut whenEqBody: Arc<WhenEquationBody::WhenEquationBody> = Arc::new(<WhenEquationBody::WhenEquationBody as ::std::default::Default>::default());
             whenEqBody = WhenEquationBody::mapCondition(var_field!((*eq).body, Equation::WHEN_EQUATION).clone(), funcExp.clone(), funcCrefOpt.clone(), mapFunc.clone());
             if !(referenceEq(&whenEqBody.clone(),&var_field!((*eq).body, Equation::WHEN_EQUATION).clone())) {
                 assign_variant_field!(eq => Equation::WHEN_EQUATION; body = whenEqBody.clone());
@@ -1886,7 +1886,7 @@ pub mod Equation {
         eq
     }
 
-    pub fn collectCrefs(mut eq: Arc<Equation>, mut filter: Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<UnorderedSet::UnorderedSet<Arc<ComponentRef::NFComponentRef>>>) -> Result<Arc<ComponentRef::NFComponentRef>> + 'static>, mut mapFunc: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, MapFuncExp) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Result<Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>> {
+    pub fn collectCrefs(mut eq: Arc<Equation>, mut filter: Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<UnorderedSet::UnorderedSet<Arc<ComponentRef::NFComponentRef>>>) -> Result<Arc<ComponentRef::NFComponentRef>> + 'static>, mut mapFunc: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Result<Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>> {
         let mut cref_lst: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
         let mut acc: Arc<UnorderedSet::UnorderedSet<Arc<ComponentRef::NFComponentRef>>> = UnorderedSet::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), 13);
         let _ = map(eq.clone(), Arc::new({ let __pe_b1 = filter.clone(); let __pe_b2 = acc.clone(); move |__pe_a0| Slice::filterExp(__pe_a0, __pe_b1.clone(), __pe_b2.clone()) }), Some({ let __pe_b1 = acc.clone(); move |__pe_a0| filter(__pe_a0, __pe_b1.clone()) }), mapFunc.clone())?;
@@ -2067,7 +2067,7 @@ pub mod Equation {
         if Flags::isSet(Flags::DUMP_SIMPLIFY.clone())? && !(stringEqual((indent.clone()).clone(), (literal!("")).clone())) {
             println!("{}", (literal!("\n")).clone());
         }
-        eq = map(eq.clone(), simplifyExp.clone(), None, (std::sync::Arc::new(fnptr!(apply, Arc<Expression::NFExpression>, MapFuncExp)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, MapFuncExp) -> Result<Arc<Expression::NFExpression>> + 'static>))?;
+        eq = map(eq.clone(), simplifyExp.clone(), None, (std::sync::Arc::new(fnptr!(apply, Arc<Expression::NFExpression>, Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Result<Arc<Expression::NFExpression>> + 'static>))?;
         old_eq = eq.clone();
         eq = (::match_deref::match_deref! { match &(eq.clone()) {
         Deref @ SCALAR_EQUATION { .. } => {
@@ -2103,7 +2103,7 @@ pub mod Equation {
         },
         Deref @ WHEN_EQUATION { .. } => {
             let mut new_eq: Arc<Equation> = Arc::new(Equation::DUMMY_EQUATION);
-            let mut when_body: Arc<WhenEquationBody::WhenEquationBody>;
+            let mut when_body: Arc<WhenEquationBody::WhenEquationBody> = Arc::new(<WhenEquationBody::WhenEquationBody as ::std::default::Default>::default());
             new_eq = (::match_deref::match_deref! { match &(WhenEquationBody::simplify(Some(var_field!((*eq).body, Equation::WHEN_EQUATION).clone()))?) {
         Some(when_body) => {
             assign_variant_field!(eq => Equation::WHEN_EQUATION; body = when_body.clone());
@@ -2119,7 +2119,7 @@ pub mod Equation {
         },
         Deref @ IF_EQUATION { .. } => {
             let mut new_eq: Arc<Equation> = Arc::new(Equation::DUMMY_EQUATION);
-            let mut if_body: Arc<IfEquationBody::IfEquationBody>;
+            let mut if_body: Arc<IfEquationBody::IfEquationBody> = Arc::new(<IfEquationBody::IfEquationBody as ::std::default::Default>::default());
             new_eq = (::match_deref::match_deref! { match &(IfEquationBody::simplify(Some(var_field!((*eq).body, Equation::IF_EQUATION).clone()))) {
         Some(if_body) => {
             if isNone(if_body.else_if.clone()) && !(List::hasSeveralElements(if_body.then_eqns.clone())) {
@@ -2327,7 +2327,7 @@ pub mod Equation {
     pub fn createResidual(mut eqn_ptr: Pointer::Pointer<Arc<Equation>>, mut residualCref_opt: Option<Arc<ComponentRef::NFComponentRef>>, mut new: bool, mut allowFail: bool) -> Result<Pointer::Pointer<Arc<Equation>>> {
         let mut eqn_ptr: Pointer::Pointer<Arc<Equation>> = eqn_ptr;
         let mut eqn: Arc<Equation> = Pointer::access(eqn_ptr.clone());
-        let mut attr: Arc<EquationAttributes::EquationAttributes>;
+        let mut attr: Arc<EquationAttributes::EquationAttributes> = Arc::new(<EquationAttributes::EquationAttributes as ::std::default::Default>::default());
         let mut residualCref: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
         let mut lhs: Arc<Expression::NFExpression> = Arc::new(Expression::END);
         let mut rhs: Arc<Expression::NFExpression> = Arc::new(Expression::END);
@@ -2408,17 +2408,17 @@ pub mod Equation {
         let mut exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
         exp = (::match_deref::match_deref! { match &(eqn.clone()) {
         Deref @ SCALAR_EQUATION { .. } => {
-            let mut operator: Arc<Operator::NFOperator>;
+            let mut operator: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
             operator = Arc::new(Operator::NFOperator { ty: Expression::typeOf(var_field!((*eqn).lhs, Equation::SCALAR_EQUATION).clone()), op: Operator::Op::ADD.clone() });
             Arc::new(Expression::NFExpression::MULTARY { arguments: list![var_field!((*eqn).rhs, Equation::SCALAR_EQUATION).clone()], inv_arguments: list![var_field!((*eqn).lhs, Equation::SCALAR_EQUATION).clone()], operator: operator.clone() })
         },
         Deref @ ARRAY_EQUATION { .. } => {
-            let mut operator: Arc<Operator::NFOperator>;
+            let mut operator: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
             operator = Arc::new(Operator::NFOperator { ty: Expression::typeOf(var_field!((*eqn).lhs, Equation::ARRAY_EQUATION).clone()), op: Operator::Op::ADD_EW.clone() });
             Arc::new(Expression::NFExpression::MULTARY { arguments: list![var_field!((*eqn).rhs, Equation::ARRAY_EQUATION).clone()], inv_arguments: list![var_field!((*eqn).lhs, Equation::ARRAY_EQUATION).clone()], operator: operator.clone() })
         },
         Deref @ RECORD_EQUATION { ty: Deref @ Type::COMPLEX { cls: cls_node, .. }, .. } => {
-            let mut operator: Arc<Operator::NFOperator>;
+            let mut operator: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
             let mut cls: Arc<Class::NFClass> = Arc::new(Class::NOT_INSTANTIATED);
             cls = InstNode::getClass(cls_node.clone())?;
             for mut op in &*list![(literal!("'+'")).clone(), (literal!("'0'")).clone(), (literal!("'-'")).clone()] {
@@ -2520,21 +2520,21 @@ pub mod Equation {
     }
 
     pub fn isResidual(mut eqn_ptr: Pointer::Pointer<Arc<Equation>>) -> bool {
-        let mut attr: Arc<EquationAttributes::EquationAttributes>;
+        let mut attr: Arc<EquationAttributes::EquationAttributes> = Arc::new(<EquationAttributes::EquationAttributes as ::std::default::Default>::default());
         attr = getAttributes(Pointer::access(eqn_ptr.clone()));
         let b = attr.residual.clone();
         ()
     }
 
     pub fn isDiscrete(mut eqn_ptr: Pointer::Pointer<Arc<Equation>>) -> bool {
-        let mut attr: Arc<EquationAttributes::EquationAttributes>;
+        let mut attr: Arc<EquationAttributes::EquationAttributes> = Arc::new(<EquationAttributes::EquationAttributes as ::std::default::Default>::default());
         attr = getAttributes(Pointer::access(eqn_ptr.clone()));
         let b = attr.kind.clone() == EquationKind::DISCRETE.clone();
         ()
     }
 
     pub fn isContinuous(mut eqn_ptr: Pointer::Pointer<Arc<Equation>>) -> bool {
-        let mut attr: Arc<EquationAttributes::EquationAttributes>;
+        let mut attr: Arc<EquationAttributes::EquationAttributes> = Arc::new(<EquationAttributes::EquationAttributes as ::std::default::Default>::default());
         attr = getAttributes(Pointer::access(eqn_ptr.clone()));
         let b = attr.kind.clone() == EquationKind::CONTINUOUS.clone();
         ()
@@ -2556,7 +2556,7 @@ pub mod Equation {
     }
 
     pub fn isInitial(mut eqn_ptr: Pointer::Pointer<Arc<Equation>>) -> bool {
-        let mut attr: Arc<EquationAttributes::EquationAttributes>;
+        let mut attr: Arc<EquationAttributes::EquationAttributes> = Arc::new(<EquationAttributes::EquationAttributes as ::std::default::Default>::default());
         attr = getAttributes(Pointer::access(eqn_ptr.clone()));
         let b = attr.exclusively_initial.clone();
         ()
@@ -2752,7 +2752,7 @@ pub mod Equation {
         let mut var: Arc<Variable::NFVariable> = Arc::new(<Variable::NFVariable as ::std::default::Default>::default());
         let mut lhs: Arc<Expression::NFExpression> = Arc::new(Expression::END);
         let mut rhs: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-        let mut eqnAttr: Arc<EquationAttributes::EquationAttributes>;
+        let mut eqnAttr: Arc<EquationAttributes::EquationAttributes> = Arc::new(<EquationAttributes::EquationAttributes as ::std::default::Default>::default());
         let mut iter: Arc<Iterator::Iterator> = Arc::new(Iterator::EMPTY);
         let mut subs: Arc<metamodelica::List<Arc<Subscript::NFSubscript>>> = metamodelica::nil();
         let mut dims_map: Arc<UnorderedMap::UnorderedMap<Arc<metamodelica::List<Arc<Dimension::NFDimension>>>, Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>>> = UnorderedMap::new((std::sync::Arc::new(Dimension::hashList) as std::sync::Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<Arc<Dimension::NFDimension>>>) -> Result<i32> + 'static>), Arc::new({ let __pe_b2: Arc<dyn ::std::ops::Fn(_, _) -> Result<bool> + 'static> = (std::sync::Arc::new(Dimension::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Dimension::NFDimension>, Arc<Dimension::NFDimension>) -> Result<bool> + 'static>); move |__pe_a0, __pe_a1| Ok(List::isEqualOnTrue(__pe_a0, __pe_a1, __pe_b2.clone())) }), 1);
@@ -3208,14 +3208,24 @@ pub mod IfEquationBody {
         pub else_if: Option<Arc<IfEquationBody>>,
     }
 
+    impl Default for IfEquationBody {
+        fn default() -> Self {
+            Self {
+                condition: Default::default(),
+                then_eqns: Default::default(),
+                else_if: Default::default(),
+            }
+        }
+    }
+
     pub type IF_EQUATION_BODY = IfEquationBody;
 
     pub fn toEquation(mut body: Arc<IfEquationBody>, mut source: Arc<DAE::ElementSource>, mut init: bool) -> Result<Pointer::Pointer<Arc<Equation::Equation>>> {
         let mut eqn: Pointer::Pointer<Arc<Equation::Equation>>;
-        let mut attr: Arc<EquationAttributes::EquationAttributes>;
+        let mut attr: Arc<EquationAttributes::EquationAttributes> = Arc::new(<EquationAttributes::EquationAttributes as ::std::default::Default>::default());
         let mut isAlgorithm: bool = false;
         let mut e: Arc<Equation::Equation> = Arc::new(Equation::DUMMY_EQUATION);
-        let mut alg: Arc<Algorithm::NFAlgorithm>;
+        let mut alg: Arc<Algorithm::NFAlgorithm> = Arc::new(<Algorithm::NFAlgorithm as ::std::default::Default>::default());
         let mut size: i32 = 0;
         (attr, isAlgorithm) = (::match_deref::match_deref! { match &(body.then_eqns.clone()) {
         Deref @ metamodelica::List::Cons { head: then_eqn, tail: Deref @ metamodelica::List::Nil } => {
@@ -3291,13 +3301,13 @@ pub mod IfEquationBody {
         Ok(r#str)
     }
 
-    pub fn map(mut ifBody: Arc<IfEquationBody>, mut funcExp: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>, mut funcCrefOpt: Option<MapFuncCref>, mut mapFunc: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, MapFuncExp) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Result<Arc<IfEquationBody>> {
+    pub fn map(mut ifBody: Arc<IfEquationBody>, mut funcExp: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>, mut funcCrefOpt: Option<MapFuncCref>, mut mapFunc: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Result<Arc<IfEquationBody>> {
         let mut ifBody: Arc<IfEquationBody> = ifBody;
         ifBody = mapEqnExpCref(ifBody.clone(), Arc::new({ let __pe_b1: Arc<dyn ::std::ops::Fn(_) -> Result<_> + 'static> = Arc::new({ let __pe_b1 = funcExp.clone(); let __pe_b2 = funcCrefOpt.clone(); let __pe_b3 = mapFunc.clone(); move |__pe_a0| Equation::map(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_b3.clone()) }); move |__pe_a0| Ok(Pointer::apply(__pe_a0, __pe_b1.clone())) }), funcExp.clone(), funcCrefOpt.clone(), mapFunc.clone())?;
         Ok(ifBody)
     }
 
-    pub fn mapCondition(mut ifBody: Arc<IfEquationBody>, mut funcExp: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>, mut funcCrefOpt: Option<MapFuncCref>, mut mapFunc: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, MapFuncExp) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Arc<IfEquationBody> {
+    pub fn mapCondition(mut ifBody: Arc<IfEquationBody>, mut funcExp: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>, mut funcCrefOpt: Option<MapFuncCref>, mut mapFunc: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Arc<IfEquationBody> {
         let mut ifBody: Arc<IfEquationBody> = ifBody;
         let mut condition: Arc<Expression::NFExpression> = Arc::new(Expression::END);
         condition = mapFunc(ifBody.condition.clone(), funcExp.clone()).unwrap();
@@ -3308,11 +3318,11 @@ pub mod IfEquationBody {
         ifBody
     }
 
-    pub fn mapEqnExpCref(mut ifBody: Arc<IfEquationBody>, mut func: Arc<dyn ::std::ops::Fn(Pointer::Pointer<Arc<Equation::Equation>>) -> Result<Pointer::Pointer<Arc<Equation::Equation>>> + 'static>, mut funcExp: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>, mut funcCrefOpt: Option<MapFuncCref>, mut mapFunc: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, MapFuncExp) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Result<Arc<IfEquationBody>> {
+    pub fn mapEqnExpCref(mut ifBody: Arc<IfEquationBody>, mut func: Arc<dyn ::std::ops::Fn(Pointer::Pointer<Arc<Equation::Equation>>) -> Result<Pointer::Pointer<Arc<Equation::Equation>>> + 'static>, mut funcExp: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>, mut funcCrefOpt: Option<MapFuncCref>, mut mapFunc: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Result<Arc<IfEquationBody>> {
         let mut ifBody: Arc<IfEquationBody> = ifBody;
         let mut condition: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-        let mut else_if: Arc<IfEquationBody>;
-        let mut old_else_if: Arc<IfEquationBody>;
+        let mut else_if: Arc<IfEquationBody> = Arc::new(<IfEquationBody as ::std::default::Default>::default());
+        let mut old_else_if: Arc<IfEquationBody> = Arc::new(<IfEquationBody as ::std::default::Default>::default());
         condition = mapFunc(ifBody.condition.clone(), funcExp.clone())?;
         if !(referenceEq(&condition.clone(),&ifBody.condition.clone())) {
             assign_field!(ifBody.condition = condition.clone());
@@ -3385,7 +3395,7 @@ pub mod IfEquationBody {
     }
 
     pub fn createResidual(mut body: Arc<IfEquationBody>, mut res: Arc<ComponentRef::NFComponentRef>, mut new: bool, mut allowFail: bool) -> Result<Arc<IfEquationBody>> {
-        let mut body_res: Arc<IfEquationBody>;
+        let mut body_res: Arc<IfEquationBody> = Arc::new(<IfEquationBody as ::std::default::Default>::default());
         let mut eqn_ptr: Pointer::Pointer<Arc<Equation::Equation>>;
         let mut eqn: Arc<Equation::Equation> = Arc::new(Equation::DUMMY_EQUATION);
         let mut exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
@@ -3595,6 +3605,16 @@ pub mod WhenEquationBody {
         pub else_when: Option<Arc<WhenEquationBody>>,
     }
 
+    impl Default for WhenEquationBody {
+        fn default() -> Self {
+            Self {
+                condition: Default::default(),
+                when_stmts: Default::default(),
+                else_when: Default::default(),
+            }
+        }
+    }
+
     pub type WHEN_EQUATION_BODY = WhenEquationBody;
 
     pub fn fromFlatList(mut flat_list: Arc<metamodelica::List<(Arc<Expression::NFExpression>, Arc<metamodelica::List<Arc<WhenStatement::WhenStatement>>>)>>, mut body: Option<Arc<WhenEquationBody>>) -> Option<Arc<WhenEquationBody>> {
@@ -3736,7 +3756,7 @@ pub mod WhenEquationBody {
         Ok(stmts)
     }
 
-    pub fn map(mut whenBody: Arc<WhenEquationBody>, mut funcExp: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>, mut funcCrefOpt: Option<MapFuncCref>, mut mapFunc: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, MapFuncExp) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Arc<WhenEquationBody> {
+    pub fn map(mut whenBody: Arc<WhenEquationBody>, mut funcExp: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>, mut funcCrefOpt: Option<MapFuncCref>, mut mapFunc: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Arc<WhenEquationBody> {
         let mut whenBody: Arc<WhenEquationBody> = whenBody;
         let mut condition: Arc<Expression::NFExpression> = Arc::new(Expression::END);
         condition = mapFunc(whenBody.condition.clone(), funcExp.clone()).unwrap();
@@ -3750,7 +3770,7 @@ pub mod WhenEquationBody {
         whenBody
     }
 
-    pub fn mapCondition(mut whenBody: Arc<WhenEquationBody>, mut funcExp: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>, mut funcCrefOpt: Option<MapFuncCref>, mut mapFunc: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, MapFuncExp) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Arc<WhenEquationBody> {
+    pub fn mapCondition(mut whenBody: Arc<WhenEquationBody>, mut funcExp: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>, mut funcCrefOpt: Option<MapFuncCref>, mut mapFunc: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Arc<WhenEquationBody> {
         let mut whenBody: Arc<WhenEquationBody> = whenBody;
         let mut condition: Arc<Expression::NFExpression> = Arc::new(Expression::END);
         condition = mapFunc(whenBody.condition.clone(), funcExp.clone()).unwrap();
@@ -3949,7 +3969,7 @@ pub mod WhenEquationBody {
 
     fn collectForSplit(mut body_opt: Option<Arc<WhenEquationBody>>, mut discr_map: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<UnorderedSet::UnorderedSet<Arc<ComponentRef::NFComponentRef>>>>>, mut state_set: Arc<UnorderedSet::UnorderedSet<Arc<ComponentRef::NFComponentRef>>>) -> Result<Arc<metamodelica::List<(Arc<Expression::NFExpression>, Arc<metamodelica::List<Arc<WhenStatement::WhenStatement>>>)>>> {
         let mut flat_when: Arc<metamodelica::List<(Arc<Expression::NFExpression>, Arc<metamodelica::List<Arc<WhenStatement::WhenStatement>>>)>> = metamodelica::nil();
-        let mut body: Arc<WhenEquationBody>;
+        let mut body: Arc<WhenEquationBody> = Arc::new(<WhenEquationBody as ::std::default::Default>::default());
         if Util::isSome(body_opt.clone()) {
             body = Util::getOption(body_opt.clone())?;
             for mut stmt in &*body.when_stmts.clone() {
@@ -4108,6 +4128,14 @@ pub mod WhenStatement {
             source: Arc<DAE::ElementSource>,
         },
     }
+    impl Default for WhenStatement {
+        fn default() -> Self {
+            Self::TERMINATE {
+                message: Default::default(),
+                source: Default::default(),
+            }
+        }
+    }
     pub use self::WhenStatement::{ASSIGN,REINIT,ASSERT,TERMINATE,NORETCALL};
     pub fn toString(mut stmt: Arc<WhenStatement>, mut r#str: ArcStr) -> Result<ArcStr> {
         let mut r#str: ArcStr = r#str;
@@ -4226,7 +4254,7 @@ pub mod WhenStatement {
         ty
     }
 
-    pub fn map(mut stmt: Arc<WhenStatement>, mut funcExp: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>, mut funcCrefOpt: Option<MapFuncCref>, mut mapFunc: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, MapFuncExp) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Result<Arc<WhenStatement>> {
+    pub fn map(mut stmt: Arc<WhenStatement>, mut funcExp: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>, mut funcCrefOpt: Option<MapFuncCref>, mut mapFunc: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Result<Arc<WhenStatement>> {
         let mut stmt: Arc<WhenStatement> = stmt;
         stmt = (::match_deref::match_deref! { match &(stmt.clone()) {
         Deref @ ASSIGN { .. } => {
@@ -4333,6 +4361,21 @@ pub mod EquationAttributes {
         pub optimizerExpression: Option<OptimizerExpression>,
     }
 
+    impl Default for EquationAttributes {
+        fn default() -> Self {
+            Self {
+                derivative: Default::default(),
+                residualVar: Default::default(),
+                clock_idx: Default::default(),
+                residual: Default::default(),
+                exclusively_initial: Default::default(),
+                evalStages: Default::default(),
+                kind: Default::default(),
+                optimizerExpression: Default::default(),
+            }
+        }
+    }
+
     pub type EQUATION_ATTRIBUTES = EquationAttributes;
 
     pub fn toString(mut attr: Arc<EquationAttributes>, mut indent: ArcStr) -> Result<ArcStr> {
@@ -4383,7 +4426,7 @@ pub mod EquationAttributes {
     }
 
     pub fn convert(mut attributes: Arc<EquationAttributes>) -> Result<OldBackendDAE::EquationAttributes> {
-        let mut oldAttributes: OldBackendDAE::EquationAttributes;
+        let mut oldAttributes: OldBackendDAE::EquationAttributes = <OldBackendDAE::EquationAttributes as ::std::default::Default>::default();
         oldAttributes = OldBackendDAE::EquationAttributes { evalStages: Evaluation::Stages::convert(attributes.evalStages.clone()), kind: convertEquationKind(attributes.kind.clone(), attributes.clock_idx.clone(), attributes.exclusively_initial.clone())?, differentiated: Util::isSome(attributes.derivative.clone()) };
         Ok(oldAttributes)
     }
@@ -4391,7 +4434,7 @@ pub mod EquationAttributes {
 }
 
 pub fn default(mut kind: EquationKind, mut exclusively_initial: bool, mut clock_idx: Option<i32>, mut optimizerExpression: Option<OptimizerExpression>) -> Arc<EquationAttributes::EquationAttributes> {
-    let mut attr: Arc<EquationAttributes::EquationAttributes>;
+    let mut attr: Arc<EquationAttributes::EquationAttributes> = Arc::new(<EquationAttributes::EquationAttributes as ::std::default::Default>::default());
     attr = Arc::new(EquationAttributes::EquationAttributes { optimizerExpression: optimizerExpression.clone(), kind: kind.clone(), evalStages: Evaluation::DEFAULT_STAGES.clone(), exclusively_initial: exclusively_initial.clone(), residual: false, clock_idx: clock_idx.clone(), residualVar: None, derivative: None });
     attr
 }
@@ -4696,7 +4739,7 @@ pub mod EquationPointers {
         Ok(())
     }
 
-    pub fn mapExp(mut equations: Arc<EquationPointers>, mut funcExp: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>, mut funcCrefOpt: Option<MapFuncCref>, mut mapFunc: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, MapFuncExp) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Result<Arc<EquationPointers>> {
+    pub fn mapExp(mut equations: Arc<EquationPointers>, mut funcExp: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>, mut funcCrefOpt: Option<MapFuncCref>, mut mapFunc: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Result<Arc<EquationPointers>> {
         let mut equations: Arc<EquationPointers> = equations;
         let mut eq_ptr: Pointer::Pointer<Arc<Equation::Equation>>;
         let mut eq: Arc<Equation::Equation> = Arc::new(Equation::DUMMY_EQUATION);
@@ -4935,6 +4978,9 @@ pub mod EqData {
             removed: Arc<EquationPointers::EquationPointers>,
         },
         EQ_DATA_EMPTY,
+    }
+    impl Default for EqData {
+        fn default() -> Self { Self::EQ_DATA_EMPTY }
     }
     pub use self::EqData::{EQ_DATA_SIM,EQ_DATA_JAC,EQ_DATA_HES,EQ_DATA_EMPTY};
     pub fn size(mut eqData: Arc<EqData>) -> Result<i32> {

@@ -821,6 +821,21 @@ pub struct FlattenSettings {
     pub minimalEval: bool,
 }
 
+impl Default for FlattenSettings {
+    fn default() -> Self {
+        Self {
+            scalarize: Default::default(),
+            arrayConnect: Default::default(),
+            nfAPI: Default::default(),
+            relaxedErrorChecking: Default::default(),
+            newBackend: Default::default(),
+            vectorizeBindings: Default::default(),
+            implicitStartAttribute: Default::default(),
+            minimalEval: Default::default(),
+        }
+    }
+}
+
 pub type SETTINGS = FlattenSettings;
 
 
@@ -989,7 +1004,7 @@ thread_local! { static __EMPTY_INDEXED_PREFIX_TLS: Arc<Prefix::Prefix> = Arc::ne
 pub fn EMPTY_INDEXED_PREFIX() -> Arc<Prefix::Prefix> { __EMPTY_INDEXED_PREFIX_TLS.with(|__t| __t.clone()) }
 
 pub fn flatten(mut classInst: Arc<InstNode::InstNode>, mut classPath: Arc<Path>, mut getConnectionResolved: bool) -> Result<Arc<FlatModel::NFFlatModel>> {
-    let mut flatModel: Arc<FlatModel::NFFlatModel>;
+    let mut flatModel: Arc<FlatModel::NFFlatModel> = Arc::new(<FlatModel::NFFlatModel as ::std::default::Default>::default());
     let mut sections: Arc<Sections::NFSections> = Arc::new(Sections::EMPTY);
     let mut vars: Arc<metamodelica::List<Arc<Variable::NFVariable>>> = metamodelica::nil();
     let mut eql: Arc<metamodelica::List<Arc<Equation::NFEquation>>> = metamodelica::nil();
@@ -998,7 +1013,7 @@ pub fn flatten(mut classInst: Arc<InstNode::InstNode>, mut classPath: Arc<Path>,
     let mut ialg: Arc<metamodelica::List<Arc<Algorithm::NFAlgorithm>>> = metamodelica::nil();
     let mut src: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
     let mut cmt: Option<Arc<SCode::Comment>> = None;
-    let mut settings: FlattenSettings;
+    let mut settings: FlattenSettings = <FlattenSettings as ::std::default::Default>::default();
     let mut deleted_vars: DeletedVariables;
     let mut prefix: Arc<Prefix::Prefix>;
     settings = FlattenSettings { scalarize: Flags::isSet(Flags::NF_SCALARIZE.clone())?, arrayConnect: Flags::isSet(Flags::ARRAY_CONNECT.clone())?, nfAPI: Flags::isSet(Flags::NF_API.clone())?, relaxedErrorChecking: Flags::isSet(Flags::NF_API.clone())? || Flags::getConfigBool(Flags::CHECK_MODEL.clone())?, newBackend: Flags::getConfigBool(Flags::NEW_BACKEND.clone())?, vectorizeBindings: Flags::isSet(Flags::VECTORIZE_BINDINGS.clone())?, implicitStartAttribute: Flags::isConfigFlagSet(Flags::ALLOW_NON_STANDARD_MODELICA.clone(), (literal!("implicitParameterStartAttribute")).clone())?, minimalEval: Flags::getConfigString(Flags::EVALUATE_STRUCTURAL_PARAMETERS.clone())? != literal!("all") };
@@ -1066,8 +1081,8 @@ pub fn flatten(mut classInst: Arc<InstNode::InstNode>, mut classPath: Arc<Path>,
 }
 
 pub fn flattenConnection(mut classInst: Arc<InstNode::InstNode>, mut classPath: Arc<Path>) -> Result<Arc<Connections::NFConnections>> {
-    let mut conns: Arc<Connections::NFConnections>;
-    let mut flatModel: Arc<FlatModel::NFFlatModel>;
+    let mut conns: Arc<Connections::NFConnections> = Arc::new(<Connections::NFConnections as ::std::default::Default>::default());
+    let mut flatModel: Arc<FlatModel::NFFlatModel> = Arc::new(<FlatModel::NFFlatModel as ::std::default::Default>::default());
     let mut deleted_vars: DeletedVariables;
     flatModel = flatten(classInst.clone(), classPath.clone(), false)?;
     deleted_vars = UnorderedSet::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), 13);
@@ -2373,7 +2388,7 @@ pub fn flattenIfEquation(mut eq: Arc<Equation::NFEquation>, mut prefix: Arc<Pref
     let mut structural: bool = true;
     let mut src: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
     let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
-    let mut target: Arc<Ceval::EvalTarget::EvalTarget>;
+    let mut target: Arc<Ceval::EvalTarget::EvalTarget> = Arc::new(<Ceval::EvalTarget::EvalTarget as ::std::default::Default>::default());
     let mut scope: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
     let (__pa0, __pa1, __pa2) = ::match_deref::match_deref! { match &(eq.clone()) {
         Deref @ Equation::IF { source: __pa0, scope: __pa1, branches: __pa2 } => (__pa0.clone(), __pa1.clone(), __pa2.clone()),
@@ -2808,12 +2823,12 @@ pub fn isDeletedCref(mut cref: Arc<ComponentRef::NFComponentRef>, mut deletedVar
 
 pub fn resolveConnections(mut flatModel: Arc<FlatModel::NFFlatModel>, mut deletedVars: DeletedVariables, mut settings: FlattenSettings) -> Result<Arc<FlatModel::NFFlatModel>> {
     let mut flatModel: Arc<FlatModel::NFFlatModel> = flatModel;
-    let mut conns: Arc<Connections::NFConnections>;
+    let mut conns: Arc<Connections::NFConnections> = Arc::new(<Connections::NFConnections as ::std::default::Default>::default());
     let mut conn_eql: Arc<metamodelica::List<Arc<Equation::NFEquation>>> = metamodelica::nil();
     let mut ec_eql: Arc<metamodelica::List<Arc<Equation::NFEquation>>> = metamodelica::nil();
     let mut tlio_eql: Arc<metamodelica::List<Arc<Equation::NFEquation>>> = metamodelica::nil();
     let mut tlio_vars: Arc<metamodelica::List<Arc<Variable::NFVariable>>> = metamodelica::nil();
-    let mut csets: ConnectionSets::Sets;
+    let mut csets: ConnectionSets::Sets = <ConnectionSets::Sets as ::std::default::Default>::default();
     let mut csets_array: metamodelica::Array<Arc<metamodelica::List<Arc<Connector::NFConnector>>>>;
     let mut unhandled_stream_sets: Arc<metamodelica::List<Arc<metamodelica::List<Arc<Connector::NFConnector>>>>> = metamodelica::nil();
     let mut ctable: Arc<UnorderedMap::UnorderedMap<ArcStr, i32>>;
@@ -3420,7 +3435,7 @@ pub fn evaluateIfWithConnects2(mut eq: Arc<Equation::NFEquation>, mut equations:
     let mut cond: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut var: Variability = Variability::CONSTANT;
     let mut eql: Arc<metamodelica::List<Arc<Equation::NFEquation>>> = metamodelica::nil();
-    let mut target: Arc<Ceval::EvalTarget::EvalTarget>;
+    let mut target: Arc<Ceval::EvalTarget::EvalTarget> = Arc::new(<Ceval::EvalTarget::EvalTarget as ::std::default::Default>::default());
     let mut bl: Arc<metamodelica::List<Arc<Equation::Branch::Branch>>> = metamodelica::nil();
     equations = (::match_deref::match_deref! { match &(eq.clone()) {
         Deref @ Equation::IF { .. } if (Equation::contains(eq.clone(), (std::sync::Arc::new(fnptr!(Equation::isConnect, Arc<Equation::NFEquation>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Equation::NFEquation>) -> Result<bool> + 'static>)) || Equation::containsExp(eq.clone(), Arc::new({ let __pe_b1: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<bool> + 'static> = (std::sync::Arc::new(Expression::isConnectionCall) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<bool> + 'static>); move |__pe_a0| Expression::contains(__pe_a0, __pe_b1.clone()) }))?) => {

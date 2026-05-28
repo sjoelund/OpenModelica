@@ -204,6 +204,16 @@ pub struct Tree {
     pub trees: T,
 }
 
+impl Default for Tree {
+    fn default() -> Self {
+        Self {
+            elt: Default::default(),
+            rank: Default::default(),
+            trees: Default::default(),
+        }
+    }
+}
+
 pub type NODE = Tree;
 
 
@@ -228,7 +238,7 @@ fn rank(mut tree: Arc<Tree>) -> Result<Rank> {
 }
 
 fn link(mut t1: Arc<Tree>, mut t2: Arc<Tree>) -> Result<Arc<Tree>> {
-    let mut t: Arc<Tree>;
+    let mut t: Arc<Tree> = Arc::new(<Tree as ::std::default::Default>::default());
     t = (::match_deref::match_deref! { match &((t1.clone(), t2.clone())) {
         (Deref @ Tree { elt: e1, rank: r1, trees: ts1 }, Deref @ Tree { elt: e2, rank: r2, trees: ts2 }) => {
             let mut r1 = (*r1).clone();
@@ -263,14 +273,14 @@ fn ins(mut t: Arc<Tree>, mut its: T) -> Result<T> {
 }
 
 fn getMin(mut ts: T) -> Result<(Arc<Tree>, T)> {
-    let mut min: Arc<Tree>;
+    let mut min: Arc<Tree> = Arc::new(<Tree as ::std::default::Default>::default());
     let mut ots: T = metamodelica::nil();
     (min, ots) = (::match_deref::match_deref! { match &(ts.clone()) {
         Deref @ metamodelica::List::Cons { head: t, tail: Deref @ metamodelica::List::Nil } => {
             (t.clone(), metamodelica::nil())
         },
         Deref @ metamodelica::List::Cons { head: t1, tail: ts1 } => {
-            let mut t2: Arc<Tree>;
+            let mut t2: Arc<Tree> = Arc::new(<Tree as ::std::default::Default>::default());
             let mut ts2: T = metamodelica::nil();
             let mut b: bool = false;
             (t2, ts2) = getMin(ts1.clone())?;

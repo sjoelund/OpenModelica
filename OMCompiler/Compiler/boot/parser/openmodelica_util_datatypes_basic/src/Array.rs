@@ -186,7 +186,7 @@ pub fn map<TI: Clone + 'static, TO: Clone + 'static>(mut inArray: metamodelica::
     outArray
 }
 
-pub fn map1<TI: Clone + 'static, TO: Clone + 'static, ArgT: Clone + 'static>(mut inArray: metamodelica::Array<TI>, mut inFunc: Arc<dyn ::std::ops::Fn(TI, ArgT) -> Result<TO> + 'static>, mut inArg: ArgT) -> Result<metamodelica::Array<TO>> {
+pub fn map1<TI: Clone + 'static, ArgT: Clone + 'static, TO: Clone + 'static>(mut inArray: metamodelica::Array<TI>, mut inFunc: Arc<dyn ::std::ops::Fn(TI, ArgT) -> Result<TO> + 'static>, mut inArg: ArgT) -> Result<metamodelica::Array<TO>> {
     pub type FuncType<TI: Clone + 'static, ArgT: Clone + 'static, TO: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI, ArgT) -> Result<TO> + 'static>;
 
     let mut outArray: metamodelica::Array<TO>;
@@ -205,7 +205,7 @@ pub fn map1<TI: Clone + 'static, TO: Clone + 'static, ArgT: Clone + 'static>(mut
     Ok(outArray)
 }
 
-pub fn map1Ind<TI: Clone + 'static, TO: Clone + 'static, ArgT: Clone + 'static>(mut inArray: metamodelica::Array<TI>, mut inFunc: Arc<dyn ::std::ops::Fn(TI, i32, ArgT) -> Result<TO> + 'static>, mut inArg: ArgT) -> Result<metamodelica::Array<TO>> {
+pub fn map1Ind<TI: Clone + 'static, ArgT: Clone + 'static, TO: Clone + 'static>(mut inArray: metamodelica::Array<TI>, mut inFunc: Arc<dyn ::std::ops::Fn(TI, i32, ArgT) -> Result<TO> + 'static>, mut inArg: ArgT) -> Result<metamodelica::Array<TO>> {
     pub type FuncType<TI: Clone + 'static, ArgT: Clone + 'static, TO: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI, i32, ArgT) -> Result<TO> + 'static>;
 
     let mut outArray: metamodelica::Array<TO>;
@@ -730,7 +730,7 @@ pub fn compare<T1: Clone + 'static, T2: Clone + 'static>(mut arr1: metamodelica:
     res
 }
 
-pub fn mapFold<TI: Clone + 'static, TO: Clone + 'static, ArgT: Clone + 'static>(mut arr: metamodelica::Array<TI>, mut func: Arc<dyn ::std::ops::Fn(TI, ArgT) -> Result<(TO, ArgT)> + 'static>, mut arg: ArgT) -> (metamodelica::Array<TO>, ArgT) {
+pub fn mapFold<TI: Clone + 'static, ArgT: Clone + 'static, TO: Clone + 'static>(mut arr: metamodelica::Array<TI>, mut func: Arc<dyn ::std::ops::Fn(TI, ArgT) -> Result<(TO, ArgT)> + 'static>, mut arg: ArgT) -> (metamodelica::Array<TO>, ArgT) {
     pub type FuncType<TI: Clone + 'static, ArgT: Clone + 'static, TO: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI, ArgT) -> Result<(TO, ArgT)> + 'static>;
 
     let mut outArray: metamodelica::Array<TO>;

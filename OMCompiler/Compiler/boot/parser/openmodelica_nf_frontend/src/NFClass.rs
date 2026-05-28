@@ -138,6 +138,18 @@ pub mod Prefixes {
         pub replaceablePrefix: Arc<SCode::Replaceable>,
     }
 
+    impl Default for Prefixes {
+        fn default() -> Self {
+            Self {
+                encapsulatedPrefix: Default::default(),
+                partialPrefix: Default::default(),
+                finalPrefix: Default::default(),
+                innerOuter: Default::default(),
+                replaceablePrefix: Default::default(),
+            }
+        }
+    }
+
     pub type PREFIXES = Prefixes;
 
     pub fn isEqual(mut prefs1: Arc<Prefixes>, mut prefs2: Arc<Prefixes>) -> bool {
@@ -737,7 +749,7 @@ pub fn isOverdetermined(mut cls: Arc<NFClass>) -> bool {
 // NOTE: #[tailcall::tailcall] disabled: function body contains a `match_deref!{…}` match,
 // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
 pub fn getPrefixes(mut cls: Arc<NFClass>) -> Result<Arc<Prefixes::Prefixes>> {
-    let mut prefs: Arc<Prefixes::Prefixes>;
+    let mut prefs: Arc<Prefixes::Prefixes> = Arc::new(<Prefixes::Prefixes as ::std::default::Default>::default());
     prefs = (::match_deref::match_deref! { match &(cls.clone()) {
         Deref @ PARTIAL_CLASS { .. } => var_field!((*cls).prefixes, NFClass::PARTIAL_CLASS).clone(),
         Deref @ PARTIAL_BUILTIN { .. } => var_field!((*cls).prefixes, NFClass::PARTIAL_BUILTIN).clone(),
@@ -940,7 +952,7 @@ pub fn toFlatStream(mut cls: Arc<NFClass>, mut clsNode: Arc<InstNode::InstNode>,
 
 pub fn toFlatString(mut cls: Arc<NFClass>, mut clsNode: Arc<InstNode::InstNode>, mut format: BaseModelica::OutputFormat, mut indent: ArcStr) -> Result<ArcStr> {
     let mut r#str: ArcStr = arcstr::literal!("");
-    let mut s: IOStream::IOStream;
+    let mut s: IOStream::IOStream = <IOStream::IOStream as ::std::default::Default>::default();
     s = IOStream::create((literal!("NFClass.toFlatString")).clone(), openmodelica_util::IOStream::IOStreamType::LIST)?;
     s = toFlatStream(cls.clone(), clsNode.clone(), format.clone(), (indent.clone()).clone(), s.clone())?;
     r#str = (IOStream::string(s.clone())?).clone();

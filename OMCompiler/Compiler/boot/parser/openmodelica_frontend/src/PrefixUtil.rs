@@ -254,7 +254,7 @@ pub fn prefixFirstCref(mut inPrefix: DAE::Prefix) -> Result<Arc<DAE::ComponentRe
     let mut name: ArcStr = arcstr::literal!("");
     let mut subs: Arc<metamodelica::List<Arc<DAE::Subscript>>> = metamodelica::nil();
     let DAE::PREFIX { compPre: __t2, .. } = (inPrefix.clone()) else { bail!("pattern mismatch") };
-    let (__pa0, __pa1) = ::match_deref::match_deref! { match &((*__t2).clone()) {
+    let (__pa0, __pa1) = ::match_deref::match_deref! { match &(__t2.clone()) {
         Deref @ DAE::ComponentPrefix::PRE { subscripts: __pa0, prefix: __pa1, .. } => (__pa0.clone(), __pa1.clone()),
         _ => bail!("pattern mismatch"),
     } };
@@ -945,7 +945,7 @@ fn prefixIterators(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut ih: I
             (cache.clone(), metamodelica::nil())
         },
         (cache, env, _, Deref @ metamodelica::List::Cons { head: Deref @ DAE::ReductionIterator { id, exp, guardExp: Some(gexp), ty }, tail: iters }, _) => {
-            let mut iter: Arc<DAE::ReductionIterator>;
+            let mut iter: Arc<DAE::ReductionIterator> = Arc::new(<DAE::ReductionIterator as ::std::default::Default>::default());
             let mut cache = (*cache).clone();
             let mut exp = (*exp).clone();
             let mut gexp = (*gexp).clone();
@@ -957,7 +957,7 @@ fn prefixIterators(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut ih: I
             (cache.clone(), cons(iter.clone(), iters.clone()))
         },
         (cache, env, _, Deref @ metamodelica::List::Cons { head: Deref @ DAE::ReductionIterator { id, exp, guardExp: None, ty }, tail: iters }, _) => {
-            let mut iter: Arc<DAE::ReductionIterator>;
+            let mut iter: Arc<DAE::ReductionIterator> = Arc::new(<DAE::ReductionIterator as ::std::default::Default>::default());
             let mut cache = (*cache).clone();
             let mut exp = (*exp).clone();
             let mut iters = (*iters).clone();
@@ -1161,8 +1161,8 @@ pub fn prefixExpressionsInType(mut inCache: FCore::Cache, mut inEnv: FCore::Grap
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 _ => {
-                    let mut outTy: Arc<DAE::Type> = outTy.clone();
                     let mut outCache: FCore::Cache = outCache.clone();
+                    let mut outTy: Arc<DAE::Type> = outTy.clone();
                     let (__pa0, (__pa1, _, _, _)) = Types::traverseType(inTy.clone(), (inCache.clone(), inEnv.clone(), inIH.clone(), inPre.clone()), (std::sync::Arc::new(prefixArrayDimensions) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Type>, (FCore::Cache, FCore::Graph, Arc<metamodelica::List<InnerOuter::TopInstance>>, DAE::Prefix)) -> Result<(Arc<DAE::Type>, (FCore::Cache, FCore::Graph, Arc<metamodelica::List<InnerOuter::TopInstance>>, DAE::Prefix))> + 'static>))?;
                     outTy = __pa0.clone();
                     outCache = __pa1.clone();

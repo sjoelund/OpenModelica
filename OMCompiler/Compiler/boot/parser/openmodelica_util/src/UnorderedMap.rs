@@ -66,7 +66,7 @@ pub struct UnorderedMap<K: Clone, V: Clone> {
 
 impl<K: Clone + 'static + PartialEq, V: Clone + 'static + PartialEq> PartialEq for UnorderedMap<K, V> {
     fn eq(&self, other: &Self) -> bool {
-        self.buckets == other.buckets && self.keys == other.keys && self.values == other.values && std::sync::Arc::ptr_eq(&self.hashFn, &other.hashFn) && std::sync::Arc::ptr_eq(&self.eqFn, &other.eqFn)
+        self.buckets == other.buckets && self.keys == other.keys && self.values == other.values && std::sync::Arc::ptr_eq((&self.hashFn), (&other.hashFn)) && std::sync::Arc::ptr_eq((&self.eqFn), (&other.eqFn))
     }
 }
 impl<K: Clone + 'static + PartialEq + Eq, V: Clone + 'static + PartialEq + Eq> Eq for UnorderedMap<K, V> {}
@@ -75,7 +75,7 @@ impl<K: Clone + 'static + PartialEq + Eq + PartialOrd + Ord, V: Clone + 'static 
 }
 impl<K: Clone + 'static + PartialEq + Eq + PartialOrd + Ord, V: Clone + 'static + PartialEq + Eq + PartialOrd + Ord> Ord for UnorderedMap<K, V> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.buckets.cmp(&other.buckets).then_with(|| self.keys.cmp(&other.keys).then_with(|| self.values.cmp(&other.values).then_with(|| (std::sync::Arc::as_ptr(&self.hashFn) as *const ()).cmp(&(std::sync::Arc::as_ptr(&other.hashFn) as *const ())).then_with(|| (std::sync::Arc::as_ptr(&self.eqFn) as *const ()).cmp(&(std::sync::Arc::as_ptr(&other.eqFn) as *const ()))))))
+        self.buckets.cmp(&other.buckets).then_with(|| self.keys.cmp(&other.keys).then_with(|| self.values.cmp(&other.values).then_with(|| (std::sync::Arc::as_ptr((&self.hashFn)) as *const ()).cmp(&(std::sync::Arc::as_ptr((&other.hashFn)) as *const ())).then_with(|| (std::sync::Arc::as_ptr((&self.eqFn)) as *const ()).cmp(&(std::sync::Arc::as_ptr((&other.eqFn)) as *const ()))))))
     }
 }
 impl<K: Clone + 'static + std::fmt::Debug, V: Clone + 'static + std::fmt::Debug> std::fmt::Debug for UnorderedMap<K, V> {
@@ -84,8 +84,8 @@ impl<K: Clone + 'static + std::fmt::Debug, V: Clone + 'static + std::fmt::Debug>
         __ds.field("buckets", &self.buckets);
         __ds.field("keys", &self.keys);
         __ds.field("values", &self.values);
-        __ds.field("hashFn", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(&self.hashFn)));
-        __ds.field("eqFn", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(&self.eqFn)));
+        __ds.field("hashFn", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr((&self.hashFn))));
+        __ds.field("eqFn", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr((&self.eqFn))));
         __ds.finish()
     }
 }
@@ -112,13 +112,13 @@ pub type KeyStringFn<K: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(K) 
 
 pub type ValueStringFn<V: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(V) -> Result<ArcStr> + 'static>;
 
-pub fn new<V: Clone + 'static, K: Clone + 'static>(mut hash: Arc<dyn ::std::ops::Fn(K) -> Result<i32> + 'static>, mut keyEq: Arc<dyn ::std::ops::Fn(K, K) -> Result<bool> + 'static>, mut bucketCount: i32) -> Arc<UnorderedMap<K, V>> {
+pub fn new<K: Clone + 'static, V: Clone + 'static>(mut hash: Arc<dyn ::std::ops::Fn(K) -> Result<i32> + 'static>, mut keyEq: Arc<dyn ::std::ops::Fn(K, K) -> Result<bool> + 'static>, mut bucketCount: i32) -> Arc<UnorderedMap<K, V>> {
     let mut map: Arc<UnorderedMap<K, V>>;
     map = Arc::new(UnorderedMap { buckets: Vector::newFill(bucketCount.clone(), metamodelica::nil()), keys: Vector::new(0), values: Vector::new(0), hashFn: hash.clone(), eqFn: keyEq.clone() });
     map
 }
 
-pub fn fromLists<V: Clone + 'static + Default, K: Clone + 'static + Default>(mut keys: Arc<metamodelica::List<K>>, mut values: Arc<metamodelica::List<V>>, mut hash: Arc<dyn ::std::ops::Fn(K) -> Result<i32> + 'static>, mut keyEq: Arc<dyn ::std::ops::Fn(K, K) -> Result<bool> + 'static>) -> Result<Arc<UnorderedMap<K, V>>> {
+pub fn fromLists<K: Clone + 'static + Default, V: Clone + 'static + Default>(mut keys: Arc<metamodelica::List<K>>, mut values: Arc<metamodelica::List<V>>, mut hash: Arc<dyn ::std::ops::Fn(K) -> Result<i32> + 'static>, mut keyEq: Arc<dyn ::std::ops::Fn(K, K) -> Result<bool> + 'static>) -> Result<Arc<UnorderedMap<K, V>>> {
     let mut map: Arc<UnorderedMap<K, V>>;
     let mut key_count: i32 = 0;
     let mut bucket_count: i32 = 0;
@@ -442,7 +442,7 @@ pub fn keySet<K: Clone + 'static, V: Clone + 'static>(mut map: Arc<UnorderedMap<
     Ok(set)
 }
 
-pub fn fold<FT: Clone + 'static, K: Clone + 'static, V: Clone + 'static>(mut map: Arc<UnorderedMap<K, V>>, mut r#fn: Arc<dyn ::std::ops::Fn(V, FT) -> Result<FT> + 'static>, mut arg: FT) -> FT {
+pub fn fold<K: Clone + 'static, V: Clone + 'static, FT: Clone + 'static>(mut map: Arc<UnorderedMap<K, V>>, mut r#fn: Arc<dyn ::std::ops::Fn(V, FT) -> Result<FT> + 'static>, mut arg: FT) -> FT {
     pub type FoldFn<V: Clone + 'static, FT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(V, FT) -> Result<FT> + 'static>;
 
     let mut arg: FT = arg;
@@ -450,7 +450,7 @@ pub fn fold<FT: Clone + 'static, K: Clone + 'static, V: Clone + 'static>(mut map
     arg
 }
 
-pub fn map<OT: Clone + 'static + Default, K: Clone + 'static, V: Clone + 'static>(mut map: Arc<UnorderedMap<K, V>>, mut r#fn: Arc<dyn ::std::ops::Fn(V) -> Result<OT> + 'static>) -> Arc<UnorderedMap<K, OT>> {
+pub fn map<K: Clone + 'static, V: Clone + 'static, OT: Clone + 'static + Default>(mut map: Arc<UnorderedMap<K, V>>, mut r#fn: Arc<dyn ::std::ops::Fn(V) -> Result<OT> + 'static>) -> Arc<UnorderedMap<K, OT>> {
     pub type MapFn<V: Clone + 'static, OT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(V) -> Result<OT> + 'static>;
 
     let mut outMap: Arc<UnorderedMap<K, OT>>;
@@ -578,7 +578,7 @@ pub fn toString<K: Clone + 'static, V: Clone + 'static>(mut map: Arc<UnorderedMa
 
 pub fn toJSON<K: Clone + 'static, V: Clone + 'static>(mut map: Arc<UnorderedMap<K, V>>, mut keyStringFn: Arc<dyn ::std::ops::Fn(K) -> Result<ArcStr> + 'static>, mut valueStringFn: Arc<dyn ::std::ops::Fn(V) -> Result<ArcStr> + 'static>) -> Result<ArcStr> {
     let mut r#str: ArcStr = arcstr::literal!("");
-    let mut io: IOStream::IOStream;
+    let mut io: IOStream::IOStream = <IOStream::IOStream as ::std::default::Default>::default();
     let mut keys: Arc<Vector::Vector<K>> = map.keys.clone();
     let mut values: Arc<Vector::Vector<V>> = map.values.clone();
     let mut sz: i32 = Vector::size(keys.clone());

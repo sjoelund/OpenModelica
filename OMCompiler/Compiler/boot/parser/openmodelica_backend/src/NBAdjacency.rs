@@ -136,6 +136,17 @@ pub mod Mapping {
         pub var_AtS: metamodelica::Array<(i32, i32)>,
     }
 
+    impl Default for Mapping {
+        fn default() -> Self {
+            Self {
+                eqn_StA: Default::default(),
+                var_StA: Default::default(),
+                eqn_AtS: Default::default(),
+                var_AtS: Default::default(),
+            }
+        }
+    }
+
     pub type MAPPING = Mapping;
 
     pub fn toString(mut mapping: Arc<Mapping>) -> ArcStr {
@@ -163,7 +174,7 @@ pub mod Mapping {
     }
 
     pub fn create(mut eqns: Arc<EquationPointers::EquationPointers>, mut vars: Arc<VariablePointers::VariablePointers>) -> Result<Arc<Mapping>> {
-        let mut mapping: Arc<Mapping>;
+        let mut mapping: Arc<Mapping> = Arc::new(<Mapping as ::std::default::Default>::default());
         let mut eqn_lst: Arc<metamodelica::List<Pointer::Pointer<Arc<Equation::Equation>>>> = BEquation::EquationPointers::toList(eqns.clone())?;
         let mut var_lst: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = BVariable::VariablePointers::toList(vars.clone())?;
         let mut eqn_StA: metamodelica::Array<i32>;
@@ -523,7 +534,7 @@ pub mod Matrix {
         let mut rep_set: Arc<UnorderedSet::UnorderedSet<Arc<ComponentRef::NFComponentRef>>>;
         let mut dep_map: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<Dependency::Dependency>>>;
         let mut sol_map: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<Solvability::Solvability>>>;
-        let mut mapping: Arc<Mapping::Mapping>;
+        let mut mapping: Arc<Mapping::Mapping> = Arc::new(<Mapping::Mapping as ::std::default::Default>::default());
         if ExpandableArray::getNumberOfElements(vars.varArr.clone()) > 0 || ExpandableArray::getNumberOfElements(eqns.eqArr.clone()) > 0 {
             equation_names = arrayCreate(size.clone(), Arc::new(openmodelica_nf_frontend::NFComponentRef::EMPTY));
             occurrences = arrayCreate(size.clone(), UnorderedSet::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), 13));
@@ -1032,7 +1043,7 @@ pub mod Matrix {
         let mut dependencies: metamodelica::Array<Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<Dependency::Dependency>>>>;
         let mut solvabilities: metamodelica::Array<Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<Solvability::Solvability>>>>;
         let mut repetitions: metamodelica::Array<Arc<UnorderedSet::UnorderedSet<Arc<ComponentRef::NFComponentRef>>>>;
-        let mut mapping: Arc<Mapping::Mapping>;
+        let mut mapping: Arc<Mapping::Mapping> = Arc::new(<Mapping::Mapping as ::std::default::Default>::default());
         let mut m: metamodelica::Array<Arc<metamodelica::List<i32>>>;
         let mut old_start: i32 = 0;
         let mut old_size: i32 = 0;

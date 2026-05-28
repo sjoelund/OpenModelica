@@ -89,7 +89,7 @@ pub enum LoadFileStrategy {
 impl PartialEq for LoadFileStrategy {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Self::STRATEGY_HASHTABLE { ht: __l_ht }, Self::STRATEGY_HASHTABLE { ht: __r_ht }) => std::sync::Arc::ptr_eq(__l_ht, __r_ht),
+            (Self::STRATEGY_HASHTABLE { ht: __l_ht }, Self::STRATEGY_HASHTABLE { ht: __r_ht }) => (match (__l_ht, __r_ht) { ((__lt0, __lt1, __lt2, __lt3), (__rt0, __rt1, __rt2, __rt3)) => (__lt0 == __rt0) && (__lt1 == __rt1) && (__lt2 == __rt2) && (match (__lt3, __rt3) { ((__lt0, __lt1, __lt2, __lt3), (__rt0, __rt1, __rt2, __rt3)) => std::sync::Arc::ptr_eq(__lt0, __rt0) && std::sync::Arc::ptr_eq(__lt1, __rt1) && std::sync::Arc::ptr_eq(__lt2, __rt2) && std::sync::Arc::ptr_eq(__lt3, __rt3) }) }),
             (Self::STRATEGY_ON_DEMAND { encoding: __l_encoding }, Self::STRATEGY_ON_DEMAND { encoding: __r_encoding }) => __l_encoding == __r_encoding,
             _ => false,
         }
@@ -112,7 +112,7 @@ impl Ord for LoadFileStrategy {
             non_eq => return non_eq,
         }
         match (self, other) {
-            (Self::STRATEGY_HASHTABLE { ht: __l_ht }, Self::STRATEGY_HASHTABLE { ht: __r_ht }) => (std::sync::Arc::as_ptr(__l_ht) as *const ()).cmp(&(std::sync::Arc::as_ptr(__r_ht) as *const ())),
+            (Self::STRATEGY_HASHTABLE { ht: __l_ht }, Self::STRATEGY_HASHTABLE { ht: __r_ht }) => (match (__l_ht, __r_ht) { ((__lt0, __lt1, __lt2, __lt3), (__rt0, __rt1, __rt2, __rt3)) => __lt0.cmp(__rt0).then_with(|| __lt1.cmp(__rt1).then_with(|| __lt2.cmp(__rt2).then_with(|| (match (__lt3, __rt3) { ((__lt0, __lt1, __lt2, __lt3), (__rt0, __rt1, __rt2, __rt3)) => (std::sync::Arc::as_ptr(__lt0) as *const ()).cmp(&(std::sync::Arc::as_ptr(__rt0) as *const ())).then_with(|| (std::sync::Arc::as_ptr(__lt1) as *const ()).cmp(&(std::sync::Arc::as_ptr(__rt1) as *const ())).then_with(|| (std::sync::Arc::as_ptr(__lt2) as *const ()).cmp(&(std::sync::Arc::as_ptr(__rt2) as *const ())).then_with(|| (std::sync::Arc::as_ptr(__lt3) as *const ()).cmp(&(std::sync::Arc::as_ptr(__rt3) as *const ()))))) })))) }),
             (Self::STRATEGY_ON_DEMAND { encoding: __l_encoding }, Self::STRATEGY_ON_DEMAND { encoding: __r_encoding }) => __l_encoding.cmp(__r_encoding),
             _ => unreachable!("variant-index equality already implies same variant"),
         }
@@ -123,7 +123,7 @@ impl std::fmt::Debug for LoadFileStrategy {
         match self {
             Self::STRATEGY_HASHTABLE { ht: __d_ht } => {
                 let mut __ds = __f.debug_struct("STRATEGY_HASHTABLE");
-                __ds.field("ht", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(__d_ht)));
+                __ds.field("ht", &format_args!("<dyn-fn-container@{:p}>", __d_ht as *const _));
                 __ds.finish()
             }
             Self::STRATEGY_ON_DEMAND { encoding: __d_encoding } => {
@@ -567,7 +567,7 @@ fn getPackageContentNames(mut cl: Arc<Absyn::Class>, mut filename: ArcStr, mut m
                         contents = (unwrap_break_err!(System::readFile((filename.clone()).clone()), '__try0)).clone();
                         namesToFind = System::strtok((contents.clone()).clone(), (literal!("\n")).clone());
                         namesToFind = List::removeOnTrue((literal!("")).clone(), (std::sync::Arc::new(fnptr!(stringEqual, ArcStr, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>), List::map(namesToFind.clone(), (std::sync::Arc::new(fnptr!(System::trimWhitespace, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr) -> Result<ArcStr> + 'static>)));
-                        duplicates = unwrap_break_err!(List::sortedDuplicates(List::sort(namesToFind.clone(), (std::sync::Arc::new(fnptr!(Util::strcmpBool, ArcStr, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>))?, (std::sync::Arc::new(stringEq) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>)), '__try0);
+                        duplicates = unwrap_break_err!(List::sortedDuplicates(List::sort(namesToFind.clone(), (std::sync::Arc::new(fnptr!(Util::strcmpBool, ArcStr, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>))?, (std::sync::Arc::new(fnptr!(stringEq, ArcStr, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>)), '__try0);
                         duplicatesStr = stringDelimitList(duplicates.clone(), (literal!(", ")).clone());
                         unwrap_break_err!(Error::assertionOrAddSourceMessage(duplicates.clone().is_empty(), Error::PACKAGE_ORDER_DUPLICATES.clone(), list![(duplicatesStr.clone()).clone()], SourceInfo { fileName: (filename.clone()).clone(), isReadOnly: true, lineNumberStart: 0, columnNumberStart: 0, lineNumberEnd: 0, columnNumberEnd: 0, lastModification: metamodelica::OrderedFloat(0.0_f64) }), '__try0);
                         if encrypted.clone() {
@@ -577,7 +577,7 @@ fn getPackageContentNames(mut cl: Arc<Absyn::Class>, mut filename: ArcStr, mut m
                         }
                         subdirs = System::subDirectories((mp.clone()).clone());
                         subdirs = List::filter2OnTrue(subdirs.clone(), (std::sync::Arc::new(fnptr!(existPackage, ArcStr, ArcStr, bool)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr, bool) -> Result<bool> + 'static>), (mp.clone()).clone(), encrypted.clone());
-                        intersection = List::intersectionOnTrue(subdirs.clone(), mofiles.clone(), (std::sync::Arc::new(stringEq) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>));
+                        intersection = List::intersectionOnTrue(subdirs.clone(), mofiles.clone(), (std::sync::Arc::new(fnptr!(stringEq, ArcStr, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>));
                         differencesStr = stringDelimitList(List::map1(intersection.clone(), (std::sync::Arc::new(getBothPackageAndFilename) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<ArcStr> + 'static>), (mp.clone()).clone()), (literal!(", ")).clone());
                         unwrap_break_err!(Error::assertionOrAddSourceMessage(intersection.clone().is_empty(), Error::PACKAGE_DUPLICATE_CHILDREN.clone(), list![(differencesStr.clone()).clone()], SourceInfo { fileName: (filename.clone()).clone(), isReadOnly: true, lineNumberStart: 0, columnNumberStart: 0, lineNumberEnd: 0, columnNumberEnd: 0, lastModification: metamodelica::OrderedFloat(0.0_f64) }), '__try0);
                         mofiles = listAppend(subdirs.clone(), mofiles.clone());
@@ -602,7 +602,7 @@ fn getPackageContentNames(mut cl: Arc<Absyn::Class>, mut filename: ArcStr, mut m
                             subdirs = System::subDirectories((mp.clone()).clone());
                             subdirs = List::filter2OnTrue(subdirs.clone(), (std::sync::Arc::new(fnptr!(existPackage, ArcStr, ArcStr, bool)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr, bool) -> Result<bool> + 'static>), (mp.clone()).clone(), encrypted.clone());
                             mofiles = List::sort(listAppend(subdirs.clone(), mofiles.clone()), (std::sync::Arc::new(fnptr!(Util::strcmpBool, ArcStr, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>))?;
-                            intersection = List::sortedDuplicates(mofiles.clone(), (std::sync::Arc::new(stringEq) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>))?;
+                            intersection = List::sortedDuplicates(mofiles.clone(), (std::sync::Arc::new(fnptr!(stringEq, ArcStr, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>))?;
                             differencesStr = stringDelimitList(List::map1(intersection.clone(), (std::sync::Arc::new(getBothPackageAndFilename) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<ArcStr> + 'static>), (mp.clone()).clone()), (literal!(", ")).clone());
                             Error::assertionOrAddSourceMessage(intersection.clone().is_empty(), Error::PACKAGE_DUPLICATE_CHILDREN.clone(), list![(differencesStr.clone()).clone()], info.clone())?;
                             po = listAppend(List::map(cp.clone(), (std::sync::Arc::new(fnptr!(makeClassPart, Arc<Absyn::ClassPart>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::ClassPart>) -> Result<PackageOrder> + 'static>)), List::map(mofiles.clone(), (std::sync::Arc::new(fnptr!(makeClassLoad, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr) -> Result<PackageOrder> + 'static>)));
@@ -666,7 +666,7 @@ fn checkPackageOrderFilesExist(mut po: PackageOrder, mut mp: ArcStr, mut info: S
                 }
                 Error::addSourceMessage(Error::PACKAGE_ORDER_CASE_SENSITIVE.clone(), list![(r#str.clone()).clone(), (str2.clone()).clone(), (str3.clone()).clone()], info.clone())?;
                 str4 = (Util::removeLastNChar((str3.clone()).clone(), if (encrypted.clone()) {4} else {3})?).clone();
-                differences = List::removeOnTrue((str4.clone()).clone(), (std::sync::Arc::new(stringEq) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>), differences.clone());
+                differences = List::removeOnTrue((str4.clone()).clone(), (std::sync::Arc::new(fnptr!(stringEq, ArcStr, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>), differences.clone());
                 po = PackageOrder::CLASSLOAD { cl: (str4.clone()).clone() };
             }
             ()

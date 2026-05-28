@@ -99,6 +99,20 @@ pub struct NFFlatModel {
     pub source: Arc<ElementSource>,
 }
 
+impl Default for NFFlatModel {
+    fn default() -> Self {
+        Self {
+            name: Default::default(),
+            variables: Default::default(),
+            equations: Default::default(),
+            initialEquations: Default::default(),
+            algorithms: Default::default(),
+            initialAlgorithms: Default::default(),
+            source: Default::default(),
+        }
+    }
+}
+
 pub type FLAT_MODEL = NFFlatModel;
 
 pub type TypeMap = Arc<UnorderedMap::UnorderedMap<Arc<Absyn::Path>, Arc<Type::NFType>>>;
@@ -190,14 +204,14 @@ pub fn toString(mut flatModel: Arc<NFFlatModel>, mut functions: Arc<Flatten::Fun
 }
 
 pub fn printString(mut flatModel: Arc<NFFlatModel>, mut functions: Arc<Flatten::FunctionTreeImpl::Tree>, mut printBindingTypes: bool) -> Result<()> {
-    let mut s: IOStream::IOStream;
+    let mut s: IOStream::IOStream = <IOStream::IOStream as ::std::default::Default>::default();
     s = toStream(flatModel.clone(), functions.clone(), printBindingTypes.clone())?;
     IOStream::print(s.clone(), IOStream::stdOutput.clone())?;
     Ok(())
 }
 
 pub fn toStream(mut flatModel: Arc<NFFlatModel>, mut functions: Arc<Flatten::FunctionTreeImpl::Tree>, mut printBindingTypes: bool) -> Result<IOStream::IOStream> {
-    let mut s: IOStream::IOStream;
+    let mut s: IOStream::IOStream = <IOStream::IOStream as ::std::default::Default>::default();
     s = IOStream::create((literal!("NFFlatModel.toStream")).clone(), openmodelica_util::IOStream::IOStreamType::LIST)?;
     s = appendStream(flatModel.clone(), functions.clone(), printBindingTypes.clone(), s.clone())?;
     Ok(s)
@@ -249,14 +263,14 @@ pub fn toFlatString(mut flatModel: Arc<NFFlatModel>, mut functions: Arc<Flatten:
 }
 
 pub fn printFlatString(mut flatModel: Arc<NFFlatModel>, mut functions: Arc<Flatten::FunctionTreeImpl::Tree>, mut printBindingTypes: bool) -> Result<()> {
-    let mut s: IOStream::IOStream;
+    let mut s: IOStream::IOStream = <IOStream::IOStream as ::std::default::Default>::default();
     s = toFlatStream(flatModel.clone(), functions.clone(), printBindingTypes.clone())?;
     IOStream::print(s.clone(), IOStream::stdOutput.clone())?;
     Ok(())
 }
 
 pub fn toFlatStream(mut flatModel: Arc<NFFlatModel>, mut functions: Arc<Flatten::FunctionTreeImpl::Tree>, mut printBindingTypes: bool) -> Result<IOStream::IOStream> {
-    let mut s: IOStream::IOStream;
+    let mut s: IOStream::IOStream = <IOStream::IOStream as ::std::default::Default>::default();
     s = IOStream::create((className(flatModel.clone())).clone(), openmodelica_util::IOStream::IOStreamType::LIST)?;
     s = appendFlatStream(flatModel.clone(), functions.clone(), printBindingTypes.clone(), s.clone())?;
     Ok(s)
@@ -266,7 +280,7 @@ pub fn appendFlatStream(mut flatModel: Arc<NFFlatModel>, mut functions: Arc<Flat
     let mut s: IOStream::IOStream = s;
     let mut flat_model: Arc<NFFlatModel> = flatModel.clone();
     let mut name: ArcStr = Util::makeQuotedIdentifier((className(flatModel.clone())).clone())?;
-    let mut format: BaseModelica::OutputFormat;
+    let mut format: BaseModelica::OutputFormat = <BaseModelica::OutputFormat as ::std::default::Default>::default();
     let mut scalarize: bool = false;
     let mut funcs: Arc<metamodelica::List<Arc<Function::Function>>> = Flatten::FunctionTreeImpl::listValues(functions.clone(), metamodelica::nil());
     format = BaseModelica::formatFromFlags()?;

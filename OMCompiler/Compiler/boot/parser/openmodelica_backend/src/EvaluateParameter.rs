@@ -84,15 +84,15 @@ type selectParameterFunc = std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var) ->
 pub fn evaluateParameters(mut DAE: Arc<BackendDAE::BackendDAE>) -> Result<Arc<BackendDAE::BackendDAE>> {
     let mut DAE: Arc<BackendDAE::BackendDAE> = DAE;
     let mut selectParameterfunc: selectParameterFunc;
-    let mut globalKnownVars: BackendDAE::Variables;
-    let mut aliasVars: BackendDAE::Variables;
+    let mut globalKnownVars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
+    let mut aliasVars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
     let mut initialEqs: Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>;
     let mut cache: FCore::Cache = FCore::Cache::NO_CACHE;
     let mut graph: FCore::Graph;
-    let mut repl: BackendVarTransform::VariableReplacements;
-    let mut oRepl: BackendVarTransform::VariableReplacements;
+    let mut repl: BackendVarTransform::VariableReplacements = <BackendVarTransform::VariableReplacements as ::std::default::Default>::default();
+    let mut oRepl: BackendVarTransform::VariableReplacements = <BackendVarTransform::VariableReplacements as ::std::default::Default>::default();
     let mut systs: Arc<metamodelica::List<Arc<BackendDAE::EqSystem>>> = metamodelica::nil();
-    let mut shared: Arc<BackendDAE::Shared>;
+    let mut shared: Arc<BackendDAE::Shared> = Arc::new(<BackendDAE::Shared as ::std::default::Default>::default());
     let mut comps: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = metamodelica::nil();
     let mut ass2: metamodelica::Array<i32>;
     let mut markarr: metamodelica::Array<i32>;
@@ -259,7 +259,7 @@ pub fn evaluateParameters(mut DAE: Arc<BackendDAE::BackendDAE>) -> Result<Arc<Ba
 }
 
 fn getParameterAdjacencyMatrix(mut inVar: BackendDAE::Var, mut inTpl: (BackendDAE::Variables, i32, selectParameterFunc, Arc<metamodelica::List<i32>>, metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<Arc<metamodelica::List<i32>>>, Arc<AvlSetCR::Tree>, bool)) -> Result<(BackendDAE::Var, (BackendDAE::Variables, i32, selectParameterFunc, Arc<metamodelica::List<i32>>, metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<Arc<metamodelica::List<i32>>>, Arc<AvlSetCR::Tree>, bool))> {
-    let mut outVar: BackendDAE::Var;
+    let mut outVar: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
     let mut outTpl: (BackendDAE::Variables, i32, selectParameterFunc, Arc<metamodelica::List<i32>>, metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<Arc<metamodelica::List<i32>>>, Arc<AvlSetCR::Tree>, bool);
     (outVar, outTpl) = 'mc: {
         let __mc_input = (inVar.clone(), inTpl.clone());
@@ -353,7 +353,7 @@ fn evaluateSelectedParameters0(mut i: i32, mut globalKnownVars: BackendDAE::Vari
     let mut repl: BackendVarTransform::VariableReplacements = repl;
     let mut replEvaluate: BackendVarTransform::VariableReplacements = replEvaluate;
     let mut mark: i32 = mark;
-    let mut v: BackendDAE::Var;
+    let mut v: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
     match '__try0: {
         let false = (intGt(markarr.borrow()[(i.clone()-1) as usize].clone(), 0)) else { break '__try0 Err::<_, _>(anyhow::anyhow!("pattern mismatch")) };
         {let _arr = markarr.clone(); _arr.borrow_mut()[(i.clone()-1) as usize] = mark.clone(); _arr};
@@ -399,12 +399,12 @@ fn evaluateSelectedParameters1(mut iUsed: Arc<metamodelica::List<i32>>, mut glob
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ metamodelica::List::Cons { head: i, tail: rest } => {
-                    let mut v: BackendDAE::Var;
-                    let mut cache: FCore::Cache = cache.clone();
-                    let mut globalKnownVars: BackendDAE::Variables = globalKnownVars.clone();
-                    let mut mark: i32 = mark.clone();
+                    let mut v: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
                     let mut repl: BackendVarTransform::VariableReplacements = repl.clone();
+                    let mut globalKnownVars: BackendDAE::Variables = globalKnownVars.clone();
+                    let mut cache: FCore::Cache = cache.clone();
                     let mut replEvaluate: BackendVarTransform::VariableReplacements = replEvaluate.clone();
+                    let mut mark: i32 = mark.clone();
                     let false = (intGt(markarr.borrow()[(i.clone()-1) as usize].clone(), 0)) else { bail!("pattern mismatch") };
                     {let _arr = markarr.clone(); _arr.borrow_mut()[(i.clone()-1) as usize] = mark.clone(); _arr};
                     (globalKnownVars, cache, mark, repl, replEvaluate) = evaluateSelectedParameters1(m.borrow()[(i.clone()-1) as usize].clone(), globalKnownVars.clone(), m.clone(), inIEqns.clone(), cache.clone(), graph.clone(), mark.clone(), markarr.clone(), isInitial.clone(), repl.clone(), replEvaluate.clone())?;
@@ -420,11 +420,11 @@ fn evaluateSelectedParameters1(mut iUsed: Arc<metamodelica::List<i32>>, mut glob
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ metamodelica::List::Cons { head: _, tail: rest } => {
-                    let mut replEvaluate: BackendVarTransform::VariableReplacements = replEvaluate.clone();
-                    let mut globalKnownVars: BackendDAE::Variables = globalKnownVars.clone();
-                    let mut repl: BackendVarTransform::VariableReplacements = repl.clone();
                     let mut cache: FCore::Cache = cache.clone();
                     let mut mark: i32 = mark.clone();
+                    let mut repl: BackendVarTransform::VariableReplacements = repl.clone();
+                    let mut replEvaluate: BackendVarTransform::VariableReplacements = replEvaluate.clone();
+                    let mut globalKnownVars: BackendDAE::Variables = globalKnownVars.clone();
                     (globalKnownVars, cache, mark, repl, replEvaluate) = evaluateSelectedParameters1(rest.clone(), globalKnownVars.clone(), m.clone(), inIEqns.clone(), cache.clone(), graph.clone(), mark.clone(), markarr.clone(), isInitial.clone(), repl.clone(), replEvaluate.clone())?;
                     Ok((globalKnownVars.clone(), cache.clone(), mark.clone(), repl.clone(), replEvaluate.clone()))
                 }
@@ -459,12 +459,12 @@ fn evaluateSelectedParameter(mut var: BackendDAE::Var, mut index: i32, mut globa
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 BackendDAE::Var { bindExp: Some(e), varKind: BackendDAE::VarKind::CONST, varName: cr, .. } => {
-                    let mut v: BackendDAE::Var;
+                    let mut v: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
                     let mut e1: Arc<DAE::Exp>;
                     let mut value: Arc<Values::Value> = Arc::new(Values::Value::META_FAIL);
+                    let mut cache: FCore::Cache = cache.clone();
                     let mut globalKnownVars: BackendDAE::Variables = globalKnownVars.clone();
                     let mut replEvaluate: BackendVarTransform::VariableReplacements = replEvaluate.clone();
-                    let mut cache: FCore::Cache = cache.clone();
                     let mut repl: BackendVarTransform::VariableReplacements = repl.clone();
                     (e1, _) = BackendVarTransform::replaceExp(e.clone(), repl.clone(), None)?;
                     (cache, value) = Ceval::ceval(cache.clone(), graph.clone(), e1.clone(), false, openmodelica_ast::Absyn::Msg::NO_MSG, 0)?;
@@ -481,10 +481,10 @@ fn evaluateSelectedParameter(mut var: BackendDAE::Var, mut index: i32, mut globa
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 BackendDAE::Var { bindExp: Some(e), varKind: BackendDAE::VarKind::PARAM, varName: cr, .. } => {
-                    let mut v: BackendDAE::Var;
-                    let mut repl: BackendVarTransform::VariableReplacements = repl.clone();
-                    let mut globalKnownVars: BackendDAE::Variables = globalKnownVars.clone();
+                    let mut v: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
                     let mut replEvaluate: BackendVarTransform::VariableReplacements = replEvaluate.clone();
+                    let mut globalKnownVars: BackendDAE::Variables = globalKnownVars.clone();
+                    let mut repl: BackendVarTransform::VariableReplacements = repl.clone();
                     let true = (Expression::isConst(e.clone())?) else { bail!("pattern mismatch") };
                     v = BackendVariable::setVarFinal(var.clone(), true)?;
                     globalKnownVars = BackendVariable::setVarAt(globalKnownVars.clone(), index.clone(), v.clone())?;
@@ -500,13 +500,13 @@ fn evaluateSelectedParameter(mut var: BackendDAE::Var, mut index: i32, mut globa
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 BackendDAE::Var { bindExp: Some(e), varKind: BackendDAE::VarKind::PARAM, varName: cr, .. } => {
-                    let mut v: BackendDAE::Var;
+                    let mut v: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
                     let mut e1: Arc<DAE::Exp>;
                     let mut value: Arc<Values::Value> = Arc::new(Values::Value::META_FAIL);
-                    let mut globalKnownVars: BackendDAE::Variables = globalKnownVars.clone();
-                    let mut cache: FCore::Cache = cache.clone();
                     let mut repl: BackendVarTransform::VariableReplacements = repl.clone();
                     let mut replEvaluate: BackendVarTransform::VariableReplacements = replEvaluate.clone();
+                    let mut cache: FCore::Cache = cache.clone();
+                    let mut globalKnownVars: BackendDAE::Variables = globalKnownVars.clone();
                     (e1, _) = BackendVarTransform::replaceExp(e.clone(), repl.clone(), None)?;
                     (cache, value) = Ceval::ceval(cache.clone(), graph.clone(), e1.clone(), false, openmodelica_ast::Absyn::Msg::NO_MSG, 0)?;
                     e1 = ValuesUtil::valueExp(value.clone(), None)?;
@@ -523,14 +523,14 @@ fn evaluateSelectedParameter(mut var: BackendDAE::Var, mut index: i32, mut globa
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 BackendDAE::Var { values: attr, varKind: BackendDAE::VarKind::PARAM, varName: cr, .. } => {
-                    let mut v: BackendDAE::Var;
+                    let mut v: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
                     let mut e: Arc<DAE::Exp>;
                     let mut e1: Arc<DAE::Exp>;
                     let mut value: Arc<Values::Value> = Arc::new(Values::Value::META_FAIL);
-                    let mut repl: BackendVarTransform::VariableReplacements = repl.clone();
-                    let mut replEvaluate: BackendVarTransform::VariableReplacements = replEvaluate.clone();
-                    let mut globalKnownVars: BackendDAE::Variables = globalKnownVars.clone();
                     let mut cache: FCore::Cache = cache.clone();
+                    let mut repl: BackendVarTransform::VariableReplacements = repl.clone();
+                    let mut globalKnownVars: BackendDAE::Variables = globalKnownVars.clone();
+                    let mut replEvaluate: BackendVarTransform::VariableReplacements = replEvaluate.clone();
                     let true = (BackendVariable::varFixed(var.clone())) else { bail!("pattern mismatch") };
                     let false = (BackendVariable::varHasBindExp(var.clone())) else { bail!("pattern mismatch") };
                     e = DAEUtil::getStartAttrFail(attr.clone())?;
@@ -572,7 +572,7 @@ fn evaluateParameter(mut var: BackendDAE::Var, mut index: i32, mut globalKnownVa
     let mut replEvaluate: BackendVarTransform::VariableReplacements = replEvaluate;
     let _ = (::match_deref::match_deref! { match &(var.clone()) {
         BackendDAE::Var { bindExp: Some(e), varKind: BackendDAE::VarKind::PARAM, varName: cr, .. } => {
-            let mut v: BackendDAE::Var;
+            let mut v: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
             let mut e1: Arc<DAE::Exp>;
             let mut value: Arc<Values::Value> = Arc::new(Values::Value::META_FAIL);
             let mut e = (*e).clone();
@@ -586,7 +586,7 @@ fn evaluateParameter(mut var: BackendDAE::Var, mut index: i32, mut globalKnownVa
             ()
         },
         BackendDAE::Var { values: attr, varKind: BackendDAE::VarKind::PARAM, varName: cr, .. } if (BackendVariable::varFixed(var.clone())) => {
-            let mut v: BackendDAE::Var;
+            let mut v: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
             let mut e: Arc<DAE::Exp>;
             let mut e1: Arc<DAE::Exp>;
             let mut value: Arc<Values::Value> = Arc::new(Values::Value::META_FAIL);
@@ -699,13 +699,13 @@ fn replaceCrefWithBindStartExp(mut inExp: Arc<DAE::Exp>, mut inTuple: (BackendDA
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ DAE::Exp::CREF { componentRef: cr, .. }, (vars, b, hs)) => {
                     let mut e: Arc<DAE::Exp>;
-                    let mut v: BackendDAE::Var;
+                    let mut v: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
                     let mut b = (*b).clone();
                     let mut hs = (*hs).clone();
                     let false = (BaseHashSet::has(cr.clone(), hs.clone())?) else { bail!("pattern mismatch") };
                     (v, _) = BackendVariable::getVarSingle(cr.clone(), vars.clone())?;
                     e = BackendVariable::varStartValueType(v.clone())?;
-                    (hs, _, _, _, _) = BaseHashSet::add(cr.clone(), hs.clone())?;
+                    hs = BaseHashSet::add(cr.clone(), hs.clone())?;
                     let (__pa0, (_, __pa1, __pa2)) = Expression::traverseExpBottomUp(e.clone(), (std::sync::Arc::new(replaceCrefWithBindStartExp) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, (BackendDAE::Variables, bool, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<Arc<DAE::ComponentRef>>>), i32, i32, (HashSet::FuncHashCref, HashSet::FuncCrefEqual, HashSet::FuncCrefStr)))) -> Result<(Arc<DAE::Exp>, (BackendDAE::Variables, bool, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<Arc<DAE::ComponentRef>>>), i32, i32, (HashSet::FuncHashCref, HashSet::FuncCrefEqual, HashSet::FuncCrefStr))))> + 'static>), (vars.clone(), b.clone(), hs.clone()))?;
                     e = __pa0.clone();
                     b = __pa1.clone();
@@ -737,9 +737,9 @@ fn replaceCrefWithBindStartExp(mut inExp: Arc<DAE::Exp>, mut inTuple: (BackendDA
 }
 
 fn traverseParameterSorted(mut inComps: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>>, mut inGlobalKnownVars: BackendDAE::Variables, mut m: metamodelica::Array<Arc<metamodelica::List<i32>>>, mut inIEqns: Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, mut iCache: FCore::Cache, mut graph: FCore::Graph, mut iMark: i32, mut markarr: metamodelica::Array<i32>, mut repl: BackendVarTransform::VariableReplacements, mut replEvaluate: BackendVarTransform::VariableReplacements, mut isInitial: bool) -> Result<(BackendDAE::Variables, BackendVarTransform::VariableReplacements, BackendVarTransform::VariableReplacements, FCore::Cache, i32)> {
-    let mut oKnVars: BackendDAE::Variables;
-    let mut oRepl: BackendVarTransform::VariableReplacements;
-    let mut oReplEvaluate: BackendVarTransform::VariableReplacements;
+    let mut oKnVars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
+    let mut oRepl: BackendVarTransform::VariableReplacements = <BackendVarTransform::VariableReplacements as ::std::default::Default>::default();
+    let mut oReplEvaluate: BackendVarTransform::VariableReplacements = <BackendVarTransform::VariableReplacements as ::std::default::Default>::default();
     let mut oCache: FCore::Cache = FCore::Cache::NO_CACHE;
     let mut oMark: i32 = 0;
     (oKnVars, oRepl, oReplEvaluate, oCache, oMark) = (::match_deref::match_deref! { match &(inComps.clone()) {
@@ -747,10 +747,10 @@ fn traverseParameterSorted(mut inComps: Arc<metamodelica::List<Arc<metamodelica:
             (inGlobalKnownVars.clone(), repl.clone(), replEvaluate.clone(), iCache.clone(), iMark.clone())
         },
         Deref @ metamodelica::List::Cons { head: Deref @ metamodelica::List::Cons { head: i, tail: Deref @ metamodelica::List::Nil }, tail: rest } => {
-            let mut globalKnownVars: BackendDAE::Variables;
-            let mut v: BackendDAE::Var;
-            let mut repl1: BackendVarTransform::VariableReplacements;
-            let mut evrepl: BackendVarTransform::VariableReplacements;
+            let mut globalKnownVars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
+            let mut v: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
+            let mut repl1: BackendVarTransform::VariableReplacements = <BackendVarTransform::VariableReplacements as ::std::default::Default>::default();
+            let mut evrepl: BackendVarTransform::VariableReplacements = <BackendVarTransform::VariableReplacements as ::std::default::Default>::default();
             let mut mark: i32 = 0;
             let mut cache: FCore::Cache = FCore::Cache::NO_CACHE;
             v = BackendVariable::getVarAt(inGlobalKnownVars.clone(), i.clone())?;
@@ -760,9 +760,9 @@ fn traverseParameterSorted(mut inComps: Arc<metamodelica::List<Arc<metamodelica:
             (globalKnownVars.clone(), repl1.clone(), evrepl.clone(), cache.clone(), mark.clone())
         },
         Deref @ metamodelica::List::Cons { head: ilst, tail: rest } => {
-            let mut globalKnownVars: BackendDAE::Variables;
-            let mut repl1: BackendVarTransform::VariableReplacements;
-            let mut evrepl: BackendVarTransform::VariableReplacements;
+            let mut globalKnownVars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
+            let mut repl1: BackendVarTransform::VariableReplacements = <BackendVarTransform::VariableReplacements as ::std::default::Default>::default();
+            let mut evrepl: BackendVarTransform::VariableReplacements = <BackendVarTransform::VariableReplacements as ::std::default::Default>::default();
             let mut mark: i32 = 0;
             let mut cache: FCore::Cache = FCore::Cache::NO_CACHE;
             (globalKnownVars, repl1, evrepl, cache, mark) = traverseParameterSorted(List::map(ilst.clone(), std::sync::Arc::new(fnptr!(List::create, _))), inGlobalKnownVars.clone(), m.clone(), inIEqns.clone(), iCache.clone(), graph.clone(), iMark.clone(), markarr.clone(), repl.clone(), replEvaluate.clone(), isInitial.clone())?;
@@ -790,8 +790,8 @@ fn evaluateParameterBindings(mut var: BackendDAE::Var, mut index: i32, mut globa
                     let mut b: bool = false;
                     let mut v = (*v).clone();
                     let mut e = (*e).clone();
-                    let mut replEvaluate: BackendVarTransform::VariableReplacements = replEvaluate.clone();
                     let mut globalKnownVars: BackendDAE::Variables = globalKnownVars.clone();
+                    let mut replEvaluate: BackendVarTransform::VariableReplacements = replEvaluate.clone();
                     let mut repl: BackendVarTransform::VariableReplacements = repl.clone();
                     if Expression::isConst(e.clone())? && BackendVariable::isFinalVar(v.clone()) && BackendVariable::varFixed(v.clone()) {
                         (repl, replEvaluate) = addConstExpReplacement(e.clone(), cr.clone(), repl.clone(), replEvaluate.clone())?;
@@ -828,7 +828,18 @@ fn evaluateParameterBindings(mut var: BackendDAE::Var, mut index: i32, mut globa
                     attr = __pa0.clone();
                     replEvaluate = __pa1.clone();
                     v = BackendVariable::setVarAttributes(v.clone(), attr.clone());
-                    todo!("unhandled field-assign shape: v.hideResult");
+                    v.hideResult = (::match_deref::match_deref! { match &(hideResultOpt.clone()) {
+        Some(hideResultExp) => {
+                    let mut hideResultExp = (*hideResultExp).clone();
+                    (hideResultExp, b) = BackendVarTransform::replaceExp(hideResultExp.clone(), replEvaluate.clone(), None)?;
+                    if b.clone() {
+                        (hideResultExp, _) = ExpressionSimplify::simplify(hideResultExp.clone())?;
+                    }
+                    Some(hideResultExp.clone())
+        },
+        _ => v.hideResult.clone(),
+        _ => unreachable!("match_deref! exhaustiveness placeholder"),
+    } });
                     globalKnownVars = BackendVariable::setVarAt(globalKnownVars.clone(), index.clone(), v.clone())?;
                     Ok(())
                 }
@@ -846,8 +857,8 @@ fn evaluateParameterBindings(mut var: BackendDAE::Var, mut index: i32, mut globa
                     let mut v = (*v).clone();
                     let mut attr = (*attr).clone();
                     let mut repl: BackendVarTransform::VariableReplacements = repl.clone();
-                    let mut replEvaluate: BackendVarTransform::VariableReplacements = replEvaluate.clone();
                     let mut globalKnownVars: BackendDAE::Variables = globalKnownVars.clone();
+                    let mut replEvaluate: BackendVarTransform::VariableReplacements = replEvaluate.clone();
                     let true = (BackendVariable::varFixed(var.clone())) else { bail!("pattern mismatch") };
                     e = DAEUtil::getStartAttrFail(attr.clone())?;
                     (e, b) = BackendVarTransform::replaceExp(e.clone(), replEvaluate.clone(), None)?;
@@ -879,7 +890,18 @@ fn evaluateParameterBindings(mut var: BackendDAE::Var, mut index: i32, mut globa
                     attr = __pa0.clone();
                     replEvaluate = __pa1.clone();
                     v = BackendVariable::setVarAttributes(v.clone(), attr.clone());
-                    todo!("unhandled field-assign shape: v.hideResult");
+                    v.hideResult = (::match_deref::match_deref! { match &(hideResultOpt.clone()) {
+        Some(hideResultExp) => {
+                    let mut hideResultExp = (*hideResultExp).clone();
+                    (hideResultExp, b) = BackendVarTransform::replaceExp(hideResultExp.clone(), replEvaluate.clone(), None)?;
+                    if b.clone() {
+                        (hideResultExp, _) = ExpressionSimplify::simplify(hideResultExp.clone())?;
+                    }
+                    Some(hideResultExp.clone())
+        },
+        _ => v.hideResult.clone(),
+        _ => unreachable!("match_deref! exhaustiveness placeholder"),
+    } });
                     globalKnownVars = BackendVariable::setVarAt(globalKnownVars.clone(), index.clone(), v.clone())?;
                     Ok(())
                 }
@@ -896,8 +918,8 @@ fn evaluateParameterBindings(mut var: BackendDAE::Var, mut index: i32, mut globa
                     let mut b: bool = false;
                     let mut v = (*v).clone();
                     let mut e = (*e).clone();
-                    let mut globalKnownVars: BackendDAE::Variables = globalKnownVars.clone();
                     let mut replEvaluate: BackendVarTransform::VariableReplacements = replEvaluate.clone();
+                    let mut globalKnownVars: BackendDAE::Variables = globalKnownVars.clone();
                     (e, b) = BackendVarTransform::replaceExp(e.clone(), replEvaluate.clone(), None)?;
                     if b.clone() {
                         (e, _) = ExpressionSimplify::simplify(e.clone())?;
@@ -925,7 +947,18 @@ fn evaluateParameterBindings(mut var: BackendDAE::Var, mut index: i32, mut globa
                     attr = __pa0.clone();
                     replEvaluate = __pa1.clone();
                     v = BackendVariable::setVarAttributes(v.clone(), attr.clone());
-                    todo!("unhandled field-assign shape: v.hideResult");
+                    v.hideResult = (::match_deref::match_deref! { match &(hideResultOpt.clone()) {
+        Some(hideResultExp) => {
+                    let mut hideResultExp = (*hideResultExp).clone();
+                    (hideResultExp, b) = BackendVarTransform::replaceExp(hideResultExp.clone(), replEvaluate.clone(), None)?;
+                    if b.clone() {
+                        (hideResultExp, _) = ExpressionSimplify::simplify(hideResultExp.clone())?;
+                    }
+                    Some(hideResultExp.clone())
+        },
+        _ => v.hideResult.clone(),
+        _ => unreachable!("match_deref! exhaustiveness placeholder"),
+    } });
                     globalKnownVars = BackendVariable::setVarAt(globalKnownVars.clone(), index.clone(), v.clone())?;
                     Ok(())
                 }
@@ -935,12 +968,12 @@ fn evaluateParameterBindings(mut var: BackendDAE::Var, mut index: i32, mut globa
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 BackendDAE::Var { hideResult: hideResultOpt, values: attr, .. } => {
-                    let mut v: BackendDAE::Var;
+                    let mut v: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
                     let mut hideResultExp: Arc<DAE::Exp>;
                     let mut b: bool = false;
                     let mut attr = (*attr).clone();
-                    let mut globalKnownVars: BackendDAE::Variables = globalKnownVars.clone();
                     let mut replEvaluate: BackendVarTransform::VariableReplacements = replEvaluate.clone();
+                    let mut globalKnownVars: BackendDAE::Variables = globalKnownVars.clone();
                     let (__pa0, __pa1) = ::match_deref::match_deref! { match &(BackendDAEUtil::traverseBackendDAEVarAttr(attr.clone(), (std::sync::Arc::new(traverseExpVisitorWrapper) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, (BackendVarTransform::VariableReplacements, bool)) -> Result<(Arc<DAE::Exp>, (BackendVarTransform::VariableReplacements, bool))> + 'static>), (replEvaluate.clone(), false))?) {
                         (__pa0, (__pa1, true)) => (__pa0.clone(), __pa1.clone()),
                         _ => bail!("pattern mismatch"),
@@ -1008,9 +1041,9 @@ fn traverseExpVisitorWrapper(mut inExp: Arc<DAE::Exp>, mut inTpl: (BackendVarTra
 }
 
 fn replaceEvaluatedParametersSystem(mut isyst: Arc<BackendDAE::EqSystem>, mut inTypeA: (BackendDAE::Variables, metamodelica::Array<Arc<metamodelica::List<i32>>>, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, FCore::Cache, FCore::Graph, i32, metamodelica::Array<i32>, bool, BackendVarTransform::VariableReplacements, BackendVarTransform::VariableReplacements)) -> Result<(Arc<BackendDAE::EqSystem>, (BackendDAE::Variables, metamodelica::Array<Arc<metamodelica::List<i32>>>, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, FCore::Cache, FCore::Graph, i32, metamodelica::Array<i32>, bool, BackendVarTransform::VariableReplacements, BackendVarTransform::VariableReplacements))> {
-    let mut osyst: Arc<BackendDAE::EqSystem>;
+    let mut osyst: Arc<BackendDAE::EqSystem> = Arc::new(<BackendDAE::EqSystem as ::std::default::Default>::default());
     let mut outTypeA: (BackendDAE::Variables, metamodelica::Array<Arc<metamodelica::List<i32>>>, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, FCore::Cache, FCore::Graph, i32, metamodelica::Array<i32>, bool, BackendVarTransform::VariableReplacements, BackendVarTransform::VariableReplacements);
-    let mut vars: BackendDAE::Variables;
+    let mut vars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
     let __pa0 = ::match_deref::match_deref! { match &(isyst.clone()) {
         Deref @ BackendDAE::EqSystem { orderedVars: __pa0, .. } => __pa0.clone(),
         _ => bail!("pattern mismatch"),
@@ -1022,7 +1055,7 @@ fn replaceEvaluatedParametersSystem(mut isyst: Arc<BackendDAE::EqSystem>, mut in
 }
 
 fn replaceEvaluatedParameterTraverser(mut inVar: BackendDAE::Var, mut inTpl: (BackendDAE::Variables, metamodelica::Array<Arc<metamodelica::List<i32>>>, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, FCore::Cache, FCore::Graph, i32, metamodelica::Array<i32>, bool, BackendVarTransform::VariableReplacements, BackendVarTransform::VariableReplacements)) -> Result<(BackendDAE::Var, (BackendDAE::Variables, metamodelica::Array<Arc<metamodelica::List<i32>>>, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, FCore::Cache, FCore::Graph, i32, metamodelica::Array<i32>, bool, BackendVarTransform::VariableReplacements, BackendVarTransform::VariableReplacements))> {
-    let mut outVar: BackendDAE::Var;
+    let mut outVar: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
     let mut outTpl: (BackendDAE::Variables, metamodelica::Array<Arc<metamodelica::List<i32>>>, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, FCore::Cache, FCore::Graph, i32, metamodelica::Array<i32>, bool, BackendVarTransform::VariableReplacements, BackendVarTransform::VariableReplacements);
     (outVar, outTpl) = 'mc: {
         let __mc_input = (inVar.clone(), inTpl.clone());
@@ -1099,11 +1132,11 @@ fn replaceEvaluatedParameterTraverser(mut inVar: BackendDAE::Var, mut inTpl: (Ba
 }
 
 fn replaceEvaluatedParametersEqns(mut inDAE: Arc<BackendDAE::BackendDAE>, mut inRepl: BackendVarTransform::VariableReplacements) -> Result<Arc<BackendDAE::BackendDAE>> {
-    let mut outDAE: Arc<BackendDAE::BackendDAE>;
+    let mut outDAE: Arc<BackendDAE::BackendDAE> = Arc::new(<BackendDAE::BackendDAE as ::std::default::Default>::default());
     let mut lsteqns: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
     let mut systs: Arc<metamodelica::List<Arc<BackendDAE::EqSystem>>> = metamodelica::nil();
     let mut b: bool = false;
-    let mut shared: Arc<BackendDAE::Shared>;
+    let mut shared: Arc<BackendDAE::Shared> = Arc::new(<BackendDAE::Shared as ::std::default::Default>::default());
     let (__pa0, __pa1) = ::match_deref::match_deref! { match &(inDAE.clone()) {
         Deref @ DAE { UNIQUEIO: __pa0, derivativeNamePrefix: __pa1, .. } => (__pa0.clone(), __pa1.clone()),
         _ => bail!("pattern mismatch"),

@@ -58,6 +58,15 @@ pub struct NFOperator {
     pub op: Op,
 }
 
+impl Default for NFOperator {
+    fn default() -> Self {
+        Self {
+            ty: Default::default(),
+            op: Default::default(),
+        }
+    }
+}
+
 pub type OPERATOR = NFOperator;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
@@ -105,6 +114,9 @@ impl PartialOrd for Op {
 }
 impl Ord for Op {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering { (*self as i32).cmp(&(*other as i32)) }
+}
+impl Default for Op {
+    fn default() -> Self { Self::ADD }
 }
 
 pub fn compare(mut op1: Arc<NFOperator>, mut op2: Arc<NFOperator>) -> i32 {
@@ -288,7 +300,7 @@ pub fn isScalarProduct(mut operator: Arc<NFOperator>) -> bool {
 }
 
 pub fn fromAbsyn(mut inOperator: Absyn::Operator) -> Result<Arc<NFOperator>> {
-    let mut outOperator: Arc<NFOperator>;
+    let mut outOperator: Arc<NFOperator> = Arc::new(<NFOperator as ::std::default::Default>::default());
     let mut op: Op = Op::ADD;
     op = (match inOperator.clone() {
         Absyn::Operator::ADD => Op::ADD.clone(),
@@ -661,7 +673,7 @@ pub fn makeNotEqual(mut ty: Arc<Type::NFType>) -> Arc<NFOperator> {
 }
 
 pub fn makeScalarArray(mut ty: Arc<Type::NFType>, mut op: Op) -> Result<Arc<NFOperator>> {
-    let mut outOp: Arc<NFOperator>;
+    let mut outOp: Arc<NFOperator> = Arc::new(<NFOperator as ::std::default::Default>::default());
     let mut o: Op = Op::ADD;
     o = (match op.clone() {
         Op::ADD => Op::ADD_SCALAR_ARRAY.clone(),
@@ -676,7 +688,7 @@ pub fn makeScalarArray(mut ty: Arc<Type::NFType>, mut op: Op) -> Result<Arc<NFOp
 }
 
 pub fn makeArrayScalar(mut ty: Arc<Type::NFType>, mut op: Op) -> Result<Arc<NFOperator>> {
-    let mut outOp: Arc<NFOperator>;
+    let mut outOp: Arc<NFOperator> = Arc::new(<NFOperator as ::std::default::Default>::default());
     let mut o: Op = Op::ADD;
     o = (match op.clone() {
         Op::ADD => Op::ADD_ARRAY_SCALAR.clone(),
@@ -906,7 +918,7 @@ pub fn classifyAddition(mut op: Arc<NFOperator>) -> SizeClassification {
 }
 
 pub fn fromClassification(mut cl: Classification, mut ty: Arc<Type::NFType>) -> Result<Arc<NFOperator>> {
-    let mut result: Arc<NFOperator>;
+    let mut result: Arc<NFOperator> = Arc::new(<NFOperator as ::std::default::Default>::default());
     let mut op: Op = Op::ADD;
     op = (match cl.clone() {
         (MathClassification::ADDITION, SizeClassification::SCALAR) => Op::ADD.clone(),

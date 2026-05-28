@@ -124,6 +124,19 @@ pub struct NFOCConnectionGraph {
     pub connections: FlatEdges,
 }
 
+impl Default for NFOCConnectionGraph {
+    fn default() -> Self {
+        Self {
+            updateGraph: Default::default(),
+            definiteRoots: Default::default(),
+            potentialRoots: Default::default(),
+            uniqueRoots: Default::default(),
+            branches: Default::default(),
+            connections: Default::default(),
+        }
+    }
+}
+
 pub type GRAPH = NFOCConnectionGraph;
 
 
@@ -194,6 +207,16 @@ pub mod CrefSets {
         pub nodeCount: i32,
     }
 
+    impl Default for Sets {
+        fn default() -> Self {
+            Self {
+                nodes: Default::default(),
+                elements: Default::default(),
+                nodeCount: Default::default(),
+            }
+        }
+    }
+
     pub type DISJOINT_SETS = Sets;
 
 
@@ -249,7 +272,7 @@ pub mod CrefSets {
     }
 
     pub fn emptySets(mut setCount: i32) -> Sets {
-        let mut sets: Sets;
+        let mut sets: Sets = <Sets as ::std::default::Default>::default();
         let mut nodes: metamodelica::Array<i32>;
         let mut elements: IndexTable;
         let mut sz: i32 = 0;
@@ -262,7 +285,7 @@ pub mod CrefSets {
 
     pub fn extractSets(mut sets: Sets) -> (metamodelica::Array<Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>>, Sets) {
         let mut setsArray: metamodelica::Array<Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>>;
-        let mut assignedSets: Sets;
+        let mut assignedSets: Sets = <Sets as ::std::default::Default>::default();
         let mut nodes: metamodelica::Array<i32>;
         let mut set_idx: i32 = 0;
         let mut idx: i32 = 0;
@@ -330,7 +353,7 @@ pub mod CrefSets {
 
     pub fn findSet(mut entry: Entry, mut sets: Sets) -> Result<(i32, Sets)> {
         let mut set: i32 = 0;
-        let mut updatedSets: Sets;
+        let mut updatedSets: Sets = <Sets as ::std::default::Default>::default();
         let mut index: i32 = 0;
         (updatedSets, index) = find(entry.clone(), sets.clone())?;
         set = findRoot(index.clone(), updatedSets.nodes.clone())?;
@@ -430,7 +453,7 @@ pub fn handleOverconstrainedConnections(mut flatModel: Arc<FlatModel::NFFlatMode
 
 fn addBreakableBranches(mut connections: Arc<metamodelica::List<Arc<Connection::NFConnection>>>, mut isDeleted: Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>, mut printTrace: bool, mut graph: NFOCConnectionGraph) -> Result<NFOCConnectionGraph> {
     let mut graph: NFOCConnectionGraph = graph;
-    let mut breakable: CrefSets::Sets;
+    let mut breakable: CrefSets::Sets = <CrefSets::Sets as ::std::default::Default>::default();
     let mut c1: Arc<Connector::NFConnector> = Arc::new(<Connector::NFConnector as ::std::default::Default>::default());
     let mut c2: Arc<Connector::NFConnector> = Arc::new(<Connector::NFConnector as ::std::default::Default>::default());
     let mut lhs_crefs: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
@@ -1411,7 +1434,7 @@ fn getConnections(mut inGraph: NFOCConnectionGraph) -> Result<FlatEdges> {
 }
 
 fn merge(mut inGraph1: NFOCConnectionGraph, mut inGraph2: NFOCConnectionGraph) -> Result<NFOCConnectionGraph> {
-    let mut outGraph: NFOCConnectionGraph;
+    let mut outGraph: NFOCConnectionGraph = <NFOCConnectionGraph as ::std::default::Default>::default();
     outGraph = 'mc: {
         let __mc_input = (inGraph1.clone(), inGraph2.clone());
         if let Ok(__v) = (|| -> Result<_> {
@@ -1574,7 +1597,7 @@ fn generateGraphViz(mut modelNameQualified: ArcStr, mut definiteRoots: DefiniteR
                     let mut tStart: metamodelica::Real = metamodelica::OrderedFloat(0.0_f64);
                     let mut tEnd: metamodelica::Real = metamodelica::OrderedFloat(0.0_f64);
                     let mut t: metamodelica::Real = metamodelica::OrderedFloat(0.0_f64);
-                    let mut graphVizStream: IOStream::IOStream;
+                    let mut graphVizStream: IOStream::IOStream = <IOStream::IOStream as ::std::default::Default>::default();
                     let mut infoNode: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
                     tStart = clock();
                     i = (literal!("\t")).clone();

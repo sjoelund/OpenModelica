@@ -166,7 +166,7 @@ pub fn combine(mut jacobians: Arc<metamodelica::List<Arc<Jacobian::NBackendDAE>>
     let mut nnz: i32 = 0;
     let mut varData: Arc<VarData::VarData> = Arc::new(VarData::VAR_DATA_EMPTY);
     let mut eqData: Arc<EqData::EqData> = Arc::new(EqData::EQ_DATA_EMPTY);
-    let mut sparsityPattern: Arc<SparsityPattern::SparsityPattern>;
+    let mut sparsityPattern: Arc<SparsityPattern::SparsityPattern> = Arc::new(<SparsityPattern::SparsityPattern as ::std::default::Default>::default());
     let mut sparsityColoring: Arc<SparsityColoring::SparsityColoring> = SparsityColoring::lazy(EMPTY_SPARSITY_PATTERN().clone());
     if List::hasOneElement(jacobians.clone()) {
         jacobian = listHead(jacobians.clone())?;
@@ -215,7 +215,7 @@ pub fn combine(mut jacobians: Arc<metamodelica::List<Arc<Jacobian::NBackendDAE>>
     Ok(jacobian)
 }
 
-pub fn getModule() -> Result<Module::jacobianInterface> {
+pub fn getModule() -> Result<Arc<dyn ::std::ops::Fn(ArcStr, JacobianType, Arc<VariablePointers::VariablePointers>, Arc<VariablePointers::VariablePointers>, Arc<EquationPointers::EquationPointers>, Option<metamodelica::Array<Arc<StrongComponent::NBStrongComponent>>>, Option<Arc<Adjacency::Matrix::Matrix>>, Arc<UnorderedMap::UnorderedMap<Arc<Path>, Arc<Function::Function>>>, bool) -> Result<Option<Arc<Jacobian::NBackendDAE>>> + 'static>> {
     let mut func: Module::jacobianInterface;
     func = (::match_deref::match_deref! { match &(Flags::getConfigString(Flags::GENERATE_DYNAMIC_JACOBIAN.clone())?) {
         Deref @ "symbolic" => jacobianSymbolic.clone(),
@@ -273,6 +273,18 @@ pub mod SparsityPattern {
         pub nnz: i32,
     }
 
+    impl Default for SparsityPattern {
+        fn default() -> Self {
+            Self {
+                col_wise_pattern: Default::default(),
+                row_wise_pattern: Default::default(),
+                seed_vars: Default::default(),
+                partial_vars: Default::default(),
+                nnz: Default::default(),
+            }
+        }
+    }
+
     pub type SPARSITY_PATTERN = SparsityPattern;
 
     pub fn toString(mut pattern: Arc<SparsityPattern>) -> Result<ArcStr> {
@@ -305,8 +317,8 @@ pub mod SparsityPattern {
     }
 
     pub fn lazy(mut seedCandidates: Arc<VariablePointers::VariablePointers>, mut partialCandidates: Arc<VariablePointers::VariablePointers>, mut strongComponents: Option<metamodelica::Array<Arc<StrongComponent::NBStrongComponent>>>, mut jacType: JacobianType) -> Result<(Arc<SparsityPattern>, Arc<SparsityColoring::SparsityColoring>)> {
-        let mut sparsityPattern: Arc<SparsityPattern>;
-        let mut sparsityColoring: Arc<SparsityColoring::SparsityColoring>;
+        let mut sparsityPattern: Arc<SparsityPattern> = Arc::new(<SparsityPattern as ::std::default::Default>::default());
+        let mut sparsityColoring: Arc<SparsityColoring::SparsityColoring> = Arc::new(<SparsityColoring::SparsityColoring as ::std::default::Default>::default());
         let mut seed_vars: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
         let mut partial_vars: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
         let mut cols: Arc<metamodelica::List<(Arc<ComponentRef::NFComponentRef>, Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>)>> = metamodelica::nil();
@@ -354,8 +366,8 @@ pub mod SparsityPattern {
     }
 
     pub fn create(mut seedCandidates: Arc<VariablePointers::VariablePointers>, mut partialCandidates: Arc<VariablePointers::VariablePointers>, mut strongComponents: Option<metamodelica::Array<Arc<StrongComponent::NBStrongComponent>>>, mut jacType: JacobianType) -> Result<(Arc<SparsityPattern>, Arc<SparsityColoring::SparsityColoring>)> {
-        let mut sparsityPattern: Arc<SparsityPattern>;
-        let mut sparsityColoring: Arc<SparsityColoring::SparsityColoring>;
+        let mut sparsityPattern: Arc<SparsityPattern> = Arc::new(<SparsityPattern as ::std::default::Default>::default());
+        let mut sparsityColoring: Arc<SparsityColoring::SparsityColoring> = Arc::new(<SparsityColoring::SparsityColoring as ::std::default::Default>::default());
         let mut map: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>>>;
         (sparsityPattern, map) = ({
         let mut row_vars: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
@@ -368,8 +380,8 @@ pub mod SparsityPattern {
             (EMPTY_SPARSITY_PATTERN().clone(), UnorderedMap::new((std::sync::Arc::new(fnptr!(ComponentRef::hash, Arc<ComponentRef::NFComponentRef>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<i32> + 'static>), (std::sync::Arc::new(ComponentRef::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>) -> Result<bool> + 'static>), 1))
         },
         Some(mut comps) => {
-            let mut seed_mapping: Arc<Mapping::Mapping>;
-            let mut partial_mapping: Arc<Mapping::Mapping>;
+            let mut seed_mapping: Arc<Mapping::Mapping> = Arc::new(<Mapping::Mapping as ::std::default::Default>::default());
+            let mut partial_mapping: Arc<Mapping::Mapping> = Arc::new(<Mapping::Mapping as ::std::default::Default>::default());
             let mut seed_vars: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
             let mut seed_vars_array: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
             let mut partial_vars: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
@@ -481,6 +493,15 @@ pub mod SparsityColoring {
         pub rows: metamodelica::Array<Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>>,
     }
 
+    impl Default for SparsityColoring {
+        fn default() -> Self {
+            Self {
+                cols: Default::default(),
+                rows: Default::default(),
+            }
+        }
+    }
+
     pub type SPARSITY_COLORING = SparsityColoring;
 
     pub fn toString(mut sparsityColoring: Arc<SparsityColoring>) -> ArcStr {
@@ -501,7 +522,7 @@ pub mod SparsityColoring {
     }
 
     pub fn lazy(mut sparsityPattern: Arc<SparsityPattern::SparsityPattern>) -> Arc<SparsityColoring> {
-        let mut sparsityColoring: Arc<SparsityColoring>;
+        let mut sparsityColoring: Arc<SparsityColoring> = Arc::new(<SparsityColoring as ::std::default::Default>::default());
         let mut cols: metamodelica::Array<Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>>;
         let mut rows: metamodelica::Array<Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>>;
         cols = metamodelica::arrayFromVec({
@@ -531,7 +552,7 @@ pub mod SparsityColoring {
             Ok(indices)
         }
 
-        let mut sparsityColoring: Arc<SparsityColoring>;
+        let mut sparsityColoring: Arc<SparsityColoring> = Arc::new(<SparsityColoring as ::std::default::Default>::default());
         let mut seeds: metamodelica::Array<Arc<ComponentRef::NFComponentRef>>;
         let mut partials: metamodelica::Array<Arc<ComponentRef::NFComponentRef>>;
         let mut seed_indices: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, i32>>;
@@ -639,7 +660,7 @@ pub mod SparsityColoring {
     }
 
     pub fn PartialD2ColoringAlgColumnAndRow(mut sparsityPattern: Arc<SparsityPattern::SparsityPattern>, mut map: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>>>) -> Result<Arc<SparsityColoring>> {
-        let mut sparsityColoring: Arc<SparsityColoring>;
+        let mut sparsityColoring: Arc<SparsityColoring> = Arc::new(<SparsityColoring as ::std::default::Default>::default());
         let mut seed_nodes: metamodelica::Array<Arc<ComponentRef::NFComponentRef>>;
         let mut partial_nodes: metamodelica::Array<Arc<ComponentRef::NFComponentRef>>;
         let mut col_groups: Arc<metamodelica::List<Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>>> = metamodelica::nil();
@@ -724,7 +745,7 @@ pub mod SparsityColoring {
     }
 
     pub fn PartialD2ColoringAlg(mut sparsityPattern: Arc<SparsityPattern::SparsityPattern>, mut map: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>>>) -> Result<Arc<SparsityColoring>> {
-        let mut sparsityColoring: Arc<SparsityColoring>;
+        let mut sparsityColoring: Arc<SparsityColoring> = Arc::new(<SparsityColoring as ::std::default::Default>::default());
         let mut cref_lookup: metamodelica::Array<Arc<ComponentRef::NFComponentRef>>;
         let mut index_lookup: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, i32>>;
         let mut color_exists: metamodelica::Array<bool>;
@@ -798,8 +819,8 @@ pub mod SparsityColoring {
     }
 
     pub fn combine(mut coloring1: Arc<SparsityColoring>, mut coloring2: Arc<SparsityColoring>) -> Arc<SparsityColoring> {
-        let mut coloring_out: Arc<SparsityColoring>;
-        let mut smaller_coloring: Arc<SparsityColoring>;
+        let mut coloring_out: Arc<SparsityColoring> = Arc::new(<SparsityColoring as ::std::default::Default>::default());
+        let mut smaller_coloring: Arc<SparsityColoring> = Arc::new(<SparsityColoring as ::std::default::Default>::default());
         (coloring_out, smaller_coloring) = if ((coloring2.cols.clone().borrow().len() as i32) > (coloring1.cols.clone().borrow().len() as i32)) {(coloring2.clone(), coloring1.clone())} else {(coloring1.clone(), coloring2.clone())};
         let __range0 = 1..=(smaller_coloring.cols.clone().borrow().len() as i32);
         for mut i in __range0 {
@@ -1031,7 +1052,7 @@ fn partJacobian(mut part: Arc<Partition::Partition::Partition>, mut funcMap: Arc
 fn compJacobian(mut comp: Arc<StrongComponent::NBStrongComponent>, mut full: Option<Arc<Adjacency::Matrix::Matrix>>, mut funcMap: Arc<UnorderedMap::UnorderedMap<Arc<Path>, Arc<Function::Function>>>, mut kind: Partition::Kind) -> Result<(Arc<StrongComponent::NBStrongComponent>, bool)> {
     let mut comp: Arc<StrongComponent::NBStrongComponent> = comp;
     let mut updated: bool = false;
-    let mut strict: Arc<Tearing::NBTearing>;
+    let mut strict: Arc<Tearing::NBTearing> = Arc::new(<Tearing::NBTearing as ::std::default::Default>::default());
     let mut residual_comps: Arc<metamodelica::List<Arc<StrongComponent::NBStrongComponent>>> = metamodelica::nil();
     let mut seed_candidates: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = metamodelica::nil();
     let mut residual_vars: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = metamodelica::nil();
@@ -1116,7 +1137,7 @@ fn buildAdjointRhs(mut lhsCref: Arc<ComponentRef::NFComponentRef>, mut terms: Ar
     let mut rhs: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut vty: Arc<Type::NFType> = Arc::new(Type::ANY);
     let mut sc: SizeClassification = SizeClassification::SCALAR;
-    let mut addOp: Arc<Operator::NFOperator>;
+    let mut addOp: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
     vty = ComponentRef::getComponentType(lhsCref.clone());
     if terms.clone().is_empty() {
         rhs = Expression::makeZero(vty.clone())?;
@@ -1136,7 +1157,7 @@ fn buildAdjointRhs(mut lhsCref: Arc<ComponentRef::NFComponentRef>, mut terms: Ar
 // Helper: run reverse-mode on a residual expression with a given seed (current_grad),
 // accumulating into the provided adjoint_map. Returns updated DifferentiationArguments.
 fn accumulateAdjointForResidual(mut residual: Arc<Expression::NFExpression>, mut seed: Arc<Expression::NFExpression>, mut diff_map: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>>>, mut funcMapIn: Arc<UnorderedMap::UnorderedMap<Arc<Path>, Arc<Function::Function>>>, mut scalarized: bool, mut adjoint_map_in: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<metamodelica::List<Arc<Expression::NFExpression>>>>>) -> Result<Arc<DifferentiationArguments::DifferentiationArguments>> {
-    let mut diffArguments: Arc<DifferentiationArguments::DifferentiationArguments>;
+    let mut diffArguments: Arc<DifferentiationArguments::DifferentiationArguments> = Arc::new(<DifferentiationArguments::DifferentiationArguments as ::std::default::Default>::default());
     diffArguments = Arc::new(DifferentiationArguments::DifferentiationArguments { collectAdjoints: true, current_grad: seed.clone(), adjoint_map: Some(adjoint_map_in.clone()), scalarized: scalarized.clone(), funcMap: funcMapIn.clone(), diffType: Differentiate::DifferentiationType::JACOBIAN.clone(), diff_map: Some(diff_map.clone()), new_vars: metamodelica::nil(), diffCref: Arc::new(openmodelica_nf_frontend::NFComponentRef::EMPTY) });
     (_, diffArguments) = Differentiate::differentiateExpression(residual.clone(), diffArguments.clone())?;
     Ok(diffArguments)
@@ -1225,7 +1246,7 @@ fn getAllAlgVars(mut comps: Arc<metamodelica::List<Arc<StrongComponent::NBStrong
     vars
 }
 
-fn getTmpFilterFunction(mut jacType: JacobianType) -> Result<NBVariable::checkVar> {
+fn getTmpFilterFunction(mut jacType: JacobianType) -> Result<Arc<dyn ::std::ops::Fn(Pointer::Pointer<Arc<Variable::NFVariable>>) -> Result<bool> + 'static>> {
     let mut func: NBVariable::checkVar;
     func = (match jacType.clone() {
         JacobianType::ODE => (std::sync::Arc::new(BVariable.isStateDerivative) as std::sync::Arc<dyn ::std::ops::Fn(Pointer::Pointer<Arc<Variable::NFVariable>>) -> Result<bool> + 'static>),
@@ -1322,7 +1343,7 @@ fn makeLinearAlgebraicLoop(mut itVarPtrs: Arc<metamodelica::List<Pointer::Pointe
     let mut m2: i32 = (resEqnPtrs.clone().len() as i32);
     let mut itVars_s: Arc<metamodelica::List<Arc<Slice::NBSlice<Pointer::Pointer<Arc<Variable::NFVariable>>>>>> = metamodelica::nil();
     let mut res_s: Arc<metamodelica::List<Arc<Slice::NBSlice<Pointer::Pointer<Arc<Equation::Equation>>>>>> = metamodelica::nil();
-    let mut tearingSet: Arc<Tearing::NBTearing>;
+    let mut tearingSet: Arc<Tearing::NBTearing> = Arc::new(<Tearing::NBTearing as ::std::default::Default>::default());
     if m1.clone() != m2.clone() {
         Error::addMessage(Error::INTERNAL_ERROR.clone(), list![(literal!("makeLinearAlgebraicLoop: |vars| != |eqns|")).clone()])?;
         bail!("fail");

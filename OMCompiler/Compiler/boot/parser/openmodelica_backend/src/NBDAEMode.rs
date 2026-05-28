@@ -60,10 +60,11 @@ use crate::NBVariable::VariablePointer;
 use crate::NBVariable::VariablePointers;
 use crate::NBackendDAE as BackendDAE;
 use openmodelica_nf_frontend::NFVariable as Variable;
+use openmodelica_util_datatypes_basic::Pointer;
 
 // NF imports
 // Backend imports
-pub fn getModule() -> Result<Module::daeModeInterface> {
+pub fn getModule() -> Result<Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<Arc<Partition::Partition::Partition>>>, Arc<VariablePointers::VariablePointers>, Pointer::Pointer<i32>) -> Result<Arc<metamodelica::List<Arc<Partition::Partition::Partition>>>> + 'static>> {
     let mut func: Module::daeModeInterface;
     let mut flag: ArcStr = literal!("default");
     func = (::match_deref::match_deref! { match &(flag.clone()) {

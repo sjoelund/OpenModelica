@@ -58,6 +58,9 @@ impl PartialOrd for ScalarizeMode {
 impl Ord for ScalarizeMode {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering { (*self as i32).cmp(&(*other as i32)) }
 }
+impl Default for ScalarizeMode {
+    fn default() -> Self { Self::SCALARIZED }
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 #[repr(i32)]
@@ -71,12 +74,25 @@ impl PartialOrd for RecordMode {
 impl Ord for RecordMode {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering { (*self as i32).cmp(&(*other as i32)) }
 }
+impl Default for RecordMode {
+    fn default() -> Self { Self::WITH_RECORDS }
+}
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct OutputFormat {
     pub scalarizeMode: ScalarizeMode,
     pub recordMode: RecordMode,
     pub moveBindings: bool,
+}
+
+impl Default for OutputFormat {
+    fn default() -> Self {
+        Self {
+            scalarizeMode: Default::default(),
+            recordMode: Default::default(),
+            moveBindings: Default::default(),
+        }
+    }
 }
 
 pub type OUTPUT_FORMAT = OutputFormat;

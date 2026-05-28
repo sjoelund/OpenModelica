@@ -1696,7 +1696,7 @@ fn fun_126(mut in_txt: Tpl::Text, mut in_a_varKind: BackendDAE::VarKind, mut in_
     out_txt = (match (in_txt.clone(), in_a_varKind.clone(), in_a_simCode.clone()) {
         (mut txt, BackendDAE::VarKind::CLOCKED_STATE { previousName: ref i_previousName, .. }, mut a_simCode) => {
             let mut ret_1: i32 = 0;
-            let mut ret_0: SimCodeVar::SimVar;
+            let mut ret_0: SimCodeVar::SimVar = <SimCodeVar::SimVar as ::std::default::Default>::default();
             ret_0 = SimCodeUtil::cref2simvar(i_previousName.clone(), a_simCode.clone())?;
             ret_1 = SimCodeUtil::getVariableFMIIndex(ret_0.clone());
             txt = Tpl::writeStr(txt.clone(), (intString(ret_1.clone())).clone())?;

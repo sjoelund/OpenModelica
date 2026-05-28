@@ -79,6 +79,20 @@ pub struct ConfigFlag {
     pub description: Gettext::TranslatableContent,
 }
 
+impl Default for ConfigFlag {
+    fn default() -> Self {
+        Self {
+            index: Default::default(),
+            name: Default::default(),
+            shortname: Default::default(),
+            visibility: Default::default(),
+            defaultValue: Default::default(),
+            validOptions: Default::default(),
+            description: Default::default(),
+        }
+    }
+}
+
 pub type CONFIG_FLAG = ConfigFlag;
 
 
@@ -118,6 +132,9 @@ pub enum FlagData {
         validValues: Arc<metamodelica::List<(ArcStr, i32)>>,
     },
 }
+impl Default for FlagData {
+    fn default() -> Self { Self::EMPTY_FLAG }
+}
 pub use self::FlagData::{EMPTY_FLAG,BOOL_FLAG,INT_FLAG,INT_LIST_FLAG,REAL_FLAG,STRING_FLAG,STRING_LIST_FLAG,ENUM_FLAG};
 
 /// This uniontype is used to specify the visibility of a configuration flag.
@@ -127,6 +144,9 @@ pub enum FlagVisibility {
     INTERNAL,
     /// An external flag that is visible to the user.
     EXTERNAL,
+}
+impl Default for FlagVisibility {
+    fn default() -> Self { Self::INTERNAL }
 }
 pub use self::FlagVisibility::{INTERNAL,EXTERNAL};
 
@@ -152,6 +172,13 @@ pub enum ValidOptions {
         /// Options for a string flag, with a description for each option.
         options: Arc<metamodelica::List<(ArcStr, Gettext::TranslatableContent)>>,
     },
+}
+impl Default for ValidOptions {
+    fn default() -> Self {
+        Self::STRING_OPTION {
+            options: Default::default(),
+        }
+    }
 }
 pub use self::ValidOptions::{STRING_OPTION,STRING_DESC_OPTION};
 

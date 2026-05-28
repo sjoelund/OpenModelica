@@ -128,7 +128,7 @@ use openmodelica_util_datatypes_basic::Pointer;
 // ==========================================================================
 pub const NOMINAL_THRESHOLD: metamodelica::Real = metamodelica::OrderedFloat(1000.0_f64);
 
-pub fn getModule() -> Result<Module::aliasInterface> {
+pub fn getModule() -> Result<Arc<dyn ::std::ops::Fn(Arc<VarData::VarData>, Arc<EqData::EqData>, Partition::Kind) -> Result<(Arc<VarData::VarData>, Arc<EqData::EqData>)> + 'static>> {
     let mut func: Module::aliasInterface;
     let mut flag: ArcStr = literal!("default");
     func = (::match_deref::match_deref! { match &(flag.clone()) {
@@ -204,6 +204,17 @@ pub struct CrefTpl {
     pub cr_lst: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>>,
 }
 
+impl Default for CrefTpl {
+    fn default() -> Self {
+        Self {
+            cont: Default::default(),
+            varCount: Default::default(),
+            paramCount: Default::default(),
+            cr_lst: Default::default(),
+        }
+    }
+}
+
 pub type CREF_TPL = CrefTpl;
 
 
@@ -220,7 +231,7 @@ fn checkReplacements(mut replacements: Arc<UnorderedMap::UnorderedMap<Arc<Compon
     let mut cref: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
     let mut exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut eqPtr: Pointer::Pointer<Arc<Equation::Equation>>;
-    let mut attr: Arc<EquationAttributes::EquationAttributes>;
+    let mut attr: Arc<EquationAttributes::EquationAttributes> = Arc::new(<EquationAttributes::EquationAttributes as ::std::default::Default>::default());
     BEquation::EqData::map(eqData.clone(), Arc::new({ let __pe_b1 = exceptionMap.clone(); move |__pe_a0| filterExceptionsEquation(__pe_a0, __pe_b1.clone()) }))?;
     for mut keyValueTpl in &*UnorderedMap::toList(replacements.clone()) {
         let mut keyValueTpl = keyValueTpl.clone();
@@ -680,7 +691,7 @@ fn createReplacementRules(mut set: Arc<AliasSet::AliasSet>, mut replacements: Ar
             let mut var_lst: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = metamodelica::nil();
             let mut eqs: Arc<EquationPointers::EquationPointers> = Arc::new(<EquationPointers::EquationPointers as ::std::default::Default>::default());
             let mut comps: Arc<metamodelica::List<Arc<StrongComponent::NBStrongComponent>>> = metamodelica::nil();
-            let mut collector: Arc<AttributeCollector::AttributeCollector>;
+            let mut collector: Arc<AttributeCollector::AttributeCollector> = Arc::new(<AttributeCollector::AttributeCollector as ::std::default::Default>::default());
             (alias_vars, collector) = chooseVariableToKeep({
         let mut __acc: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = metamodelica::nil();
         for mut cr in (set.simple_variables.clone()).into_iter().cloned() {
@@ -1227,6 +1238,20 @@ pub mod AttributeCollector {
         pub tearingSelect_map: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, TearingSelect>>,
     }
 
+    impl Default for AttributeCollector {
+        fn default() -> Self {
+            Self {
+                min_val_map: Default::default(),
+                max_val_map: Default::default(),
+                start_map: Default::default(),
+                fixed_map: Default::default(),
+                nominal_map: Default::default(),
+                stateSelect_map: Default::default(),
+                tearingSelect_map: Default::default(),
+            }
+        }
+    }
+
     pub type ATTRIBUTE_COLLECTOR = AttributeCollector;
 
     pub fn toString(mut attrcollector: Arc<AttributeCollector>, mut r#str: ArcStr) -> Result<ArcStr> {
@@ -1256,7 +1281,7 @@ pub mod AttributeCollector {
         let mut rhs: Arc<Expression::NFExpression> = Arc::new(Expression::END);
         let mut new_rhs: Arc<Expression::NFExpression> = Arc::new(Expression::END);
         let mut diff_rhs: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-        let mut args: Arc<DifferentiationArguments::DifferentiationArguments>;
+        let mut args: Arc<DifferentiationArguments::DifferentiationArguments> = Arc::new(<DifferentiationArguments::DifferentiationArguments as ::std::default::Default>::default());
         let mut swap_min_max: bool = false;
         let mut min_val_opt: Option<Arc<Expression::NFExpression>> = UnorderedMap::get(var_cref.clone(), attrcollector.min_val_map.clone());
         let mut max_val_opt: Option<Arc<Expression::NFExpression>> = UnorderedMap::get(var_cref.clone(), attrcollector.max_val_map.clone());

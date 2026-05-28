@@ -305,9 +305,9 @@ fn clearComponentModifiersInCompitems(mut inComponents: Arc<metamodelica::List<A
     let mut outComponents: Arc<metamodelica::List<Arc<Absyn::ComponentItem>>> = metamodelica::nil();
     let mut outFound: bool = false;
     let mut outContinue: bool = false;
-    let mut item: Arc<Absyn::ComponentItem>;
+    let mut item: Arc<Absyn::ComponentItem> = Arc::new(<Absyn::ComponentItem as ::std::default::Default>::default());
     let mut rest_items: Arc<metamodelica::List<Arc<Absyn::ComponentItem>>> = inComponents.clone();
-    let mut comp: Absyn::Component;
+    let mut comp: Absyn::Component = <Absyn::Component as ::std::default::Default>::default();
     let mut args_old: Arc<metamodelica::List<Arc<Absyn::ElementArg>>> = metamodelica::nil();
     let mut args_new: Arc<metamodelica::List<Arc<Absyn::ElementArg>>> = metamodelica::nil();
     let mut eqmod_old: Arc<Absyn::EqMod> = Arc::new(Absyn::EqMod::NOMOD);
@@ -349,7 +349,7 @@ fn stripModifiersKeepRedeclares(mut inMod: Option<Arc<Absyn::Modification>>) -> 
             None
         },
         Some(Deref @ Absyn::Modification { elementArgLst: ea, eqMod: _ }) => {
-            let mut m: Arc<Absyn::Modification>;
+            let mut m: Arc<Absyn::Modification> = Arc::new(<Absyn::Modification as ::std::default::Default>::default());
             let mut ea = (*ea).clone();
             ea = {
         let mut __acc: Arc<metamodelica::List<Arc<Absyn::ElementArg>>> = metamodelica::nil();
@@ -485,23 +485,20 @@ fn setExtendsSubmodifierInElement(mut element: Arc<Absyn::Element>, mut extendsP
                 Deref @ Absyn::Element::ELEMENT { specification: ext_spec @ Deref @ Absyn::ElementSpec::EXTENDS { elementArg: eargs, .. }, .. } => {
                     let mut ext_spec = (*ext_spec).clone();
                     let mut opt_mod: Option<Arc<Absyn::Modification>> = opt_mod.clone();
-                    let mut full_path: Arc<Absyn::Path>;
                     let mut element: Arc<Absyn::Element> = element.clone();
-                    (_, full_path) = Interactive::mkFullyQual(env.clone(), var_field!((**ext_spec).path, Absyn::ElementSpec::EXTENDS).clone(), false)?;
+                    let mut full_path: Arc<Absyn::Path>;
+                    (_, full_path) = Interactive::mkFullyQual(env.clone(), var_field!((*ext_spec).path, Absyn::ElementSpec::EXTENDS).clone(), false)?;
                     let true = (AbsynUtil::pathEqual(extendsPath.clone(), full_path.clone())) else { bail!("pattern mismatch") };
                     if AbsynUtil::pathFirstIdent(elementName.clone())? == literal!("_") {
                         opt_mod = propagateMod(elementName.clone(), r#mod.clone(), Some(Arc::new(Absyn::Modification { elementArgLst: eargs.clone(), eqMod: Arc::new(openmodelica_ast::Absyn::EqMod::NOMOD) })))?;
                     } else {
                         opt_mod = propagateMod(AbsynUtil::prefixPath((literal!("dummy")).clone(), elementName.clone()), r#mod.clone(), Some(Arc::new(Absyn::Modification { elementArgLst: eargs.clone(), eqMod: Arc::new(openmodelica_ast::Absyn::EqMod::NOMOD) })))?;
                     }
-                    let __owned_variant_elementArg_0 = (::match_deref::match_deref! { match &(opt_mod.clone()) {
+                    assign_variant_field!(ext_spec => Absyn::ElementSpec::EXTENDS; elementArg = (::match_deref::match_deref! { match &(opt_mod.clone()) {
         Some(Deref @ Absyn::Modification { elementArgLst: eargs, .. }) => eargs.clone(),
         _ => metamodelica::nil(),
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
-    } });
-                    if let Absyn::ElementSpec::EXTENDS { elementArg, .. } = &mut ext_spec {
-                        *elementArg = __owned_variant_elementArg_0;
-                    } else { panic!("owned-variant field-assign: value held a different variant than Absyn::ElementSpec::EXTENDS"); }
+    } }));
                     assign_variant_field!(element => Absyn::Element::ELEMENT; specification = ext_spec.clone());
                     Ok(true)
                 }
@@ -542,7 +539,7 @@ fn setSubmodifierInClass(mut inElementName: Arc<Absyn::Path>, mut inClass: Arc<A
     let mut outClass: Arc<Absyn::Class> = Arc::new(<Absyn::Class as ::std::default::Default>::default());
     let mut cls: Arc<Absyn::Class> = inClass.clone();
     let mut optMod: Option<Arc<Absyn::Modification>> = None;
-    let mut r#mod: Arc<Absyn::Modification>;
+    let mut r#mod: Arc<Absyn::Modification> = Arc::new(<Absyn::Modification as ::std::default::Default>::default());
     let mut body: Arc<Absyn::ClassDef>;
     outClass = (::match_deref::match_deref! { match &(cls.clone()) {
         Deref @ Absyn::Class { .. } => {
@@ -574,9 +571,9 @@ pub fn setComponentSubmodifierInCompitems(mut inComponents: Arc<metamodelica::Li
     let mut outComponents: Arc<metamodelica::List<Arc<Absyn::ComponentItem>>> = metamodelica::nil();
     let mut outFound: bool = false;
     let mut outContinue: bool = false;
-    let mut item: Arc<Absyn::ComponentItem>;
+    let mut item: Arc<Absyn::ComponentItem> = Arc::new(<Absyn::ComponentItem as ::std::default::Default>::default());
     let mut rest_items: Arc<metamodelica::List<Arc<Absyn::ComponentItem>>> = inComponents.clone();
-    let mut comp: Absyn::Component;
+    let mut comp: Absyn::Component = <Absyn::Component as ::std::default::Default>::default();
     let mut args_old: Arc<metamodelica::List<Arc<Absyn::ElementArg>>> = metamodelica::nil();
     let mut args_new: Arc<metamodelica::List<Arc<Absyn::ElementArg>>> = metamodelica::nil();
     let mut eqmod_old: Arc<Absyn::EqMod> = Arc::new(Absyn::EqMod::NOMOD);
@@ -619,7 +616,7 @@ pub fn propagateMod(mut inComponentName: Arc<Absyn::Path>, mut inNewMod: Arc<Abs
     let mut old_args: Arc<metamodelica::List<Arc<Absyn::ElementArg>>> = metamodelica::nil();
     let mut new_eqmod: Arc<Absyn::EqMod> = Arc::new(Absyn::EqMod::NOMOD);
     let mut old_eqmod: Arc<Absyn::EqMod> = Arc::new(Absyn::EqMod::NOMOD);
-    let mut r#mod: Arc<Absyn::Modification>;
+    let mut r#mod: Arc<Absyn::Modification> = Arc::new(<Absyn::Modification as ::std::default::Default>::default());
     if isSome(inOldMod.clone()) {
         let (__pa0, __pa1) = ::match_deref::match_deref! { match &(inOldMod.clone()) {
             Some(Deref @ Absyn::Modification { eqMod: __pa0, elementArgLst: __pa1 }) => (__pa0.clone(), __pa1.clone()),
@@ -675,7 +672,7 @@ fn mergeElementArgs(mut inOldArgs: Arc<metamodelica::List<Arc<Absyn::ElementArg>
 
 fn removeEmptySubMods(mut subMods: Arc<metamodelica::List<Arc<Absyn::ElementArg>>>) -> Arc<metamodelica::List<Arc<Absyn::ElementArg>>> {
     let mut outSubMods: Arc<metamodelica::List<Arc<Absyn::ElementArg>>> = metamodelica::nil();
-    let mut r#mod: Arc<Absyn::Modification>;
+    let mut r#mod: Arc<Absyn::Modification> = Arc::new(<Absyn::Modification as ::std::default::Default>::default());
     for mut m in &*subMods.clone() {
         let mut m = m.clone();
         let () = (::match_deref::match_deref! { match &(m.clone()) {
@@ -700,7 +697,7 @@ fn propagateMod2(mut inComponentName: Arc<Absyn::Path>, mut inSubMods: Arc<metam
     let mut outSubMods: Arc<metamodelica::List<Arc<Absyn::ElementArg>>> = metamodelica::nil();
     let mut submod: Arc<Absyn::ElementArg>;
     let mut rest_submods: Arc<metamodelica::List<Arc<Absyn::ElementArg>>> = inSubMods.clone();
-    let mut new_mod: Arc<Absyn::Modification>;
+    let mut new_mod: Arc<Absyn::Modification> = Arc::new(<Absyn::Modification as ::std::default::Default>::default());
     let mut comp_name: Arc<Absyn::Path>;
     let mut comp_rest: Arc<Absyn::Path>;
     while !(rest_submods.clone().is_empty()) {
@@ -892,7 +889,7 @@ pub fn getElementModifierValues(mut inComponentRef1: Arc<Absyn::ComponentRef>, m
                     let mut elems: Arc<metamodelica::List<Arc<Absyn::Element>>> = metamodelica::nil();
                     let mut compelts: Arc<metamodelica::List<Arc<metamodelica::List<Arc<Absyn::ComponentItem>>>>> = metamodelica::nil();
                     let mut compelts_1: Arc<metamodelica::List<Arc<Absyn::ComponentItem>>> = metamodelica::nil();
-                    let mut r#mod: Arc<Absyn::Modification>;
+                    let mut r#mod: Arc<Absyn::Modification> = Arc::new(<Absyn::Modification as ::std::default::Default>::default());
                     let mut elementArgLst: Arc<metamodelica::List<Arc<Absyn::ElementArg>>> = metamodelica::nil();
                     p_class = AbsynUtil::crefToPath(class_.clone())?;
                     let __pa0 = ::match_deref::match_deref! { match &(AbsynUtil::crefToPath(ident.clone())?) {
@@ -941,13 +938,13 @@ pub fn unparseMods(mut r#mod: Arc<Absyn::Modification>) -> Result<ArcStr> {
 // NOTE: #[tailcall::tailcall] disabled: function body contains a `match_deref!{…}` match,
 // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
 fn getModificationValues(mut inAbsynElementArgLst: Arc<metamodelica::List<Arc<Absyn::ElementArg>>>, mut inPath: Arc<Absyn::Path>) -> Result<Arc<Absyn::Modification>> {
-    let mut outModification: Arc<Absyn::Modification>;
+    let mut outModification: Arc<Absyn::Modification> = Arc::new(<Absyn::Modification as ::std::default::Default>::default());
     outModification = (::match_deref::match_deref! { match &((inAbsynElementArgLst.clone(), inPath.clone())) {
         (Deref @ metamodelica::List::Cons { head: Deref @ Absyn::ElementArg::MODIFICATION { modification: Some(r#mod), path: p1, .. }, tail: _ }, p2) if (AbsynUtil::pathEqual(p1.clone(), p2.clone())) => {
             r#mod.clone()
         },
         (Deref @ metamodelica::List::Cons { head: Deref @ Absyn::ElementArg::MODIFICATION { modification: Some(Deref @ Absyn::Modification { elementArgLst: args, .. }), path: Deref @ Absyn::Path::IDENT { name: name1 }, .. }, tail: _ }, Deref @ Absyn::Path::QUALIFIED { path: p2, name: name2 }) if (stringEq((name1.clone()).clone(), (name2.clone()).clone())?) => {
-            let mut res: Arc<Absyn::Modification>;
+            let mut res: Arc<Absyn::Modification> = Arc::new(<Absyn::Modification as ::std::default::Default>::default());
             res = getModificationValues(args.clone(), p2.clone())?;
             res.clone()
         },
@@ -955,7 +952,7 @@ fn getModificationValues(mut inAbsynElementArgLst: Arc<metamodelica::List<Arc<Ab
             Arc::new(Absyn::Modification { elementArgLst: list![elArg.clone()], eqMod: Arc::new(openmodelica_ast::Absyn::EqMod::NOMOD) })
         },
         (Deref @ metamodelica::List::Cons { head: _, tail: rest }, _) => {
-            let mut r#mod: Arc<Absyn::Modification>;
+            let mut r#mod: Arc<Absyn::Modification> = Arc::new(<Absyn::Modification as ::std::default::Default>::default());
             r#mod = getModificationValues(rest.clone(), inPath.clone())?;
             r#mod.clone()
         },
@@ -1195,7 +1192,7 @@ fn getModificationNames(mut inAbsynElementArgLst: Arc<metamodelica::List<Arc<Abs
 pub fn getElementBinding(mut path: Arc<Absyn::Path>, mut parameterName: ArcStr, mut program: Absyn::Program) -> ArcStr {
     let mut bindingStr: ArcStr = arcstr::literal!("");
     let mut cls: Arc<Absyn::Class> = Arc::new(<Absyn::Class as ::std::default::Default>::default());
-    let mut component: Arc<Absyn::ComponentItem>;
+    let mut component: Arc<Absyn::ComponentItem> = Arc::new(<Absyn::ComponentItem as ::std::default::Default>::default());
     match '__try0: {
         cls = unwrap_break_err!(getPathedClassInProgram(path.clone(), program.clone(), false, false), '__try0);
         component = unwrap_break_err!(getComponentInClass(cls.clone(), (parameterName.clone()).clone()), '__try0);
@@ -1213,7 +1210,7 @@ pub fn getElementBinding(mut path: Arc<Absyn::Path>, mut parameterName: ArcStr, 
 }
 
 pub fn getComponentInClass(mut cls: Arc<Absyn::Class>, mut componentName: ArcStr) -> Result<Arc<Absyn::ComponentItem>> {
-    let mut component: Arc<Absyn::ComponentItem>;
+    let mut component: Arc<Absyn::ComponentItem> = Arc::new(<Absyn::ComponentItem as ::std::default::Default>::default());
     let mut body: Arc<Absyn::ClassDef>;
     let mut parts: Arc<metamodelica::List<Arc<Absyn::ClassPart>>> = metamodelica::nil();
     let mut elements: Arc<metamodelica::List<Arc<Absyn::ElementItem>>> = metamodelica::nil();
@@ -1675,8 +1672,8 @@ fn getElementitemsAnnotations(mut inElements: Arc<metamodelica::List<Arc<Absyn::
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ Absyn::Element::ELEMENT { constrainClass: cc, specification: Deref @ Absyn::ElementSpec::COMPONENTS { components: items, .. }, .. } => {
-                    let mut cache: Interactive::GraphicEnvCache = cache.clone();
                     let mut res: Arc<metamodelica::List<Arc<Values::Value>>> = res.clone();
+                    let mut cache: Interactive::GraphicEnvCache = cache.clone();
                     (res, cache) = getElementitemsAnnotationsFromItems(items.clone(), getAnnotationsFromConstraintClass(cc.clone()), inEnv.clone(), inClass.clone(), cache.clone())?;
                     Ok(listAppend(res.clone(), accum.clone()))
                 }
@@ -1783,7 +1780,7 @@ pub fn getElementitemsAnnotationsElArgs(mut inElementArgs: Arc<metamodelica::Lis
     let mut c: Arc<SCode::Element>;
     let mut smod: Arc<SCode::Mod> = Arc::new(SCode::Mod::NOMOD);
     let mut dmod: Arc<DAE::Mod> = Arc::new(DAE::Mod::NOMOD);
-    let mut dae: DAE::DAElist;
+    let mut dae: DAE::DAElist = <DAE::DAElist as ::std::default::Default>::default();
     let mut is_icon: bool = false;
     let mut is_diagram: bool = false;
     let mut graphic_prog: Absyn::Program = <Absyn::Program as ::std::default::Default>::default();
@@ -1796,12 +1793,12 @@ pub fn getElementitemsAnnotationsElArgs(mut inElementArgs: Arc<metamodelica::Lis
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ Absyn::ElementArg::MODIFICATION { info, modification: Some(Deref @ Absyn::Modification { elementArgLst: Deref @ metamodelica::List::Nil, eqMod: Deref @ Absyn::EqMod::EQMOD { exp: eq_aexp, .. } }), path: Deref @ Absyn::Path::IDENT { name: ann_name }, .. } => {
-                    let mut r#str: ArcStr = r#str.clone();
-                    let mut outCache: Interactive::GraphicEnvCache = outCache.clone();
-                    let mut cache: FCore::Cache = cache.clone();
-                    let mut prop: DAE::Properties;
                     let mut env: FCore::Graph;
+                    let mut prop: DAE::Properties;
                     let mut eq_dexp: Arc<DAE::Exp>;
+                    let mut outCache: Interactive::GraphicEnvCache = outCache.clone();
+                    let mut r#str: ArcStr = r#str.clone();
+                    let mut cache: FCore::Cache = cache.clone();
                     (cache, env, _, outCache) = buildEnvForGraphicProgram(outCache.clone(), metamodelica::nil())?;
                     (_, eq_dexp, prop) = StaticScript::elabGraphicsExp(cache.clone(), env.clone(), eq_aexp.clone(), false, openmodelica_frontend_types::DAE::Prefix::NOPRE, info.clone())?;
                     (cache, eq_dexp, prop) = Ceval::cevalIfConstant(cache.clone(), env.clone(), eq_dexp.clone(), prop.clone(), false, info.clone())?;
@@ -1816,24 +1813,24 @@ pub fn getElementitemsAnnotationsElArgs(mut inElementArgs: Arc<metamodelica::Lis
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ Absyn::ElementArg::MODIFICATION { info, modification: Some(Deref @ Absyn::Modification { elementArgLst: r#mod, eqMod: Deref @ Absyn::EqMod::NOMOD }), path: Deref @ Absyn::Path::IDENT { name: ann_name }, .. } => {
-                    let mut placement_cls: Arc<SCode::Element>;
-                    let mut graphic_prog: Absyn::Program = graphic_prog.clone();
-                    let mut graphic_exp: Arc<Absyn::Exp> = graphic_exp.clone();
-                    let mut c: Arc<SCode::Element>;
-                    let mut env: FCore::Graph;
-                    let mut prop: DAE::Properties;
-                    let mut dae: DAE::DAElist;
-                    let mut cache: FCore::Cache = cache.clone();
-                    let mut graphic_mod: Arc<metamodelica::List<Arc<Absyn::ElementArg>>> = graphic_mod.clone();
-                    let mut stripped_mod: Arc<metamodelica::List<Arc<Absyn::ElementArg>>> = stripped_mod.clone();
-                    let mut smod: Arc<SCode::Mod> = smod.clone();
-                    let mut is_diagram: bool = is_diagram.clone();
-                    let mut is_icon: bool = is_icon.clone();
-                    let mut dmod: Arc<DAE::Mod> = dmod.clone();
                     let mut graphic_dexp: Arc<DAE::Exp>;
-                    let mut outCache: Interactive::GraphicEnvCache = outCache.clone();
                     let mut r#str: ArcStr = r#str.clone();
+                    let mut dmod: Arc<DAE::Mod> = dmod.clone();
+                    let mut is_icon: bool = is_icon.clone();
+                    let mut env: FCore::Graph;
+                    let mut graphic_exp: Arc<Absyn::Exp> = graphic_exp.clone();
+                    let mut dae: DAE::DAElist = dae.clone();
+                    let mut graphic_prog: Absyn::Program = graphic_prog.clone();
                     let mut env2: FCore::Graph;
+                    let mut prop: DAE::Properties;
+                    let mut stripped_mod: Arc<metamodelica::List<Arc<Absyn::ElementArg>>> = stripped_mod.clone();
+                    let mut placement_cls: Arc<SCode::Element>;
+                    let mut outCache: Interactive::GraphicEnvCache = outCache.clone();
+                    let mut graphic_mod: Arc<metamodelica::List<Arc<Absyn::ElementArg>>> = graphic_mod.clone();
+                    let mut smod: Arc<SCode::Mod> = smod.clone();
+                    let mut cache: FCore::Cache = cache.clone();
+                    let mut is_diagram: bool = is_diagram.clone();
+                    let mut c: Arc<SCode::Element>;
                     if !(listMember((ann_name.clone()).clone(), list![(literal!("Icon")).clone(), (literal!("Diagram")).clone(), (literal!("choices")).clone()])) {
                         (cache, env, _, outCache) = buildEnvForGraphicProgram(outCache.clone(), r#mod.clone())?;
                         (cache, c, env2) = Lookup::lookupClassIdent(cache.clone(), inEnv.clone(), (ann_name.clone()).clone(), None)?;
@@ -1897,11 +1894,11 @@ pub fn getElementitemsAnnotationsElArgs(mut inElementArgs: Arc<metamodelica::Lis
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ Absyn::ElementArg::MODIFICATION { modification: None, path: Deref @ Absyn::Path::IDENT { name: ann_name }, .. } => {
                     let mut env: FCore::Graph;
-                    let mut dae: DAE::DAElist;
+                    let mut dae: DAE::DAElist = dae.clone();
                     let mut cache: FCore::Cache = cache.clone();
                     let mut outCache: Interactive::GraphicEnvCache = outCache.clone();
-                    let mut r#str: ArcStr = r#str.clone();
                     let mut c: Arc<SCode::Element>;
+                    let mut r#str: ArcStr = r#str.clone();
                     (cache, _, _, outCache) = buildEnvForGraphicProgram(outCache.clone(), metamodelica::nil())?;
                     (cache, c, env) = Lookup::lookupClassIdent(cache.clone(), inEnv.clone(), (ann_name.clone()).clone(), None)?;
                     c = SCodeUtil::classSetPartial(c.clone(), openmodelica_frontend_types::SCode::Partial::NOT_PARTIAL)?;
@@ -2251,7 +2248,7 @@ pub fn dimensionListValues(mut dims: Arc<metamodelica::List<Arc<Absyn::Subscript
 
 fn getElementInfo(mut element: Arc<Absyn::Element>, mut isPublic: bool, mut quoteNames: bool, mut onlyComponents: bool, mut env: GraphicEnvCache, mut infos: Arc<metamodelica::List<Arc<Values::Value>>>) -> Result<Arc<metamodelica::List<Arc<Values::Value>>>> {
     let mut infos: Arc<metamodelica::List<Arc<Values::Value>>> = infos;
-    let mut attr: Absyn::ElementAttributes;
+    let mut attr: Absyn::ElementAttributes = <Absyn::ElementAttributes as ::std::default::Default>::default();
     let mut ty: Arc<Absyn::Path>;
     let mut cc_path: Arc<Absyn::Path>;
     let mut comps: Arc<metamodelica::List<Arc<Absyn::ComponentItem>>> = metamodelica::nil();
@@ -2339,7 +2336,7 @@ fn getElementInfo(mut element: Arc<Absyn::Element>, mut isPublic: bool, mut quot
 
 pub fn getElementAttributeValues(mut element: Arc<Absyn::Element>, mut isPublic: bool, mut quoteNames: bool, mut attrValues: Arc<metamodelica::List<Arc<Values::Value>>>) -> Result<Arc<metamodelica::List<Arc<Values::Value>>>> {
     let mut attrValues: Arc<metamodelica::List<Arc<Values::Value>>> = attrValues;
-    let mut attr: Absyn::ElementAttributes;
+    let mut attr: Absyn::ElementAttributes = <Absyn::ElementAttributes as ::std::default::Default>::default();
     let mut vis_val: Arc<Values::Value> = Arc::new(Values::Value::META_FAIL);
     let mut final_val: Arc<Values::Value> = Arc::new(Values::Value::META_FAIL);
     let mut flow_val: Arc<Values::Value> = Arc::new(Values::Value::META_FAIL);
@@ -2445,10 +2442,10 @@ pub fn qualifyType(mut inEnv: FCore::Graph, mut p: Arc<Absyn::Path>) -> Result<A
         let __mc_input = ();
         if let Ok(__v) = (|| -> Result<_> {
             let () = __mc_input.clone() else { bail!("nomatch") };
-            let mut oenv_path: Option<Arc<Absyn::Path>> = oenv_path.clone();
-            let mut tp_path: Arc<Absyn::Path>;
             let mut env_path: Arc<Absyn::Path>;
             let mut env: FCore::Graph;
+            let mut oenv_path: Option<Arc<Absyn::Path>> = oenv_path.clone();
+            let mut tp_path: Arc<Absyn::Path>;
             let mut tp_name: ArcStr = tp_name.clone();
             (_, _, env) = Lookup::lookupClass(FCore::emptyCache(), inEnv.clone(), p.clone(), None)?;
             oenv_path = FGraph::getScopePath(env.clone())?;
@@ -2468,10 +2465,10 @@ pub fn qualifyType(mut inEnv: FCore::Graph, mut p: Arc<Absyn::Path>) -> Result<A
         if let Ok(__v) = (|| -> Result<_> {
             let () = __mc_input.clone() else { bail!("nomatch") };
             let mut pkg_path: Arc<Absyn::Path>;
-            let mut oenv_path: Option<Arc<Absyn::Path>> = oenv_path.clone();
             let mut tp_path: Arc<Absyn::Path>;
-            let mut env_path: Arc<Absyn::Path>;
+            let mut oenv_path: Option<Arc<Absyn::Path>> = oenv_path.clone();
             let mut env: FCore::Graph;
+            let mut env_path: Arc<Absyn::Path>;
             pkg_path = AbsynUtil::pathFirstPath(p.clone())?;
             (_, _, env) = Lookup::lookupClass(FCore::emptyCache(), inEnv.clone(), pkg_path.clone(), None)?;
             oenv_path = FGraph::getScopePath(env.clone())?;
@@ -2814,7 +2811,7 @@ fn replaceInnerClass(mut inClass1: Arc<Absyn::Class>, mut inClass2: Arc<Absyn::C
                     } };
                     publst2 = __pa0.clone();
                     parts2 = replacePublicList(parts.clone(), publst2.clone())?;
-                    todo!("unhandled field-assign shape: outClass.body");
+                    assign_field!(outClass.body = Arc::new(Absyn::ClassDef::PARTS { typeVars: typeVars.clone(), classAttrs: classAttrs.clone(), classParts: parts2.clone(), ann: ann.clone(), comment: cmt.clone() }));
                     Ok(outClass.clone())
                 }
                 _ => bail!("nomatch"),
@@ -2834,7 +2831,7 @@ fn replaceInnerClass(mut inClass1: Arc<Absyn::Class>, mut inClass2: Arc<Absyn::C
                     } };
                     prolst2 = __pa0.clone();
                     parts2 = replaceProtectedList(parts.clone(), prolst2.clone())?;
-                    todo!("unhandled field-assign shape: outClass.body");
+                    assign_field!(outClass.body = Arc::new(Absyn::ClassDef::PARTS { typeVars: typeVars.clone(), classAttrs: classAttrs.clone(), classParts: parts2.clone(), ann: ann.clone(), comment: cmt.clone() }));
                     Ok(outClass.clone())
                 }
                 _ => bail!("nomatch"),
@@ -2849,7 +2846,7 @@ fn replaceInnerClass(mut inClass1: Arc<Absyn::Class>, mut inClass2: Arc<Absyn::C
                     publst = getPublicList(parts.clone());
                     publst = addClassInElementitemlist(publst.clone(), c1.clone())?;
                     parts2 = replacePublicList(parts.clone(), publst.clone())?;
-                    todo!("unhandled field-assign shape: outClass.body");
+                    assign_field!(outClass.body = Arc::new(Absyn::ClassDef::PARTS { typeVars: typeVars.clone(), classAttrs: classAttrs.clone(), classParts: parts2.clone(), ann: ann.clone(), comment: cmt.clone() }));
                     Ok(outClass.clone())
                 }
                 _ => bail!("nomatch"),
@@ -2869,7 +2866,7 @@ fn replaceInnerClass(mut inClass1: Arc<Absyn::Class>, mut inClass2: Arc<Absyn::C
                     } };
                     publst2 = __pa0.clone();
                     parts2 = replacePublicList(parts.clone(), publst2.clone())?;
-                    todo!("unhandled field-assign shape: outClass.body");
+                    assign_field!(outClass.body = Arc::new(Absyn::ClassDef::CLASS_EXTENDS { baseClassName: (bcname.clone()).clone(), modifications: modif.clone(), comment: cmt.clone(), parts: parts2.clone(), ann: ann.clone() }));
                     Ok(outClass.clone())
                 }
                 _ => bail!("nomatch"),
@@ -2889,7 +2886,7 @@ fn replaceInnerClass(mut inClass1: Arc<Absyn::Class>, mut inClass2: Arc<Absyn::C
                     } };
                     prolst2 = __pa0.clone();
                     parts2 = replaceProtectedList(parts.clone(), prolst2.clone())?;
-                    todo!("unhandled field-assign shape: outClass.body");
+                    assign_field!(outClass.body = Arc::new(Absyn::ClassDef::CLASS_EXTENDS { baseClassName: (bcname.clone()).clone(), modifications: modif.clone(), comment: cmt.clone(), parts: parts2.clone(), ann: ann.clone() }));
                     Ok(outClass.clone())
                 }
                 _ => bail!("nomatch"),
@@ -2904,7 +2901,7 @@ fn replaceInnerClass(mut inClass1: Arc<Absyn::Class>, mut inClass2: Arc<Absyn::C
                     publst = getPublicList(parts.clone());
                     publst = addClassInElementitemlist(publst.clone(), c1.clone())?;
                     parts2 = replacePublicList(parts.clone(), publst.clone())?;
-                    todo!("unhandled field-assign shape: outClass.body");
+                    assign_field!(outClass.body = Arc::new(Absyn::ClassDef::CLASS_EXTENDS { baseClassName: (bcname.clone()).clone(), modifications: modif.clone(), comment: cmt.clone(), parts: parts2.clone(), ann: ann.clone() }));
                     Ok(outClass.clone())
                 }
                 _ => bail!("nomatch"),
@@ -3676,7 +3673,7 @@ fn mergeClasses(mut cNew: Arc<Absyn::Class>, mut cOld: Arc<Absyn::Class>) -> Res
                     pubElementsC1 = getPublicList(partsC1.clone());
                     pubElementsC1 = mergeElements(pubElementsC1.clone(), pubElementsC2.clone())?;
                     partsC1 = replacePublicList(partsC1.clone(), pubElementsC1.clone())?;
-                    todo!("unhandled field-assign shape: c.body");
+                    assign_field!(c.body = Arc::new(Absyn::ClassDef::PARTS { typeVars: typeVars1.clone(), classAttrs: classAttrs1.clone(), classParts: partsC1.clone(), ann: ann1.clone(), comment: cmt1.clone() }));
                     Ok(c.clone())
                 }
                 _ => bail!("nomatch"),
@@ -3806,6 +3803,15 @@ pub mod ClassEntry {
         pub cls: Arc<Absyn::Class>,
     }
 
+    impl Default for ClassEntry {
+        fn default() -> Self {
+            Self {
+                path: Default::default(),
+                cls: Default::default(),
+            }
+        }
+    }
+
     pub type CLASS_ENTRY = ClassEntry;
 
     pub fn getPath(mut entry: Arc<ClassEntry>) -> Arc<Absyn::Path> {
@@ -3894,7 +3900,7 @@ pub fn getAllSubtypeOf2(mut baseClass: Arc<Absyn::Path>, mut parentClass: Arc<Ab
     let mut parent: Arc<Absyn::Path>;
     let mut base_class: Arc<Absyn::Path>;
     let mut cls: Arc<Absyn::Class> = Arc::new(<Absyn::Class as ::std::default::Default>::default());
-    let mut base_entry: Arc<ClassEntry::ClassEntry>;
+    let mut base_entry: Arc<ClassEntry::ClassEntry> = Arc::new(<ClassEntry::ClassEntry as ::std::default::Default>::default());
     let mut classes: Arc<metamodelica::List<Arc<Absyn::Class>>> = metamodelica::nil();
     let mut result_path_lst: Arc<metamodelica::List<Arc<Absyn::Path>>> = metamodelica::nil();
     let mut acc: Arc<metamodelica::List<Arc<ClassEntry::ClassEntry>>> = metamodelica::nil();
@@ -4314,7 +4320,7 @@ pub fn removeInnerClass(mut inClass1: Arc<Absyn::Class>, mut inClass2: Arc<Absyn
                     publst = getPublicList(parts.clone());
                     publst2 = removeClassInElementitemlist(publst.clone(), c1.clone())?;
                     parts2 = replacePublicList(parts.clone(), publst2.clone())?;
-                    todo!("unhandled field-assign shape: outClass.body");
+                    assign_field!(outClass.body = Arc::new(Absyn::ClassDef::PARTS { typeVars: typeVars.clone(), classAttrs: classAttrs.clone(), classParts: parts2.clone(), ann: ann.clone(), comment: cmt.clone() }));
                     Ok(outClass.clone())
                 }
                 _ => bail!("nomatch"),
@@ -4330,7 +4336,7 @@ pub fn removeInnerClass(mut inClass1: Arc<Absyn::Class>, mut inClass2: Arc<Absyn
                     prolst = getProtectedList(parts.clone());
                     prolst2 = removeClassInElementitemlist(prolst.clone(), c1.clone())?;
                     parts2 = replaceProtectedList(parts.clone(), prolst2.clone())?;
-                    todo!("unhandled field-assign shape: outClass.body");
+                    assign_field!(outClass.body = Arc::new(Absyn::ClassDef::PARTS { typeVars: typeVars.clone(), classAttrs: classAttrs.clone(), classParts: parts2.clone(), ann: ann.clone(), comment: cmt.clone() }));
                     Ok(outClass.clone())
                 }
                 _ => bail!("nomatch"),
@@ -4346,7 +4352,7 @@ pub fn removeInnerClass(mut inClass1: Arc<Absyn::Class>, mut inClass2: Arc<Absyn
                     publst = getPublicList(parts.clone());
                     publst2 = removeClassInElementitemlist(publst.clone(), c1.clone())?;
                     parts2 = replacePublicList(parts.clone(), publst2.clone())?;
-                    todo!("unhandled field-assign shape: outClass.body");
+                    assign_field!(outClass.body = Arc::new(Absyn::ClassDef::CLASS_EXTENDS { baseClassName: (bcname.clone()).clone(), modifications: modif.clone(), comment: cmt.clone(), parts: parts2.clone(), ann: ann.clone() }));
                     Ok(outClass.clone())
                 }
                 _ => bail!("nomatch"),
@@ -4362,7 +4368,7 @@ pub fn removeInnerClass(mut inClass1: Arc<Absyn::Class>, mut inClass2: Arc<Absyn
                     prolst = getProtectedList(parts.clone());
                     prolst2 = removeClassInElementitemlist(prolst.clone(), c1.clone())?;
                     parts2 = replaceProtectedList(parts.clone(), prolst2.clone())?;
-                    todo!("unhandled field-assign shape: outClass.body");
+                    assign_field!(outClass.body = Arc::new(Absyn::ClassDef::CLASS_EXTENDS { baseClassName: (bcname.clone()).clone(), modifications: modif.clone(), comment: cmt.clone(), parts: parts2.clone(), ann: ann.clone() }));
                     Ok(outClass.clone())
                 }
                 _ => bail!("nomatch"),
@@ -4973,7 +4979,7 @@ fn resolveMergeContentsConflicts(mut oldElement: Arc<Absyn::Element>, mut newCon
     let mut new_name: ArcStr = arcstr::literal!("");
     let mut index: i32 = 0;
     let mut conflicting_names: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
-    old_names = UnorderedSet::new((std::sync::Arc::new(fnptr!(stringHashDjb2, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr) -> Result<i32> + 'static>), (std::sync::Arc::new(stringEq) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>), 13);
+    old_names = UnorderedSet::new((std::sync::Arc::new(fnptr!(stringHashDjb2, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr) -> Result<i32> + 'static>), (std::sync::Arc::new(fnptr!(stringEq, ArcStr, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>), 13);
     for mut e in &*AbsynUtil::getElementItemsInElement(oldElement.clone()) {
         let mut e = e.clone();
         for mut name in &*AbsynUtil::elementItemNames(e.clone())? {
@@ -4981,7 +4987,7 @@ fn resolveMergeContentsConflicts(mut oldElement: Arc<Absyn::Element>, mut newCon
             UnorderedSet::add((name.clone()).clone(), old_names.clone())?;
         }
     }
-    rename_map = UnorderedMap::new((std::sync::Arc::new(fnptr!(stringHashDjb2, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr) -> Result<i32> + 'static>), (std::sync::Arc::new(stringEq) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>), 1);
+    rename_map = UnorderedMap::new((std::sync::Arc::new(fnptr!(stringHashDjb2, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr) -> Result<i32> + 'static>), (std::sync::Arc::new(fnptr!(stringEq, ArcStr, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>), 1);
     for mut e in &*AbsynUtil::getElementItemsInClassDef(newContent.clone()) {
         let mut e = e.clone();
         for mut name in &*AbsynUtil::elementItemNames(e.clone())? {
@@ -5784,9 +5790,9 @@ pub fn getInheritedAnnotation(mut modelPath: Arc<Absyn::Path>, mut annotationNam
     let mut cls: Arc<Absyn::Class> = Arc::new(<Absyn::Class as ::std::default::Default>::default());
     let mut extends_paths: Arc<metamodelica::List<Arc<Absyn::Path>>> = metamodelica::nil();
     let mut extends_oannl: Arc<metamodelica::List<Option<Arc<Absyn::Modification>>>> = metamodelica::nil();
-    let mut cls_ann: Arc<Absyn::Modification>;
-    let mut extends_ann: Arc<Absyn::Modification>;
-    let mut extends_ann2: Arc<Absyn::Modification>;
+    let mut cls_ann: Arc<Absyn::Modification> = Arc::new(<Absyn::Modification as ::std::default::Default>::default());
+    let mut extends_ann: Arc<Absyn::Modification> = Arc::new(<Absyn::Modification as ::std::default::Default>::default());
+    let mut extends_ann2: Arc<Absyn::Modification> = Arc::new(<Absyn::Modification as ::std::default::Default>::default());
     let mut extends_path: Arc<Absyn::Path>;
     cls = getPathedClassInProgram(modelPath.clone(), program.clone(), false, false)?;
     outAnnotation = AbsynUtil::lookupClassAnnotation(cls.clone(), (annotationName.clone()).clone())?;
@@ -6163,7 +6169,7 @@ pub fn offsetAnnotationsInComponentItem(mut item: Arc<Absyn::ComponentItem>, mut
 pub fn offsetIconTransformationAnnotation(mut ann: Arc<Absyn::Annotation>, mut x: i32, mut y: i32) -> Arc<Absyn::Annotation> {
     fn r#impl(mut arg: Arc<Absyn::ElementArg>, mut x: i32, mut y: i32) -> Result<Arc<Absyn::ElementArg>> {
         let mut arg: Arc<Absyn::ElementArg> = arg;
-        let mut r#mod: Arc<Absyn::Modification>;
+        let mut r#mod: Arc<Absyn::Modification> = Arc::new(<Absyn::Modification as ::std::default::Default>::default());
         let () = (::match_deref::match_deref! { match &(arg.clone()) {
         Deref @ Absyn::ElementArg::MODIFICATION { modification: Some(r#mod), .. } => {
             let mut r#mod = (*r#mod).clone();
@@ -6193,7 +6199,7 @@ pub fn offsetIconTransformationAnnotation(mut ann: Arc<Absyn::Annotation>, mut x
 
 pub fn offsetOriginAnnotation(mut arg: Arc<Absyn::ElementArg>, mut x: i32, mut y: i32) -> Result<Arc<Absyn::ElementArg>> {
     let mut arg: Arc<Absyn::ElementArg> = arg;
-    let mut r#mod: Arc<Absyn::Modification>;
+    let mut r#mod: Arc<Absyn::Modification> = Arc::new(<Absyn::Modification as ::std::default::Default>::default());
     let mut eq_mod: Arc<Absyn::EqMod> = Arc::new(Absyn::EqMod::NOMOD);
     let () = (::match_deref::match_deref! { match &(arg.clone()) {
         Deref @ Absyn::ElementArg::MODIFICATION { .. } => {
@@ -6286,7 +6292,7 @@ pub fn offsetAnnotationsInEquationItem(mut item: Arc<Absyn::EquationItem>, mut x
                     let mut ann = (*ann).clone();
                     let mut item: Arc<Absyn::EquationItem> = item.clone();
                     ann = AbsynUtil::transformAnnotationArg(ann.clone(), LINE_POINTS_PATH.clone(), Arc::new({ let __pe_b1 = x.clone(); let __pe_b2 = y.clone(); move |__pe_a0| Ok(offsetConnectionLineAnnotation(__pe_a0, __pe_b1.clone(), __pe_b2.clone())) }), false)?;
-                    todo!("unhandled field-assign shape: cmt.annotation_");
+                    assign_field!(cmt.annotation_ = Some(ann.clone()));
                     assign_variant_field!(item => Absyn::EquationItem::EQUATIONITEM; comment = Some(cmt.clone()));
                     Ok(())
                 }
@@ -6308,7 +6314,7 @@ pub fn offsetAnnotationsInEquationItem(mut item: Arc<Absyn::EquationItem>, mut x
 
 pub fn offsetConnectionLineAnnotation(mut arg: Arc<Absyn::ElementArg>, mut x: i32, mut y: i32) -> Arc<Absyn::ElementArg> {
     let mut arg: Arc<Absyn::ElementArg> = arg;
-    let mut r#mod: Arc<Absyn::Modification>;
+    let mut r#mod: Arc<Absyn::Modification> = Arc::new(<Absyn::Modification as ::std::default::Default>::default());
     let mut eq_mod: Arc<Absyn::EqMod> = Arc::new(Absyn::EqMod::NOMOD);
     let () = (::match_deref::match_deref! { match &(arg.clone()) {
         Deref @ Absyn::ElementArg::MODIFICATION { modification: Some(Deref @ Absyn::Modification { eqMod: eq_mod @ Deref @ Absyn::EqMod::EQMOD { .. }, .. }), .. } => {
@@ -6348,7 +6354,7 @@ pub fn offsetDiagramAnnotation(mut ann: Arc<Absyn::Annotation>, mut x: i32, mut 
 
 pub fn offsetGraphicsAnnotation(mut arg: Arc<Absyn::ElementArg>, mut x: i32, mut y: i32) -> Result<Arc<Absyn::ElementArg>> {
     let mut arg: Arc<Absyn::ElementArg> = arg;
-    let mut r#mod: Arc<Absyn::Modification>;
+    let mut r#mod: Arc<Absyn::Modification> = Arc::new(<Absyn::Modification as ::std::default::Default>::default());
     let mut eq_mod: Arc<Absyn::EqMod> = Arc::new(Absyn::EqMod::NOMOD);
     let () = (::match_deref::match_deref! { match &(arg.clone()) {
         Deref @ Absyn::ElementArg::MODIFICATION { modification: Some(Deref @ Absyn::Modification { eqMod: eq_mod @ Deref @ Absyn::EqMod::EQMOD { .. }, .. }), .. } => {
@@ -6441,14 +6447,11 @@ pub fn addToPublic(mut cls: Arc<Absyn::Class>, mut element: Arc<Absyn::ElementIt
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ Absyn::Class { body: cdef @ Deref @ Absyn::ClassDef::PARTS { .. }, .. } => {
                     let mut cdef = (*cdef).clone();
-                    let mut elems: Arc<metamodelica::List<Arc<Absyn::ElementItem>>> = elems.clone();
                     let mut cls: Arc<Absyn::Class> = cls.clone();
-                    elems = getPublicList(var_field!((**cdef).classParts, Absyn::ClassDef::PARTS).clone());
+                    let mut elems: Arc<metamodelica::List<Arc<Absyn::ElementItem>>> = elems.clone();
+                    elems = getPublicList(var_field!((*cdef).classParts, Absyn::ClassDef::PARTS).clone());
                     elems = List::appendElt(element.clone(), elems.clone());
-                    let __owned_variant_classParts_0 = replacePublicList(var_field!((**cdef).classParts, Absyn::ClassDef::PARTS).clone(), elems.clone())?;
-                    if let Absyn::ClassDef::PARTS { classParts, .. } = &mut cdef {
-                        *classParts = __owned_variant_classParts_0;
-                    } else { panic!("owned-variant field-assign: value held a different variant than Absyn::ClassDef::PARTS"); }
+                    assign_variant_field!(cdef => Absyn::ClassDef::PARTS; classParts = replacePublicList(var_field!((*cdef).classParts, Absyn::ClassDef::PARTS).clone(), elems.clone())?);
                     assign_field!(cls.body = cdef.clone());
                     Ok(())
                 }
@@ -6460,10 +6463,7 @@ pub fn addToPublic(mut cls: Arc<Absyn::Class>, mut element: Arc<Absyn::ElementIt
                 Deref @ Absyn::Class { body: cdef @ Deref @ Absyn::ClassDef::PARTS { .. }, .. } => {
                     let mut cdef = (*cdef).clone();
                     let mut cls: Arc<Absyn::Class> = cls.clone();
-                    let __owned_variant_classParts_0 = cons(Arc::new(Absyn::ClassPart::PUBLIC { contents: list![element.clone()] }), var_field!((**cdef).classParts, Absyn::ClassDef::PARTS).clone());
-                    if let Absyn::ClassDef::PARTS { classParts, .. } = &mut cdef {
-                        *classParts = __owned_variant_classParts_0;
-                    } else { panic!("owned-variant field-assign: value held a different variant than Absyn::ClassDef::PARTS"); }
+                    assign_variant_field!(cdef => Absyn::ClassDef::PARTS; classParts = cons(Arc::new(Absyn::ClassPart::PUBLIC { contents: list![element.clone()] }), var_field!((*cdef).classParts, Absyn::ClassDef::PARTS).clone()));
                     assign_field!(cls.body = cdef.clone());
                     Ok(())
                 }
@@ -6476,12 +6476,9 @@ pub fn addToPublic(mut cls: Arc<Absyn::Class>, mut element: Arc<Absyn::ElementIt
                     let mut cdef = (*cdef).clone();
                     let mut elems: Arc<metamodelica::List<Arc<Absyn::ElementItem>>> = elems.clone();
                     let mut cls: Arc<Absyn::Class> = cls.clone();
-                    elems = getPublicList(var_field!((**cdef).parts, Absyn::ClassDef::CLASS_EXTENDS).clone());
+                    elems = getPublicList(var_field!((*cdef).parts, Absyn::ClassDef::CLASS_EXTENDS).clone());
                     elems = List::appendElt(element.clone(), elems.clone());
-                    let __owned_variant_parts_0 = replacePublicList(var_field!((**cdef).parts, Absyn::ClassDef::CLASS_EXTENDS).clone(), elems.clone())?;
-                    if let Absyn::ClassDef::CLASS_EXTENDS { parts, .. } = &mut cdef {
-                        *parts = __owned_variant_parts_0;
-                    } else { panic!("owned-variant field-assign: value held a different variant than Absyn::ClassDef::CLASS_EXTENDS"); }
+                    assign_variant_field!(cdef => Absyn::ClassDef::CLASS_EXTENDS; parts = replacePublicList(var_field!((*cdef).parts, Absyn::ClassDef::CLASS_EXTENDS).clone(), elems.clone())?);
                     assign_field!(cls.body = cdef.clone());
                     Ok(())
                 }
@@ -6493,10 +6490,7 @@ pub fn addToPublic(mut cls: Arc<Absyn::Class>, mut element: Arc<Absyn::ElementIt
                 Deref @ Absyn::Class { body: cdef @ Deref @ Absyn::ClassDef::CLASS_EXTENDS { .. }, .. } => {
                     let mut cdef = (*cdef).clone();
                     let mut cls: Arc<Absyn::Class> = cls.clone();
-                    let __owned_variant_parts_0 = cons(Arc::new(Absyn::ClassPart::PUBLIC { contents: list![element.clone()] }), var_field!((**cdef).parts, Absyn::ClassDef::CLASS_EXTENDS).clone());
-                    if let Absyn::ClassDef::CLASS_EXTENDS { parts, .. } = &mut cdef {
-                        *parts = __owned_variant_parts_0;
-                    } else { panic!("owned-variant field-assign: value held a different variant than Absyn::ClassDef::CLASS_EXTENDS"); }
+                    assign_variant_field!(cdef => Absyn::ClassDef::CLASS_EXTENDS; parts = cons(Arc::new(Absyn::ClassPart::PUBLIC { contents: list![element.clone()] }), var_field!((*cdef).parts, Absyn::ClassDef::CLASS_EXTENDS).clone()));
                     assign_field!(cls.body = cdef.clone());
                     Ok(())
                 }
@@ -6518,14 +6512,11 @@ pub fn addToProtected(mut cls: Arc<Absyn::Class>, mut element: Arc<Absyn::Elemen
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ Absyn::Class { body: cdef @ Deref @ Absyn::ClassDef::PARTS { .. }, .. } => {
                     let mut cdef = (*cdef).clone();
-                    let mut elems: Arc<metamodelica::List<Arc<Absyn::ElementItem>>> = elems.clone();
                     let mut cls: Arc<Absyn::Class> = cls.clone();
-                    elems = getProtectedList(var_field!((**cdef).classParts, Absyn::ClassDef::PARTS).clone());
+                    let mut elems: Arc<metamodelica::List<Arc<Absyn::ElementItem>>> = elems.clone();
+                    elems = getProtectedList(var_field!((*cdef).classParts, Absyn::ClassDef::PARTS).clone());
                     elems = List::appendElt(element.clone(), elems.clone());
-                    let __owned_variant_classParts_0 = replaceProtectedList(var_field!((**cdef).classParts, Absyn::ClassDef::PARTS).clone(), elems.clone())?;
-                    if let Absyn::ClassDef::PARTS { classParts, .. } = &mut cdef {
-                        *classParts = __owned_variant_classParts_0;
-                    } else { panic!("owned-variant field-assign: value held a different variant than Absyn::ClassDef::PARTS"); }
+                    assign_variant_field!(cdef => Absyn::ClassDef::PARTS; classParts = replaceProtectedList(var_field!((*cdef).classParts, Absyn::ClassDef::PARTS).clone(), elems.clone())?);
                     assign_field!(cls.body = cdef.clone());
                     Ok(())
                 }
@@ -6537,10 +6528,7 @@ pub fn addToProtected(mut cls: Arc<Absyn::Class>, mut element: Arc<Absyn::Elemen
                 Deref @ Absyn::Class { body: cdef @ Deref @ Absyn::ClassDef::PARTS { .. }, .. } => {
                     let mut cdef = (*cdef).clone();
                     let mut cls: Arc<Absyn::Class> = cls.clone();
-                    let __owned_variant_classParts_0 = cons(Arc::new(Absyn::ClassPart::PROTECTED { contents: list![element.clone()] }), var_field!((**cdef).classParts, Absyn::ClassDef::PARTS).clone());
-                    if let Absyn::ClassDef::PARTS { classParts, .. } = &mut cdef {
-                        *classParts = __owned_variant_classParts_0;
-                    } else { panic!("owned-variant field-assign: value held a different variant than Absyn::ClassDef::PARTS"); }
+                    assign_variant_field!(cdef => Absyn::ClassDef::PARTS; classParts = cons(Arc::new(Absyn::ClassPart::PROTECTED { contents: list![element.clone()] }), var_field!((*cdef).classParts, Absyn::ClassDef::PARTS).clone()));
                     assign_field!(cls.body = cdef.clone());
                     Ok(())
                 }
@@ -6553,12 +6541,9 @@ pub fn addToProtected(mut cls: Arc<Absyn::Class>, mut element: Arc<Absyn::Elemen
                     let mut cdef = (*cdef).clone();
                     let mut cls: Arc<Absyn::Class> = cls.clone();
                     let mut elems: Arc<metamodelica::List<Arc<Absyn::ElementItem>>> = elems.clone();
-                    elems = getProtectedList(var_field!((**cdef).parts, Absyn::ClassDef::CLASS_EXTENDS).clone());
+                    elems = getProtectedList(var_field!((*cdef).parts, Absyn::ClassDef::CLASS_EXTENDS).clone());
                     elems = List::appendElt(element.clone(), elems.clone());
-                    let __owned_variant_parts_0 = replaceProtectedList(var_field!((**cdef).parts, Absyn::ClassDef::CLASS_EXTENDS).clone(), elems.clone())?;
-                    if let Absyn::ClassDef::CLASS_EXTENDS { parts, .. } = &mut cdef {
-                        *parts = __owned_variant_parts_0;
-                    } else { panic!("owned-variant field-assign: value held a different variant than Absyn::ClassDef::CLASS_EXTENDS"); }
+                    assign_variant_field!(cdef => Absyn::ClassDef::CLASS_EXTENDS; parts = replaceProtectedList(var_field!((*cdef).parts, Absyn::ClassDef::CLASS_EXTENDS).clone(), elems.clone())?);
                     assign_field!(cls.body = cdef.clone());
                     Ok(())
                 }
@@ -6570,10 +6555,7 @@ pub fn addToProtected(mut cls: Arc<Absyn::Class>, mut element: Arc<Absyn::Elemen
                 Deref @ Absyn::Class { body: cdef @ Deref @ Absyn::ClassDef::CLASS_EXTENDS { .. }, .. } => {
                     let mut cdef = (*cdef).clone();
                     let mut cls: Arc<Absyn::Class> = cls.clone();
-                    let __owned_variant_parts_0 = cons(Arc::new(Absyn::ClassPart::PROTECTED { contents: list![element.clone()] }), var_field!((**cdef).parts, Absyn::ClassDef::CLASS_EXTENDS).clone());
-                    if let Absyn::ClassDef::CLASS_EXTENDS { parts, .. } = &mut cdef {
-                        *parts = __owned_variant_parts_0;
-                    } else { panic!("owned-variant field-assign: value held a different variant than Absyn::ClassDef::CLASS_EXTENDS"); }
+                    assign_variant_field!(cdef => Absyn::ClassDef::CLASS_EXTENDS; parts = cons(Arc::new(Absyn::ClassPart::PROTECTED { contents: list![element.clone()] }), var_field!((*cdef).parts, Absyn::ClassDef::CLASS_EXTENDS).clone()));
                     assign_field!(cls.body = cdef.clone());
                     Ok(())
                 }
@@ -6597,12 +6579,9 @@ pub fn addToEquation(mut cls: Arc<Absyn::Class>, mut eq: Arc<Absyn::EquationItem
                     let mut cdef = (*cdef).clone();
                     let mut cls: Arc<Absyn::Class> = cls.clone();
                     let mut eqlst: Arc<metamodelica::List<Arc<Absyn::EquationItem>>> = eqlst.clone();
-                    eqlst = getEquationList(var_field!((**cdef).classParts, Absyn::ClassDef::PARTS).clone())?;
+                    eqlst = getEquationList(var_field!((*cdef).classParts, Absyn::ClassDef::PARTS).clone())?;
                     eqlst = List::appendElt(eq.clone(), eqlst.clone());
-                    let __owned_variant_classParts_0 = replaceEquationList(var_field!((**cdef).classParts, Absyn::ClassDef::PARTS).clone(), eqlst.clone())?;
-                    if let Absyn::ClassDef::PARTS { classParts, .. } = &mut cdef {
-                        *classParts = __owned_variant_classParts_0;
-                    } else { panic!("owned-variant field-assign: value held a different variant than Absyn::ClassDef::PARTS"); }
+                    assign_variant_field!(cdef => Absyn::ClassDef::PARTS; classParts = replaceEquationList(var_field!((*cdef).classParts, Absyn::ClassDef::PARTS).clone(), eqlst.clone())?);
                     assign_field!(cls.body = cdef.clone());
                     Ok(())
                 }
@@ -6614,10 +6593,7 @@ pub fn addToEquation(mut cls: Arc<Absyn::Class>, mut eq: Arc<Absyn::EquationItem
                 Deref @ Absyn::Class { body: cdef @ Deref @ Absyn::ClassDef::PARTS { .. }, .. } => {
                     let mut cdef = (*cdef).clone();
                     let mut cls: Arc<Absyn::Class> = cls.clone();
-                    let __owned_variant_classParts_0 = List::appendElt(Arc::new(Absyn::ClassPart::EQUATIONS { contents: list![eq.clone()] }), var_field!((**cdef).classParts, Absyn::ClassDef::PARTS).clone());
-                    if let Absyn::ClassDef::PARTS { classParts, .. } = &mut cdef {
-                        *classParts = __owned_variant_classParts_0;
-                    } else { panic!("owned-variant field-assign: value held a different variant than Absyn::ClassDef::PARTS"); }
+                    assign_variant_field!(cdef => Absyn::ClassDef::PARTS; classParts = List::appendElt(Arc::new(Absyn::ClassPart::EQUATIONS { contents: list![eq.clone()] }), var_field!((*cdef).classParts, Absyn::ClassDef::PARTS).clone()));
                     assign_field!(cls.body = cdef.clone());
                     Ok(())
                 }
@@ -6630,12 +6606,9 @@ pub fn addToEquation(mut cls: Arc<Absyn::Class>, mut eq: Arc<Absyn::EquationItem
                     let mut cdef = (*cdef).clone();
                     let mut cls: Arc<Absyn::Class> = cls.clone();
                     let mut eqlst: Arc<metamodelica::List<Arc<Absyn::EquationItem>>> = eqlst.clone();
-                    eqlst = getEquationList(var_field!((**cdef).parts, Absyn::ClassDef::CLASS_EXTENDS).clone())?;
+                    eqlst = getEquationList(var_field!((*cdef).parts, Absyn::ClassDef::CLASS_EXTENDS).clone())?;
                     eqlst = List::appendElt(eq.clone(), eqlst.clone());
-                    let __owned_variant_parts_0 = replaceEquationList(var_field!((**cdef).parts, Absyn::ClassDef::CLASS_EXTENDS).clone(), eqlst.clone())?;
-                    if let Absyn::ClassDef::CLASS_EXTENDS { parts, .. } = &mut cdef {
-                        *parts = __owned_variant_parts_0;
-                    } else { panic!("owned-variant field-assign: value held a different variant than Absyn::ClassDef::CLASS_EXTENDS"); }
+                    assign_variant_field!(cdef => Absyn::ClassDef::CLASS_EXTENDS; parts = replaceEquationList(var_field!((*cdef).parts, Absyn::ClassDef::CLASS_EXTENDS).clone(), eqlst.clone())?);
                     assign_field!(cls.body = cdef.clone());
                     Ok(())
                 }
@@ -6647,10 +6620,7 @@ pub fn addToEquation(mut cls: Arc<Absyn::Class>, mut eq: Arc<Absyn::EquationItem
                 Deref @ Absyn::Class { body: cdef @ Deref @ Absyn::ClassDef::CLASS_EXTENDS { .. }, .. } => {
                     let mut cdef = (*cdef).clone();
                     let mut cls: Arc<Absyn::Class> = cls.clone();
-                    let __owned_variant_parts_0 = List::appendElt(Arc::new(Absyn::ClassPart::EQUATIONS { contents: list![eq.clone()] }), var_field!((**cdef).parts, Absyn::ClassDef::CLASS_EXTENDS).clone());
-                    if let Absyn::ClassDef::CLASS_EXTENDS { parts, .. } = &mut cdef {
-                        *parts = __owned_variant_parts_0;
-                    } else { panic!("owned-variant field-assign: value held a different variant than Absyn::ClassDef::CLASS_EXTENDS"); }
+                    assign_variant_field!(cdef => Absyn::ClassDef::CLASS_EXTENDS; parts = List::appendElt(Arc::new(Absyn::ClassPart::EQUATIONS { contents: list![eq.clone()] }), var_field!((*cdef).parts, Absyn::ClassDef::CLASS_EXTENDS).clone()));
                     assign_field!(cls.body = cdef.clone());
                     Ok(())
                 }

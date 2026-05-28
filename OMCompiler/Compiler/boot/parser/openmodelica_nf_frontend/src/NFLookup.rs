@@ -132,7 +132,7 @@ pub fn lookupComponent(mut cref: Arc<Absyn::ComponentRef>, mut scope: Arc<InstNo
         }
         Err(_) => {
             Error::addSourceMessageAndFail(Error::LOOKUP_VARIABLE_ERROR.clone(), list![(Dump::printComponentRefStr(cref.clone())?).clone(), (InstNode::scopeName(scope.clone())).clone()], info.clone())?;
-            bail!("try/else: outputs not set in else branch");
+            unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
         }
     }
     state = fixTypenameState(node.clone(), state.clone(), context.clone())?;
@@ -145,19 +145,13 @@ pub fn lookupConnector(mut cref: Arc<Absyn::ComponentRef>, mut scope: Arc<InstNo
     let mut foundScope: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
     let mut state: Arc<LookupState::LookupState> = Arc::new(LookupState::BEGIN);
     let mut node: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
-    match '__try0: {
-        (foundCref, foundScope, state) = unwrap_break_err!(lookupCref(cref.clone(), scope.clone(), context.clone()), '__try0);
-        Ok::<_, anyhow::Error>((foundCref.clone(), foundScope.clone(), state.clone()))
-    } {
-        Ok((__try0_o0, __try0_o1, __try0_o2)) => {
-            foundCref = __try0_o0;
-            foundScope = __try0_o1;
-            state = __try0_o2;
-        }
-        Err(_) => {
-            Error::addSourceMessageAndFail(Error::LOOKUP_VARIABLE_ERROR.clone(), list![(Dump::printComponentRefStr(cref.clone())?).clone(), (InstNode::scopeName(scope.clone())).clone()], info.clone())?;
-            bail!("try/else: outputs not set in else branch");
-        }
+    if let Ok((__pa0, __pa1, __pa2)) = lookupCref(cref.clone(), scope.clone(), context.clone()) {
+        foundCref = __pa0.clone();
+        foundScope = __pa1.clone();
+        state = __pa2.clone();
+    } else {
+        Error::addSourceMessageAndFail(Error::LOOKUP_VARIABLE_ERROR.clone(), list![(Dump::printComponentRefStr(cref.clone())?).clone(), (InstNode::scopeName(scope.clone())).clone()], info.clone())?;
+        unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
     }
     node = ComponentRef::node(foundCref.clone())?;
     state = fixTypenameState(node.clone(), state.clone(), context.clone())?;
@@ -209,7 +203,7 @@ pub fn lookupFunctionName(mut cref: Arc<Absyn::ComponentRef>, mut scope: Arc<Ins
         }
         Err(_) => {
             Error::addSourceMessageAndFail(Error::LOOKUP_FUNCTION_ERROR.clone(), list![(Dump::printComponentRefStr(cref.clone())?).clone(), (InstNode::scopeName(scope.clone())).clone()], info.clone())?;
-            bail!("try/else: outputs not set in else branch");
+            unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
         }
     }
     (foundCref, state) = fixExternalObjectCall(node.clone(), foundCref.clone(), state.clone())?;
@@ -311,9 +305,9 @@ pub fn lookupLocalCref(mut cref: Arc<Absyn::ComponentRef>, mut scope: Arc<InstNo
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ Absyn::ComponentRef::CREF_IDENT { .. } => {
-                    let mut foundScope: Arc<InstNode::InstNode> = foundScope.clone();
                     let mut state: Arc<LookupState::LookupState> = state.clone();
                     let mut node: Arc<InstNode::InstNode> = node.clone();
+                    let mut foundScope: Arc<InstNode::InstNode> = foundScope.clone();
                     (node, foundScope) = lookupLocalSimpleCref((var_field!((*cref).name, Absyn::ComponentRef::CREF_IDENT).clone()).clone(), scope.clone())?;
                     state = LookupState::nodeState(node.clone())?;
                     Ok((ComponentRef::fromAbsyn(node.clone(), var_field!((*cref).subscripts, Absyn::ComponentRef::CREF_IDENT).clone(), Arc::new(crate::NFComponentRef::EMPTY)), foundScope.clone(), state.clone()))
@@ -324,10 +318,10 @@ pub fn lookupLocalCref(mut cref: Arc<Absyn::ComponentRef>, mut scope: Arc<InstNo
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ Absyn::ComponentRef::CREF_QUAL { .. } => {
-                    let mut foundCref: Arc<ComponentRef::NFComponentRef> = foundCref.clone();
-                    let mut foundScope: Arc<InstNode::InstNode> = foundScope.clone();
-                    let mut state: Arc<LookupState::LookupState> = state.clone();
                     let mut node: Arc<InstNode::InstNode> = node.clone();
+                    let mut foundScope: Arc<InstNode::InstNode> = foundScope.clone();
+                    let mut foundCref: Arc<ComponentRef::NFComponentRef> = foundCref.clone();
+                    let mut state: Arc<LookupState::LookupState> = state.clone();
                     (node, foundScope) = lookupLocalSimpleCref((var_field!((*cref).name, Absyn::ComponentRef::CREF_QUAL).clone()).clone(), scope.clone())?;
                     state = LookupState::nodeState(node.clone())?;
                     foundCref = ComponentRef::fromAbsyn(node.clone(), var_field!((*cref).subscripts, Absyn::ComponentRef::CREF_QUAL).clone(), Arc::new(crate::NFComponentRef::EMPTY));
@@ -896,7 +890,7 @@ pub fn makeInnerNode(mut node: Arc<InstNode::InstNode>) -> Result<Arc<InstNode::
         },
         Deref @ InstNode::COMPONENT_NODE { .. } => {
             let mut def: Arc<SCode::Element>;
-            let mut prefs: Arc<SCode::Prefixes>;
+            let mut prefs: Arc<SCode::Prefixes> = Arc::new(<SCode::Prefixes as ::std::default::Default>::default());
             let mut comp: Arc<Component::NFComponent> = Arc::new(Component::WILD);
             comp = InstNode::component(node.clone())?;
             (comp, def) = (::match_deref::match_deref! { match &(comp.clone()) {

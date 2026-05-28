@@ -449,8 +449,8 @@ pub fn propagateAnnotation(mut name: ArcStr, mut overwrite: bool, mut evaluate: 
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ SCode::Mod::MOD { binding: Some(aexp), .. } => {
-                    let mut exp: Arc<Expression::NFExpression> = exp.clone();
                     let mut r#mod: Arc<SCode::Mod> = r#mod.clone();
+                    let mut exp: Arc<Expression::NFExpression> = exp.clone();
                     exp = Inst::instExp(aexp.clone(), scope.clone(), NFInstContext::ANNOTATION.clone(), var_field!((*r#mod).info, SCode::Mod::MOD).clone())?;
                     (exp, _, _, _) = Typing::typeExp(exp.clone(), NFInstContext::ANNOTATION.clone(), var_field!((*r#mod).info, SCode::Mod::MOD).clone(), false)?;
                     exp = Ceval::evalExp(exp.clone(), Ceval::noTarget().clone())?;
@@ -583,7 +583,7 @@ pub fn mapExpShallow(mut var: Arc<NFVariable>, mut r#fn: Arc<dyn ::std::ops::Fn(
 
 pub fn toString(mut var: Arc<NFVariable>, mut indent: ArcStr, mut printBindingType: bool) -> Result<ArcStr> {
     let mut r#str: ArcStr = arcstr::literal!("");
-    let mut s: IOStream::IOStream;
+    let mut s: IOStream::IOStream = <IOStream::IOStream as ::std::default::Default>::default();
     s = IOStream::create((literal!("NFVariable.toString")).clone(), openmodelica_util::IOStream::IOStreamType::LIST)?;
     s = toStream(var.clone(), (indent.clone()).clone(), printBindingType.clone(), s.clone())?;
     r#str = (IOStream::string(s.clone())?).clone();
@@ -679,7 +679,7 @@ pub fn toFlatStreamModifier(mut children: Arc<metamodelica::List<Arc<NFVariable>
     let mut s: IOStream::IOStream = s;
     let mut empty: bool = true;
     let mut overwritten_binding: bool = false;
-    let mut ss: IOStream::IOStream;
+    let mut ss: IOStream::IOStream = <IOStream::IOStream as ::std::default::Default>::default();
     let mut src: Binding::Source = Binding::Source::BINDING;
     for mut child in &*children.clone() {
         let mut child = child.clone();

@@ -69,17 +69,17 @@ pub fn symSolver(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<Option<Backen
 }
 
 fn symSolverWork(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<BackendDAE::InlineData> {
-    let mut inlineData: BackendDAE::InlineData;
+    let mut inlineData: BackendDAE::InlineData = <BackendDAE::InlineData as ::std::default::Default>::default();
     let mut osystlst: Arc<metamodelica::List<Arc<BackendDAE::EqSystem>>> = metamodelica::nil();
-    let mut syst_: Arc<BackendDAE::EqSystem>;
-    let mut shared: Arc<BackendDAE::Shared>;
-    let mut tmpv: BackendDAE::Var;
+    let mut syst_: Arc<BackendDAE::EqSystem> = Arc::new(<BackendDAE::EqSystem as ::std::default::Default>::default());
+    let mut shared: Arc<BackendDAE::Shared> = Arc::new(<BackendDAE::Shared as ::std::default::Default>::default());
+    let mut tmpv: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
     let mut cref: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
-    let mut sharedIn: Arc<BackendDAE::Shared>;
+    let mut sharedIn: Arc<BackendDAE::Shared> = Arc::new(<BackendDAE::Shared as ::std::default::Default>::default());
     let mut localInline: Arc<metamodelica::List<Arc<BackendDAE::EqSystem>>> = metamodelica::nil();
-    let mut knownVariables: BackendDAE::Variables;
-    let mut saveKnGlobalVars: BackendDAE::Variables;
-    let mut inlineBDAE: Arc<BackendDAE::BackendDAE>;
+    let mut knownVariables: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
+    let mut saveKnGlobalVars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
+    let mut inlineBDAE: Arc<BackendDAE::BackendDAE> = Arc::new(<BackendDAE::BackendDAE as ::std::default::Default>::default());
     let mut execbool: bool = false;
     localInline = BackendDAEUtil::copyEqSystems(inDAE.eqs.clone())?;
     knownVariables = BackendVariable::emptyVars(BackendDAEUtil::daeSize(inDAE.clone()));
@@ -126,11 +126,11 @@ fn symSolverWork(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<BackendDAE::I
 }
 
 fn symSolverUpdateSyst(mut iSyst: Arc<BackendDAE::EqSystem>, mut inKnVars: BackendDAE::Variables) -> Result<(Arc<BackendDAE::EqSystem>, BackendDAE::Variables)> {
-    let mut oSyst: Arc<BackendDAE::EqSystem>;
+    let mut oSyst: Arc<BackendDAE::EqSystem> = Arc::new(<BackendDAE::EqSystem as ::std::default::Default>::default());
     let mut oKnVars: BackendDAE::Variables = inKnVars.clone();
     let mut equOptArr: metamodelica::Array<Option<Arc<BackendDAE::Equation>>>;
     let mut eqn: Arc<BackendDAE::Equation> = Arc::new(BackendDAE::Equation::DUMMY_EQUATION);
-    let mut vars: BackendDAE::Variables;
+    let mut vars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
     let mut eqns: Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>;
     let mut crlst: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
     oSyst = (::match_deref::match_deref! { match &(iSyst.clone()) {
@@ -165,7 +165,7 @@ fn symSolverState(mut vars: BackendDAE::Variables, mut knvars: BackendDAE::Varia
     let mut oknvars: BackendDAE::Variables = knvars.clone();
     let mut idx: i32 = 0;
     let mut oldCref: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
-    let mut var: BackendDAE::Var;
+    let mut var: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
     for mut cref in &*crlst.clone() {
         let mut cref = cref.clone();
         (var, idx) = BackendVariable::getVar2(cref.clone(), ovars.clone())?;
@@ -181,7 +181,7 @@ fn symSolverState(mut vars: BackendDAE::Variables, mut knvars: BackendDAE::Varia
 fn symSolverUpdateEqn(mut inExp: Arc<DAE::Exp>, mut inTl: (Arc<metamodelica::List<Arc<DAE::ComponentRef>>>, BackendDAE::Variables)) -> Result<(Arc<DAE::Exp>, (Arc<metamodelica::List<Arc<DAE::ComponentRef>>>, BackendDAE::Variables))> {
     let mut outExp: Arc<DAE::Exp>;
     let mut outTpl: (Arc<metamodelica::List<Arc<DAE::ComponentRef>>>, BackendDAE::Variables);
-    let mut orderedVars: BackendDAE::Variables;
+    let mut orderedVars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
     let mut inTpl: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
     (inTpl, orderedVars) = inTl.clone();
     if Flags::getConfigEnum(Flags::SYM_SOLVER.clone())? > 1 {
@@ -201,7 +201,7 @@ fn symSolverUpdateStates(mut inExp: Arc<DAE::Exp>, mut inTl: (Arc<metamodelica::
     let mut cont: bool = true;
     let mut outTl: (Arc<metamodelica::List<Arc<DAE::ComponentRef>>>, BackendDAE::Variables);
     let mut inTpl: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
-    let mut orderedVars: BackendDAE::Variables;
+    let mut orderedVars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
     (inTpl, orderedVars) = inTl.clone();
     (outExp, outTl) = (::match_deref::match_deref! { match &((inTpl.clone(), inExp.clone())) {
         (cr_lst, Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e1 @ Deref @ DAE::Exp::CREF { componentRef: cr, ty: tp }, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "der" }, .. }) => {

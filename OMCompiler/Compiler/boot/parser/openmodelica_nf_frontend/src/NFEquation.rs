@@ -253,7 +253,7 @@ pub mod Branch {
 
     pub fn toString(mut branch: Arc<Branch>, mut indent: ArcStr) -> Result<ArcStr> {
         let mut r#str: ArcStr = arcstr::literal!("");
-        let mut s: IOStream::IOStream;
+        let mut s: IOStream::IOStream = <IOStream::IOStream as ::std::default::Default>::default();
         s = IOStream::create((literal!("NFEquation.Branch.toString")).clone(), openmodelica_util::IOStream::IOStreamType::LIST)?;
         s = toStream(branch.clone(), (literal!("")).clone(), false, (indent.clone()).clone(), s.clone())?;
         r#str = (IOStream::string(s.clone())?).clone();
@@ -1215,7 +1215,7 @@ pub fn sizeOf(mut eq: Arc<NFEquation>) -> Result<i32> {
 
 pub fn toString(mut eq: Arc<NFEquation>, mut indent: ArcStr) -> Result<ArcStr> {
     let mut r#str: ArcStr = arcstr::literal!("");
-    let mut s: IOStream::IOStream;
+    let mut s: IOStream::IOStream = <IOStream::IOStream as ::std::default::Default>::default();
     s = IOStream::create((literal!("NFEquation.toString")).clone(), openmodelica_util::IOStream::IOStreamType::LIST)?;
     s = toStream(eq.clone(), (indent.clone()).clone(), s.clone())?;
     r#str = (IOStream::string(s.clone())?).clone();
@@ -1225,7 +1225,7 @@ pub fn toString(mut eq: Arc<NFEquation>, mut indent: ArcStr) -> Result<ArcStr> {
 
 pub fn toStringList(mut eql: Arc<metamodelica::List<Arc<NFEquation>>>, mut indent: ArcStr) -> Result<ArcStr> {
     let mut r#str: ArcStr = arcstr::literal!("");
-    let mut s: IOStream::IOStream;
+    let mut s: IOStream::IOStream = <IOStream::IOStream as ::std::default::Default>::default();
     s = IOStream::create((literal!("NFEquation.toStringList")).clone(), openmodelica_util::IOStream::IOStreamType::LIST)?;
     s = toStreamList(eql.clone(), (indent.clone()).clone(), s.clone())?;
     r#str = (IOStream::string(s.clone())?).clone();

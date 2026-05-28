@@ -76,6 +76,16 @@ pub struct ImportTable {
     pub unqualifiedImports: Arc<metamodelica::List<Absyn::Import>>,
 }
 
+impl Default for ImportTable {
+    fn default() -> Self {
+        Self {
+            hidden: Default::default(),
+            qualifiedImports: Default::default(),
+            unqualifiedImports: Default::default(),
+        }
+    }
+}
+
 pub type IMPORT_TABLE = ImportTable;
 
 
@@ -93,6 +103,13 @@ pub enum Redeclaration {
         modifier: Arc<Item>,
     },
 }
+impl Default for Redeclaration {
+    fn default() -> Self {
+        Self::RAW_MODIFIER {
+            modifier: Default::default(),
+        }
+    }
+}
 pub use self::Redeclaration::{RAW_MODIFIER,PROCESSED_MODIFIER};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -103,6 +120,17 @@ pub struct Extends {
     pub info: SourceInfo,
 }
 
+impl Default for Extends {
+    fn default() -> Self {
+        Self {
+            baseClass: Default::default(),
+            redeclareModifiers: Default::default(),
+            index: Default::default(),
+            info: Default::default(),
+        }
+    }
+}
+
 pub type EXTENDS = Extends;
 
 
@@ -111,6 +139,16 @@ pub struct ExtendsTable {
     pub baseClasses: Arc<metamodelica::List<Arc<Extends>>>,
     pub redeclaredElements: Arc<metamodelica::List<Arc<SCode::Element>>>,
     pub classExtendsInfo: Option<Arc<SCode::Element>>,
+}
+
+impl Default for ExtendsTable {
+    fn default() -> Self {
+        Self {
+            baseClasses: Default::default(),
+            redeclaredElements: Default::default(),
+            classExtendsInfo: Default::default(),
+        }
+    }
 }
 
 pub type EXTENDS_TABLE = ExtendsTable;
@@ -125,6 +163,9 @@ pub enum FrameType {
         iterIndex: i32,
     },
 }
+impl Default for FrameType {
+    fn default() -> Self { Self::NORMAL_SCOPE }
+}
 pub use self::FrameType::{NORMAL_SCOPE,ENCAPSULATED_SCOPE,IMPLICIT_SCOPE};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -136,6 +177,19 @@ pub struct Frame {
     pub importTable: ImportTable,
     /// Used by SCodeDependency.
     pub isUsed: Option<Mutable::Mutable<bool>>,
+}
+
+impl Default for Frame {
+    fn default() -> Self {
+        Self {
+            name: Default::default(),
+            frameType: Default::default(),
+            clsAndVars: Default::default(),
+            extendsTable: Default::default(),
+            importTable: Default::default(),
+            isUsed: Default::default(),
+        }
+    }
 }
 
 pub type FRAME = Frame;
@@ -223,6 +277,9 @@ pub mod EnvTree {
             value: Value,
         },
         EMPTY,
+    }
+    impl Default for Tree {
+        fn default() -> Self { Self::EMPTY }
     }
     pub use self::Tree::{NODE,LEAF,EMPTY};
 
@@ -869,7 +926,7 @@ pub const BASE_CLASS_SUFFIX: &'static str = "$base";
 
 pub fn newEnvironment(mut inName: Option<ArcStr>) -> Env {
     let mut outEnv: Env = metamodelica::nil();
-    let mut new_frame: Arc<Frame>;
+    let mut new_frame: Arc<Frame> = Arc::new(<Frame as ::std::default::Default>::default());
     new_frame = newFrame(inName.clone(), crate::NFSCodeEnv::FrameType::NORMAL_SCOPE);
     outEnv = list![new_frame.clone()];
     outEnv
@@ -879,7 +936,7 @@ fn openScope(mut inEnv: Env, mut inClass: Arc<SCode::Element>) -> Result<Env> {
     let mut outEnv: Env = metamodelica::nil();
     let mut name: ArcStr = arcstr::literal!("");
     let mut encapsulatedPrefix: SCode::Encapsulated = SCode::Encapsulated::ENCAPSULATED;
-    let mut new_frame: Arc<Frame>;
+    let mut new_frame: Arc<Frame> = Arc::new(<Frame as ::std::default::Default>::default());
     let (__pa0, __pa1) = ::match_deref::match_deref! { match &(inClass.clone()) {
         Deref @ SCode::Element::CLASS { encapsulatedPrefix: __pa0, name: __pa1, .. } => (__pa0.clone(), __pa1.clone()),
         _ => bail!("pattern mismatch"),
@@ -898,7 +955,7 @@ pub fn enterScope(mut inEnv: Env, mut inName: ArcStr) -> Result<Env> {
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (_, _) => {
-                    let mut cls_env: Arc<Frame>;
+                    let mut cls_env: Arc<Frame> = Arc::new(<Frame as ::std::default::Default>::default());
                     let mut item: Arc<Item>;
                     let mut outEnv: Arc<metamodelica::List<Arc<Frame>>> = outEnv.clone();
                     (item, _) = NFSCodeLookup::lookupInClass((inName.clone()).clone(), inEnv.clone())?;
@@ -958,7 +1015,7 @@ pub fn enterFrame(mut inFrame: Arc<Frame>, mut inEnv: Env) -> Env {
 
 pub fn getEnvTopScope(mut inEnv: Env) -> Result<Env> {
     let mut outEnv: Env = metamodelica::nil();
-    let mut top_scope: Arc<Frame>;
+    let mut top_scope: Arc<Frame> = Arc::new(<Frame as ::std::default::Default>::default());
     let mut env: Env = metamodelica::nil();
     env = inEnv.clone().reverse();
     let __pa0 = ::match_deref::match_deref! { match &(env.clone()) {
@@ -980,10 +1037,10 @@ fn getFrameType(mut encapsulatedPrefix: SCode::Encapsulated) -> FrameType {
 }
 
 fn newFrame(mut inName: Option<ArcStr>, mut inType: FrameType) -> Arc<Frame> {
-    let mut outFrame: Arc<Frame>;
+    let mut outFrame: Arc<Frame> = Arc::new(<Frame as ::std::default::Default>::default());
     let mut tree: Arc<EnvTree::Tree> = Arc::new(EnvTree::Tree::EMPTY);
-    let mut exts: Arc<ExtendsTable>;
-    let mut imps: ImportTable;
+    let mut exts: Arc<ExtendsTable> = Arc::new(<ExtendsTable as ::std::default::Default>::default());
+    let mut imps: ImportTable = <ImportTable as ::std::default::Default>::default();
     let mut is_used: Mutable::Mutable<bool>;
     tree = EnvTree::new();
     exts = newExtendsTable();
@@ -994,13 +1051,13 @@ fn newFrame(mut inName: Option<ArcStr>, mut inType: FrameType) -> Arc<Frame> {
 }
 
 fn newImportTable() -> ImportTable {
-    let mut outImports: ImportTable;
+    let mut outImports: ImportTable = <ImportTable as ::std::default::Default>::default();
     outImports = ImportTable { hidden: false, qualifiedImports: metamodelica::nil(), unqualifiedImports: metamodelica::nil() };
     outImports
 }
 
 fn newExtendsTable() -> Arc<ExtendsTable> {
-    let mut outExtends: Arc<ExtendsTable>;
+    let mut outExtends: Arc<ExtendsTable> = Arc::new(<ExtendsTable as ::std::default::Default>::default());
     outExtends = Arc::new(ExtendsTable { baseClasses: metamodelica::nil(), redeclaredElements: metamodelica::nil(), classExtendsInfo: None });
     outExtends
 }
@@ -1076,8 +1133,8 @@ pub fn removeExtendsFromLocalScope(mut inEnv: Env) -> Result<Env> {
     let mut name: Option<ArcStr> = None;
     let mut ty: FrameType = FrameType::ENCAPSULATED_SCOPE;
     let mut tree: Arc<EnvTree::Tree> = Arc::new(EnvTree::Tree::EMPTY);
-    let mut imps: ImportTable;
-    let mut exts: Arc<ExtendsTable>;
+    let mut imps: ImportTable = <ImportTable as ::std::default::Default>::default();
+    let mut exts: Arc<ExtendsTable> = Arc::new(<ExtendsTable as ::std::default::Default>::default());
     let mut rest: Env = metamodelica::nil();
     let mut is_used: Option<Mutable::Mutable<bool>> = None;
     let (__pa0, __pa1, __pa2, __pa3, __pa4, __pa5) = ::match_deref::match_deref! { match &(inEnv.clone()) {
@@ -1100,7 +1157,7 @@ pub fn removeExtendFromLocalScope(mut inExtend: Arc<Absyn::Path>, mut inEnv: Env
     let mut name: Option<ArcStr> = None;
     let mut ty: FrameType = FrameType::ENCAPSULATED_SCOPE;
     let mut tree: Arc<EnvTree::Tree> = Arc::new(EnvTree::Tree::EMPTY);
-    let mut imps: ImportTable;
+    let mut imps: ImportTable = <ImportTable as ::std::default::Default>::default();
     let mut rest: Env = metamodelica::nil();
     let mut iu: Option<Mutable::Mutable<bool>> = None;
     let mut bcl: Arc<metamodelica::List<Arc<Extends>>> = metamodelica::nil();
@@ -1141,8 +1198,8 @@ pub fn removeRedeclaresFromLocalScope(mut inEnv: Env) -> Result<Env> {
     let mut name: Option<ArcStr> = None;
     let mut ty: FrameType = FrameType::ENCAPSULATED_SCOPE;
     let mut tree: Arc<EnvTree::Tree> = Arc::new(EnvTree::Tree::EMPTY);
-    let mut imps: ImportTable;
-    let mut exts: Arc<ExtendsTable>;
+    let mut imps: ImportTable = <ImportTable as ::std::default::Default>::default();
+    let mut exts: Arc<ExtendsTable> = Arc::new(<ExtendsTable as ::std::default::Default>::default());
     let mut rest: Env = metamodelica::nil();
     let mut is_used: Option<Mutable::Mutable<bool>> = None;
     let mut bc: Arc<metamodelica::List<Arc<Extends>>> = metamodelica::nil();
@@ -1166,7 +1223,7 @@ pub fn removeRedeclaresFromLocalScope(mut inEnv: Env) -> Result<Env> {
 }
 
 fn removeRedeclaresFromExtend(mut inExtend: Arc<Extends>) -> Result<Arc<Extends>> {
-    let mut outExtend: Arc<Extends>;
+    let mut outExtend: Arc<Extends> = Arc::new(<Extends as ::std::default::Default>::default());
     let mut bc: Arc<Absyn::Path>;
     let mut index: i32 = 0;
     let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
@@ -1182,13 +1239,13 @@ fn removeRedeclaresFromExtend(mut inExtend: Arc<Extends>) -> Result<Arc<Extends>
 }
 
 pub fn removeClsAndVarsFromFrame(mut inFrame: Arc<Frame>) -> Result<(Arc<Frame>, Arc<EnvTree::Tree>)> {
-    let mut outFrame: Arc<Frame>;
+    let mut outFrame: Arc<Frame> = Arc::new(<Frame as ::std::default::Default>::default());
     let mut outClsAndVars: Arc<EnvTree::Tree> = Arc::new(EnvTree::Tree::EMPTY);
     let mut name: Option<ArcStr> = None;
     let mut ty: FrameType = FrameType::ENCAPSULATED_SCOPE;
     let mut tree: Arc<EnvTree::Tree> = Arc::new(EnvTree::Tree::EMPTY);
-    let mut imps: ImportTable;
-    let mut exts: Arc<ExtendsTable>;
+    let mut imps: ImportTable = <ImportTable as ::std::default::Default>::default();
+    let mut exts: Arc<ExtendsTable> = Arc::new(<ExtendsTable as ::std::default::Default>::default());
     let mut is_used: Option<Mutable::Mutable<bool>> = None;
     let (__pa0, __pa1, __pa2, __pa3, __pa4, __pa5) = ::match_deref::match_deref! { match &(inFrame.clone()) {
         Deref @ Frame { isUsed: __pa0, importTable: __pa1, extendsTable: __pa2, clsAndVars: __pa3, frameType: __pa4, name: __pa5 } => (__pa0.clone(), __pa1.clone(), __pa2.clone(), __pa3.clone(), __pa4.clone(), __pa5.clone()),
@@ -1210,8 +1267,8 @@ pub fn setImportTableHidden(mut inEnv: Env, mut inHidden: bool) -> Result<Env> {
     let mut name: Option<ArcStr> = None;
     let mut ty: FrameType = FrameType::ENCAPSULATED_SCOPE;
     let mut tree: Arc<EnvTree::Tree> = Arc::new(EnvTree::Tree::EMPTY);
-    let mut imps: ImportTable;
-    let mut exts: Arc<ExtendsTable>;
+    let mut imps: ImportTable = <ImportTable as ::std::default::Default>::default();
+    let mut exts: Arc<ExtendsTable> = Arc::new(<ExtendsTable as ::std::default::Default>::default());
     let mut rest: Env = metamodelica::nil();
     let mut qi: Arc<metamodelica::List<Absyn::Import>> = metamodelica::nil();
     let mut uqi: Arc<metamodelica::List<Absyn::Import>> = metamodelica::nil();
@@ -1427,8 +1484,8 @@ pub fn extendEnvWithItem(mut inItem: Arc<Item>, mut inEnv: Env, mut inItemName: 
     let mut outEnv: Env = metamodelica::nil();
     let mut name: Option<ArcStr> = None;
     let mut tree: Arc<EnvTree::Tree> = Arc::new(EnvTree::Tree::EMPTY);
-    let mut exts: Arc<ExtendsTable>;
-    let mut imps: ImportTable;
+    let mut exts: Arc<ExtendsTable> = Arc::new(<ExtendsTable as ::std::default::Default>::default());
+    let mut imps: ImportTable = <ImportTable as ::std::default::Default>::default();
     let mut ty: FrameType = FrameType::ENCAPSULATED_SCOPE;
     let mut rest: Env = metamodelica::nil();
     let mut is_used: Option<Mutable::Mutable<bool>> = None;
@@ -1458,8 +1515,8 @@ pub fn updateItemInEnv(mut inItem: Arc<Item>, mut inEnv: Env, mut inItemName: Ar
     let mut outEnv: Env = metamodelica::nil();
     let mut name: Option<ArcStr> = None;
     let mut tree: Arc<EnvTree::Tree> = Arc::new(EnvTree::Tree::EMPTY);
-    let mut exts: Arc<ExtendsTable>;
-    let mut imps: ImportTable;
+    let mut exts: Arc<ExtendsTable> = Arc::new(<ExtendsTable as ::std::default::Default>::default());
+    let mut imps: ImportTable = <ImportTable as ::std::default::Default>::default();
     let mut ty: FrameType = FrameType::ENCAPSULATED_SCOPE;
     let mut rest: Env = metamodelica::nil();
     let mut is_used: Option<Mutable::Mutable<bool>> = None;
@@ -1755,7 +1812,7 @@ fn extendEnvWithEnum(mut inEnum: Arc<SCode::Enum>, mut inEnumPath: Arc<Absyn::Pa
 
 pub fn extendEnvWithIterators(mut inIterators: Arc<metamodelica::List<Arc<Absyn::ForIterator>>>, mut iterIndex: i32, mut inEnv: Env) -> Env {
     let mut outEnv: Env = metamodelica::nil();
-    let mut frame: Arc<Frame>;
+    let mut frame: Arc<Frame> = Arc::new(<Frame as ::std::default::Default>::default());
     frame = newFrame(Some((literal!("$for$")).clone()), FrameType::IMPLICIT_SCOPE { iterIndex: iterIndex.clone() });
     outEnv = List::fold(inIterators.clone(), (std::sync::Arc::new(extendEnvWithIterator) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::ForIterator>, Arc<metamodelica::List<Arc<Frame>>>) -> Result<Arc<metamodelica::List<Arc<Frame>>>> + 'static>), cons(frame.clone(), inEnv.clone()));
     outEnv
@@ -1777,7 +1834,7 @@ fn extendEnvWithIterator(mut inIterator: Arc<Absyn::ForIterator>, mut inEnv: Env
 
 pub fn extendEnvWithMatch(mut inMatchExp: Arc<Absyn::Exp>, mut iterIndex: i32, mut inEnv: Env) -> Result<Env> {
     let mut outEnv: Env = metamodelica::nil();
-    let mut frame: Arc<Frame>;
+    let mut frame: Arc<Frame> = Arc::new(<Frame as ::std::default::Default>::default());
     let mut local_decls: Arc<metamodelica::List<Arc<Absyn::ElementItem>>> = metamodelica::nil();
     frame = newFrame(Some((literal!("$match$")).clone()), FrameType::IMPLICIT_SCOPE { iterIndex: iterIndex.clone() });
     let __pa0 = ::match_deref::match_deref! { match &(inMatchExp.clone()) {
@@ -2144,7 +2201,7 @@ pub fn getItemEnvNoFail(mut inItem: Arc<Item>) -> Result<Env> {
                 _ => {
                     let mut env: Env = metamodelica::nil();
                     let mut r#str: ArcStr = arcstr::literal!("");
-                    let mut f: Arc<Frame>;
+                    let mut f: Arc<Frame> = Arc::new(<Frame as ::std::default::Default>::default());
                     r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("NO ENV FOR ITEM: ")); __mm_s.push_str(&*getItemName(inItem.clone())?); ArcStr::from(__mm_s) }).clone();
                     f = newFrame(Some((r#str.clone()).clone()), crate::NFSCodeEnv::FrameType::ENCAPSULATED_SCOPE);
                     env = list![f.clone()];
@@ -2210,7 +2267,7 @@ pub fn unmergeItemEnv(mut inItem: Arc<Item>, mut inEnv: Env) -> Env {
 // NOTE: #[tailcall::tailcall] disabled: function body contains a `match_deref!{…}` match,
 // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
 pub fn getItemPrefixes(mut inItem: Arc<Item>) -> Result<Arc<SCode::Prefixes>> {
-    let mut outPrefixes: Arc<SCode::Prefixes>;
+    let mut outPrefixes: Arc<SCode::Prefixes> = Arc::new(<SCode::Prefixes as ::std::default::Default>::default());
     outPrefixes = (::match_deref::match_deref! { match &(inItem.clone()) {
         Deref @ Item::CLASS { cls: Deref @ SCode::Element::CLASS { prefixes: pf, .. }, .. } => {
             pf.clone()
@@ -2243,7 +2300,7 @@ pub fn resolveRedeclaredItem(mut inItem: Arc<Item>, mut inEnv: Env) -> (Arc<Item
 }
 
 pub fn getEnvExtendsTable(mut inEnv: Env) -> Result<Arc<ExtendsTable>> {
-    let mut outExtendsTable: Arc<ExtendsTable>;
+    let mut outExtendsTable: Arc<ExtendsTable> = Arc::new(<ExtendsTable as ::std::default::Default>::default());
     let __pa0 = ::match_deref::match_deref! { match &(inEnv.clone()) {
         Deref @ metamodelica::List::Cons { head: Deref @ Frame { extendsTable: __pa0, .. }, tail: _ } => __pa0.clone(),
         _ => bail!("pattern mismatch"),
@@ -2319,7 +2376,7 @@ pub fn setEnvExtendsTable(mut inExtendsTable: Arc<ExtendsTable>, mut inEnv: Env)
     let mut name: Option<ArcStr> = None;
     let mut ty: FrameType = FrameType::ENCAPSULATED_SCOPE;
     let mut tree: Arc<EnvTree::Tree> = Arc::new(EnvTree::Tree::EMPTY);
-    let mut imps: ImportTable;
+    let mut imps: ImportTable = <ImportTable as ::std::default::Default>::default();
     let mut is_used: Option<Mutable::Mutable<bool>> = None;
     let mut rest_env: Env = metamodelica::nil();
     let (__pa0, __pa1, __pa2, __pa3, __pa4, __pa5) = ::match_deref::match_deref! { match &(inEnv.clone()) {
@@ -2340,8 +2397,8 @@ pub fn setEnvClsAndVars(mut inTree: Arc<EnvTree::Tree>, mut inEnv: Env) -> Resul
     let mut outEnv: Env = metamodelica::nil();
     let mut name: Option<ArcStr> = None;
     let mut ty: FrameType = FrameType::ENCAPSULATED_SCOPE;
-    let mut ext: Arc<ExtendsTable>;
-    let mut imps: ImportTable;
+    let mut ext: Arc<ExtendsTable> = Arc::new(<ExtendsTable as ::std::default::Default>::default());
+    let mut imps: ImportTable = <ImportTable as ::std::default::Default>::default();
     let mut is_used: Option<Mutable::Mutable<bool>> = None;
     let mut rest_env: Env = metamodelica::nil();
     let (__pa0, __pa1, __pa2, __pa3, __pa4, __pa5) = ::match_deref::match_deref! { match &(inEnv.clone()) {
@@ -2478,8 +2535,8 @@ pub fn getRedeclarationNameInfo(mut inRedeclare: Arc<Redeclaration>) -> Result<(
 pub fn buildInitialEnv() -> Result<Env> {
     let mut outInitialEnv: Env = metamodelica::nil();
     let mut tree: Arc<EnvTree::Tree> = Arc::new(EnvTree::Tree::EMPTY);
-    let mut exts: Arc<ExtendsTable>;
-    let mut imps: ImportTable;
+    let mut exts: Arc<ExtendsTable> = Arc::new(<ExtendsTable as ::std::default::Default>::default());
+    let mut imps: ImportTable = <ImportTable as ::std::default::Default>::default();
     let mut is_used: Mutable::Mutable<bool>;
     let mut p: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
     let mut initialClasses: Arc<metamodelica::List<Arc<Absyn::Class>>> = metamodelica::nil();

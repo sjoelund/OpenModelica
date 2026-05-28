@@ -127,6 +127,13 @@ pub enum NFStatement {
         source: Arc<DAE::ElementSource>,
     },
 }
+impl Default for NFStatement {
+    fn default() -> Self {
+        Self::RETURN {
+            source: Default::default(),
+        }
+    }
+}
 pub use self::NFStatement::{ASSIGNMENT,FUNCTION_ARRAY_INIT,FOR,IF,WHEN,ASSERT,TERMINATE,REINIT,NORETCALL,WHILE,RETURN,BREAK,FAILURE};
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ForType {
@@ -897,7 +904,7 @@ pub fn replaceIteratorList(mut stmtl: Arc<metamodelica::List<Arc<NFStatement>>>,
 
 pub fn toString(mut stmt: Arc<NFStatement>, mut indent: ArcStr) -> Result<ArcStr> {
     let mut r#str: ArcStr = arcstr::literal!("");
-    let mut s: IOStream::IOStream;
+    let mut s: IOStream::IOStream = <IOStream::IOStream as ::std::default::Default>::default();
     s = IOStream::create((literal!("NFStatement.toString")).clone(), openmodelica_util::IOStream::IOStreamType::LIST)?;
     s = toStream(stmt.clone(), (indent.clone()).clone(), s.clone())?;
     r#str = (IOStream::string(s.clone())?).clone();
@@ -907,7 +914,7 @@ pub fn toString(mut stmt: Arc<NFStatement>, mut indent: ArcStr) -> Result<ArcStr
 
 pub fn toStringList(mut stmtl: Arc<metamodelica::List<Arc<NFStatement>>>, mut indent: ArcStr) -> Result<ArcStr> {
     let mut r#str: ArcStr = arcstr::literal!("");
-    let mut s: IOStream::IOStream;
+    let mut s: IOStream::IOStream = <IOStream::IOStream as ::std::default::Default>::default();
     s = IOStream::create((literal!("NFStatement.toStringList")).clone(), openmodelica_util::IOStream::IOStreamType::LIST)?;
     s = toStreamList(stmtl.clone(), (indent.clone()).clone(), s.clone())?;
     r#str = (IOStream::string(s.clone())?).clone();

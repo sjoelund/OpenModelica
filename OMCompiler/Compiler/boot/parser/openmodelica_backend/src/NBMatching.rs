@@ -215,7 +215,7 @@ pub fn getMatches(mut matching: Arc<NBMatching>, mut mapping_opt: Option<Arc<Adj
     let mut unmatched_vars: Arc<metamodelica::List<Arc<Slice::NBSlice<Pointer::Pointer<Arc<Variable::NFVariable>>>>>> = metamodelica::nil();
     let mut matched_eqns: Arc<metamodelica::List<Arc<Slice::NBSlice<Pointer::Pointer<Arc<Equation::Equation>>>>>> = metamodelica::nil();
     let mut unmatched_eqns: Arc<metamodelica::List<Arc<Slice::NBSlice<Pointer::Pointer<Arc<Equation::Equation>>>>>> = metamodelica::nil();
-    let mut mapping: Arc<Adjacency::Mapping::Mapping>;
+    let mut mapping: Arc<Adjacency::Mapping::Mapping> = Arc::new(<Adjacency::Mapping::Mapping as ::std::default::Default>::default());
     let mut var_map_matched: Arc<UnorderedMap::UnorderedMap<Pointer::Pointer<Arc<Variable::NFVariable>>, Arc<metamodelica::List<i32>>>>;
     let mut var_map_unmatched: Arc<UnorderedMap::UnorderedMap<Pointer::Pointer<Arc<Variable::NFVariable>>, Arc<metamodelica::List<i32>>>>;
     let mut eqn_map_matched: Arc<UnorderedMap::UnorderedMap<Pointer::Pointer<Arc<Equation::Equation>>, Arc<metamodelica::List<i32>>>>;

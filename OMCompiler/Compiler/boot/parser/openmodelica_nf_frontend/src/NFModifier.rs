@@ -1282,7 +1282,7 @@ pub mod Modifier {
 
     pub fn toFlatString(mut r#mod: Arc<Modifier>, mut format: BaseModelica::OutputFormat, mut printName: bool) -> Result<ArcStr> {
         let mut r#str: ArcStr = arcstr::literal!("");
-        let mut s: IOStream::IOStream;
+        let mut s: IOStream::IOStream = <IOStream::IOStream as ::std::default::Default>::default();
         s = IOStream::create((literal!("NFModifier.Modifier.toFlatString")).clone(), openmodelica_util::IOStream::IOStreamType::LIST)?;
         s = toFlatStream(r#mod.clone(), format.clone(), s.clone(), printName.clone())?;
         r#str = (IOStream::string(s.clone())?).clone();

@@ -464,7 +464,7 @@ fn simplifyCall(mut inExp: Arc<DAE::Exp>) -> Result<Arc<DAE::Exp>> {
                 Deref @ DAE::Exp::CALL { attr: Deref @ DAE::CallAttributes { ty: tp, .. }, expLst: Deref @ metamodelica::List::Cons { head: e @ Deref @ DAE::Exp::REDUCTION { iterators: Deref @ metamodelica::List::Cons { head: _, tail: Deref @ metamodelica::List::Nil }, reductionInfo: ri @ Deref @ DAE::ReductionInfo { path: Deref @ Absyn::Path::IDENT { name: Deref @ "array" }, .. }, .. }, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name } } => {
                     if !((listMember((name.clone()).clone(), list![(literal!("sum")).clone(), (literal!("product")).clone(), (literal!("min")).clone(), (literal!("max")).clone()]))) { bail!("guard") }
                     let mut e = (*e).clone();
-                    todo!("unhandled field-assign shape: e.reductionInfo");
+                    assign_variant_field!(e => DAE::Exp::REDUCTION; reductionInfo = Arc::new(DAE::ReductionInfo { path: Arc::new(Absyn::Path::IDENT { name: (name.clone()).clone() }), iterType: openmodelica_ast::Absyn::ReductionIterType::COMBINE, exprType: tp.clone(), defaultValue: Some(reductionDefaultValue((name.clone()).clone(), tp.clone())?), foldName: (ri.foldName.clone()).clone(), resultName: (ri.resultName.clone()).clone(), foldExp: Some(reductionExpression((name.clone()).clone(), tp.clone(), (ri.foldName.clone()).clone(), (ri.resultName.clone()).clone())?) }));
                     Ok(e.clone())
                 }
                 _ => bail!("nomatch"),
@@ -1696,10 +1696,7 @@ fn simplifyBuiltinCalls(mut exp: Arc<DAE::Exp>) -> Result<Arc<DAE::Exp>> {
             ::match_deref::match_deref! { match &__mc_input {
                 e @ Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: e1, tail: Deref @ metamodelica::List::Cons { head: e2, tail: Deref @ metamodelica::List::Nil } }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "delay" }, .. } => {
                     let mut e = (*e).clone();
-                    let __owned_variant_expLst_0 = list![e1.clone(), e2.clone(), e2.clone()];
-                    if let DAE::Exp::CALL { expLst, .. } = &mut e {
-                        *expLst = __owned_variant_expLst_0;
-                    } else { panic!("owned-variant field-assign: value held a different variant than DAE::Exp::CALL"); }
+                    assign_variant_field!(e => DAE::Exp::CALL; expLst = list![e1.clone(), e2.clone(), e2.clone()]);
                     Ok(e.clone())
                 }
                 _ => bail!("nomatch"),

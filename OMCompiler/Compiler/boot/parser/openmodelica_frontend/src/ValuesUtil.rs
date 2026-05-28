@@ -179,7 +179,7 @@ pub fn valueExpType(mut inValue: Arc<Values::Value>) -> Result<Arc<DAE::Type>> {
 }
 
 fn valueExpTypeExpVar(mut etp: Arc<DAE::Type>, mut name: ArcStr) -> Arc<DAE::Var> {
-    let mut expVar: Arc<DAE::Var>;
+    let mut expVar: Arc<DAE::Var> = Arc::new(<DAE::Var as ::std::default::Default>::default());
     expVar = Arc::new(DAE::Var { name: (name.clone()).clone(), attributes: DAE::dummyAttrVar().clone(), ty: etp.clone(), binding: Arc::new(openmodelica_frontend_types::DAE::Binding::UNBOUND), bind_from_outside: false, constOfForIteratorRange: None });
     expVar
 }

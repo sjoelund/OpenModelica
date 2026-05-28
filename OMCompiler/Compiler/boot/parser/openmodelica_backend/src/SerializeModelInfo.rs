@@ -809,9 +809,9 @@ fn serializeEquation(mut file: File::File, mut eq: Arc<SimCode::SimEqSystem>, mu
             }
             File::write(file.clone(), (literal!(",\"section\":\"")).clone());
             File::write(file.clone(), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*section.clone()); __mm_s.push_str(&*literal!("\",\"tag\":\"algorithm\",\"defines\":[\"")); ArcStr::from(__mm_s) }).clone());
-            writeCref(file.clone(), Expression::expCref(stmt.exp1.clone())?, escape=JSON.clone())?;
+            writeCref(file.clone(), Expression::expCref(var_field!((**stmt).exp1, DAE::Statement::STMT_ASSIGN).clone())?, escape=JSON.clone())?;
             File::write(file.clone(), (literal!("\"],\"uses\":[")).clone());
-            serializeList(file.clone(), Expression::extractUniqueCrefsFromExpDerPreStart(stmt.exp.clone(), true)?, (std::sync::Arc::new(serializeCref) as std::sync::Arc<dyn ::std::ops::Fn(File::File, Arc<DAE::ComponentRef>) -> Result<()> + 'static>), false, (literal!(",")).clone())?;
+            serializeList(file.clone(), Expression::extractUniqueCrefsFromExpDerPreStart(var_field!((**stmt).exp, DAE::Statement::STMT_ASSIGN).clone(), true)?, (std::sync::Arc::new(serializeCref) as std::sync::Arc<dyn ::std::ops::Fn(File::File, Arc<DAE::ComponentRef>) -> Result<()> + 'static>), false, (literal!(",")).clone())?;
             File::write(file.clone(), (literal!("],\"equation\":[")).clone());
             serializeList(file.clone(), var_field!((*eq).statements, SimCode::SimEqSystem::SES_ALGORITHM).clone(), (std::sync::Arc::new(serializeStatement) as std::sync::Arc<dyn ::std::ops::Fn(File::File, Arc<DAE::Statement>) -> Result<()> + 'static>), false, (literal!(",")).clone())?;
             File::write(file.clone(), (literal!("],\"source\":")).clone());

@@ -62,7 +62,7 @@ pub struct UnorderedSet<T: Clone> {
 
 impl<T: Clone + 'static + PartialEq> PartialEq for UnorderedSet<T> {
     fn eq(&self, other: &Self) -> bool {
-        self.buckets == other.buckets && self.size == other.size && std::sync::Arc::ptr_eq(&self.hashFn, &other.hashFn) && std::sync::Arc::ptr_eq(&self.eqFn, &other.eqFn)
+        self.buckets == other.buckets && self.size == other.size && std::sync::Arc::ptr_eq((&self.hashFn), (&other.hashFn)) && std::sync::Arc::ptr_eq((&self.eqFn), (&other.eqFn))
     }
 }
 impl<T: Clone + 'static + PartialEq + Eq> Eq for UnorderedSet<T> {}
@@ -71,7 +71,7 @@ impl<T: Clone + 'static + PartialEq + Eq + PartialOrd + Ord> PartialOrd for Unor
 }
 impl<T: Clone + 'static + PartialEq + Eq + PartialOrd + Ord> Ord for UnorderedSet<T> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.buckets.cmp(&other.buckets).then_with(|| self.size.cmp(&other.size).then_with(|| (std::sync::Arc::as_ptr(&self.hashFn) as *const ()).cmp(&(std::sync::Arc::as_ptr(&other.hashFn) as *const ())).then_with(|| (std::sync::Arc::as_ptr(&self.eqFn) as *const ()).cmp(&(std::sync::Arc::as_ptr(&other.eqFn) as *const ())))))
+        self.buckets.cmp(&other.buckets).then_with(|| self.size.cmp(&other.size).then_with(|| (std::sync::Arc::as_ptr((&self.hashFn)) as *const ()).cmp(&(std::sync::Arc::as_ptr((&other.hashFn)) as *const ())).then_with(|| (std::sync::Arc::as_ptr((&self.eqFn)) as *const ()).cmp(&(std::sync::Arc::as_ptr((&other.eqFn)) as *const ())))))
     }
 }
 impl<T: Clone + 'static + std::fmt::Debug> std::fmt::Debug for UnorderedSet<T> {
@@ -79,8 +79,8 @@ impl<T: Clone + 'static + std::fmt::Debug> std::fmt::Debug for UnorderedSet<T> {
         let mut __ds = __f.debug_struct("UnorderedSet");
         __ds.field("buckets", &self.buckets);
         __ds.field("size", &self.size);
-        __ds.field("hashFn", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(&self.hashFn)));
-        __ds.field("eqFn", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(&self.eqFn)));
+        __ds.field("hashFn", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr((&self.hashFn))));
+        __ds.field("eqFn", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr((&self.eqFn))));
         __ds.finish()
     }
 }
@@ -255,7 +255,7 @@ pub fn toArray<T: Clone + 'static + Default>(mut set: Arc<UnorderedSet<T>>) -> m
     outArray
 }
 
-pub fn fold<FT: Clone + 'static, T: Clone + 'static>(mut set: Arc<UnorderedSet<T>>, mut r#fn: Arc<dyn ::std::ops::Fn(T, FT) -> Result<FT> + 'static>, mut startValue: FT) -> FT {
+pub fn fold<T: Clone + 'static, FT: Clone + 'static>(mut set: Arc<UnorderedSet<T>>, mut r#fn: Arc<dyn ::std::ops::Fn(T, FT) -> Result<FT> + 'static>, mut startValue: FT) -> FT {
     pub type FoldFn<T: Clone + 'static, FT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(T, FT) -> Result<FT> + 'static>;
 
     let mut result: FT = startValue.clone();

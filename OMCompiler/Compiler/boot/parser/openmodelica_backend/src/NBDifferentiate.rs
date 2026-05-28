@@ -118,6 +118,9 @@ impl PartialOrd for DifferentiationType {
 impl Ord for DifferentiationType {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering { (*self as i32).cmp(&(*other as i32)) }
 }
+impl Default for DifferentiationType {
+    fn default() -> Self { Self::TIME }
+}
 
 pub mod DifferentiationArguments {
     use super::*;
@@ -141,6 +144,22 @@ pub mod DifferentiationArguments {
         pub current_grad: Arc<Expression::NFExpression>,
         /// If false, skip writing into adjoint_map (used for LHS traversal in reverse/Jacobian).
         pub collectAdjoints: bool,
+    }
+
+    impl Default for DifferentiationArguments {
+        fn default() -> Self {
+            Self {
+                diffCref: Default::default(),
+                new_vars: Default::default(),
+                diff_map: Default::default(),
+                diffType: Default::default(),
+                funcMap: Default::default(),
+                scalarized: Default::default(),
+                adjoint_map: Default::default(),
+                current_grad: Default::default(),
+                collectAdjoints: Default::default(),
+            }
+        }
     }
 
     pub type DIFFERENTIATION_ARGUMENTS = DifferentiationArguments;
@@ -198,7 +217,7 @@ pub fn differentiateStrongComponentListAdjoint(mut comps: Arc<metamodelica::List
     let mut lhsCref: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
     let mut gradCref: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
     let mut compVars: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = metamodelica::nil();
-    let mut da: Arc<DifferentiationArguments::DifferentiationArguments>;
+    let mut da: Arc<DifferentiationArguments::DifferentiationArguments> = Arc::new(<DifferentiationArguments::DifferentiationArguments as ::std::default::Default>::default());
     diff_map = Util::getOption(diffArguments.diff_map.clone())?;
     for mut comp in &*comps.clone() {
         let mut comp = comp.clone();
@@ -262,7 +281,7 @@ pub fn differentiateStrongComponent(mut comp: Arc<StrongComponent::NBStrongCompo
             let mut new_cref: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
             let mut new_var_slice: Arc<Slice::NBSlice<Pointer::Pointer<Arc<Variable::NFVariable>>>>;
             let mut new_eqn_slice: Arc<Slice::NBSlice<Pointer::Pointer<Arc<Equation::Equation>>>>;
-            let mut diffArguments: Arc<DifferentiationArguments::DifferentiationArguments>;
+            let mut diffArguments: Arc<DifferentiationArguments::DifferentiationArguments> = Arc::new(<DifferentiationArguments::DifferentiationArguments as ::std::default::Default>::default());
             let (__pa0, __pa1) = ::match_deref::match_deref! { match &(differentiateComponentRefNoCollect(Expression::fromCref(var_field!((*comp).var_cref, StrongComponent::NBStrongComponent::SLICED_COMPONENT).clone(), false)?, Pointer::access(diffArguments_ptr.clone()))?) {
                 (Deref @ Expression::CREF { cref: __pa0, .. }, __pa1) => (__pa0.clone(), __pa1.clone()),
                 _ => bail!("pattern mismatch"),
@@ -279,7 +298,7 @@ pub fn differentiateStrongComponent(mut comp: Arc<StrongComponent::NBStrongCompo
             let mut new_cref: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
             let mut new_var_slice: Arc<Slice::NBSlice<Pointer::Pointer<Arc<Variable::NFVariable>>>>;
             let mut new_eqn_slice: Arc<Slice::NBSlice<Pointer::Pointer<Arc<Equation::Equation>>>>;
-            let mut diffArguments: Arc<DifferentiationArguments::DifferentiationArguments>;
+            let mut diffArguments: Arc<DifferentiationArguments::DifferentiationArguments> = Arc::new(<DifferentiationArguments::DifferentiationArguments as ::std::default::Default>::default());
             let (__pa0, __pa1) = ::match_deref::match_deref! { match &(differentiateComponentRef(Expression::fromCref(var_field!((*comp).var_cref, StrongComponent::NBStrongComponent::RESIZABLE_COMPONENT).clone(), false)?, Pointer::access(diffArguments_ptr.clone()))?) {
                 (Deref @ Expression::CREF { cref: __pa0, .. }, __pa1) => (__pa0.clone(), __pa1.clone()),
                 _ => bail!("pattern mismatch"),
@@ -296,7 +315,7 @@ pub fn differentiateStrongComponent(mut comp: Arc<StrongComponent::NBStrongCompo
             let mut new_cref: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
             let mut new_var_slice: Arc<Slice::NBSlice<Pointer::Pointer<Arc<Variable::NFVariable>>>>;
             let mut new_eqn_slice: Arc<Slice::NBSlice<Pointer::Pointer<Arc<Equation::Equation>>>>;
-            let mut diffArguments: Arc<DifferentiationArguments::DifferentiationArguments>;
+            let mut diffArguments: Arc<DifferentiationArguments::DifferentiationArguments> = Arc::new(<DifferentiationArguments::DifferentiationArguments as ::std::default::Default>::default());
             let (__pa0, __pa1) = ::match_deref::match_deref! { match &(differentiateComponentRef(Expression::fromCref(var_field!((*comp).var_cref, StrongComponent::NBStrongComponent::GENERIC_COMPONENT).clone(), false)?, Pointer::access(diffArguments_ptr.clone()))?) {
                 (Deref @ Expression::CREF { cref: __pa0, .. }, __pa1) => (__pa0.clone(), __pa1.clone()),
                 _ => bail!("pattern mismatch"),
@@ -310,7 +329,7 @@ pub fn differentiateStrongComponent(mut comp: Arc<StrongComponent::NBStrongCompo
             Arc::new(StrongComponent::NBStrongComponent::GENERIC_COMPONENT { var_cref: new_cref.clone(), var: new_var_slice.clone(), eqn: new_eqn_slice.clone() })
         },
         Deref @ StrongComponent::ALGEBRAIC_LOOP { .. } => {
-            let mut strict: Arc<Tearing::NBTearing>;
+            let mut strict: Arc<Tearing::NBTearing> = Arc::new(<Tearing::NBTearing as ::std::default::Default>::default());
             let mut casual: Option<Arc<Tearing::NBTearing>> = None;
             let mut linear: bool = false;
             strict = differentiateTearing(var_field!((*comp).strict, StrongComponent::NBStrongComponent::ALGEBRAIC_LOOP).clone(), diffArguments_ptr.clone(), idx.clone(), (context.clone()).clone(), (name.clone()).clone())?;
@@ -339,7 +358,7 @@ pub fn differentiateStrongComponent(mut comp: Arc<StrongComponent::NBStrongCompo
 }
 
 pub fn differentiateTearing(mut tearing: Arc<Tearing::NBTearing>, mut diffArguments_ptr: Pointer::Pointer<Arc<DifferentiationArguments::DifferentiationArguments>>, mut idx: Pointer::Pointer<i32>, mut context: ArcStr, mut name: ArcStr) -> Result<Arc<Tearing::NBTearing>> {
-    let mut diff_tearing: Arc<Tearing::NBTearing>;
+    let mut diff_tearing: Arc<Tearing::NBTearing> = Arc::new(<Tearing::NBTearing as ::std::default::Default>::default());
     let mut ite_vars: Arc<metamodelica::List<Arc<Slice::NBSlice<Pointer::Pointer<Arc<Variable::NFVariable>>>>>> = metamodelica::nil();
     let mut res_eqns: Arc<metamodelica::List<Arc<Slice::NBSlice<Pointer::Pointer<Arc<Equation::Equation>>>>>> = metamodelica::nil();
     let mut inner_eqns: metamodelica::Array<Arc<StrongComponent::NBStrongComponent>>;
@@ -388,8 +407,8 @@ pub fn differentiateEquationPointer(mut eq_ptr: Pointer::Pointer<Arc<Equation::E
     let mut derivative_ptr: Pointer::Pointer<Arc<Equation::Equation>>;
     let mut eq: Arc<Equation::Equation> = Arc::new(Equation::DUMMY_EQUATION);
     let mut diffedEq: Arc<Equation::Equation> = Arc::new(Equation::DUMMY_EQUATION);
-    let mut old_diffArguments: Arc<DifferentiationArguments::DifferentiationArguments>;
-    let mut new_diffArguments: Arc<DifferentiationArguments::DifferentiationArguments>;
+    let mut old_diffArguments: Arc<DifferentiationArguments::DifferentiationArguments> = Arc::new(<DifferentiationArguments::DifferentiationArguments as ::std::default::Default>::default());
+    let mut new_diffArguments: Arc<DifferentiationArguments::DifferentiationArguments> = Arc::new(<DifferentiationArguments::DifferentiationArguments as ::std::default::Default>::default());
     eq = Pointer::access(eq_ptr.clone());
     old_diffArguments = Pointer::access(diffArguments_ptr.clone());
     derivative_ptr = (::match_deref::match_deref! { match &(Equation::getAttributes(eq.clone())) {
@@ -425,7 +444,7 @@ pub fn differentiateEquation(mut eq: Arc<Equation::Equation>, mut diffArguments:
         Deref @ Equation::SCALAR_EQUATION { .. } => {
             let mut lhs: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut rhs: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-            let mut attr: Arc<EquationAttributes::EquationAttributes>;
+            let mut attr: Arc<EquationAttributes::EquationAttributes> = Arc::new(<EquationAttributes::EquationAttributes as ::std::default::Default>::default());
             (lhs, diffArguments) = differentiateExpressionNoCollect(var_field!((*eq).lhs, Equation::Equation::SCALAR_EQUATION).clone(), diffArguments.clone())?;
             (rhs, diffArguments) = differentiateExpression(var_field!((*eq).rhs, Equation::Equation::SCALAR_EQUATION).clone(), diffArguments.clone())?;
             attr = differentiateEquationAttributes(var_field!((*eq).attr, Equation::Equation::SCALAR_EQUATION).clone(), diffArguments.clone())?;
@@ -434,7 +453,7 @@ pub fn differentiateEquation(mut eq: Arc<Equation::Equation>, mut diffArguments:
         Deref @ Equation::ARRAY_EQUATION { .. } => {
             let mut lhs: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut rhs: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-            let mut attr: Arc<EquationAttributes::EquationAttributes>;
+            let mut attr: Arc<EquationAttributes::EquationAttributes> = Arc::new(<EquationAttributes::EquationAttributes as ::std::default::Default>::default());
             let mut dm: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>>>;
             let mut seed_base: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
             let mut iel: i32 = 0;
@@ -487,22 +506,22 @@ pub fn differentiateEquation(mut eq: Arc<Equation::Equation>, mut diffArguments:
         Deref @ Equation::RECORD_EQUATION { .. } => {
             let mut lhs: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut rhs: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-            let mut attr: Arc<EquationAttributes::EquationAttributes>;
+            let mut attr: Arc<EquationAttributes::EquationAttributes> = Arc::new(<EquationAttributes::EquationAttributes as ::std::default::Default>::default());
             (lhs, diffArguments) = differentiateExpressionNoCollect(var_field!((*eq).lhs, Equation::Equation::RECORD_EQUATION).clone(), diffArguments.clone())?;
             (rhs, diffArguments) = differentiateExpression(var_field!((*eq).rhs, Equation::Equation::RECORD_EQUATION).clone(), diffArguments.clone())?;
             attr = differentiateEquationAttributes(var_field!((*eq).attr, Equation::Equation::RECORD_EQUATION).clone(), diffArguments.clone())?;
             (Arc::new(Equation::Equation::RECORD_EQUATION { ty: var_field!((*eq).ty, Equation::Equation::RECORD_EQUATION).clone(), lhs: lhs.clone(), rhs: rhs.clone(), source: var_field!((*eq).source, Equation::Equation::RECORD_EQUATION).clone(), attr: attr.clone(), recordSize: var_field!((*eq).recordSize, Equation::Equation::RECORD_EQUATION).clone() }), diffArguments.clone())
         },
         Deref @ Equation::IF_EQUATION { .. } => {
-            let mut ifBody: Arc<IfEquationBody::IfEquationBody>;
+            let mut ifBody: Arc<IfEquationBody::IfEquationBody> = Arc::new(<IfEquationBody::IfEquationBody as ::std::default::Default>::default());
             let mut diffArguments_ptr: Pointer::Pointer<Arc<DifferentiationArguments::DifferentiationArguments>>;
-            let mut attr: Arc<EquationAttributes::EquationAttributes>;
+            let mut attr: Arc<EquationAttributes::EquationAttributes> = Arc::new(<EquationAttributes::EquationAttributes as ::std::default::Default>::default());
             (ifBody, diffArguments_ptr) = differentiateIfEquationBody(var_field!((*eq).body, Equation::Equation::IF_EQUATION).clone(), Pointer::create(diffArguments.clone()))?;
             attr = differentiateEquationAttributes(var_field!((*eq).attr, Equation::Equation::IF_EQUATION).clone(), diffArguments.clone())?;
             (Arc::new(Equation::Equation::IF_EQUATION { size: var_field!((*eq).size, Equation::Equation::IF_EQUATION).clone(), body: ifBody.clone(), source: var_field!((*eq).source, Equation::Equation::IF_EQUATION).clone(), attr: attr.clone() }), Pointer::access(diffArguments_ptr.clone()))
         },
         Deref @ Equation::FOR_EQUATION { .. } => {
-            let mut attr: Arc<EquationAttributes::EquationAttributes>;
+            let mut attr: Arc<EquationAttributes::EquationAttributes> = Arc::new(<EquationAttributes::EquationAttributes as ::std::default::Default>::default());
             for mut body_eqn in &*var_field!((*eq).body, Equation::Equation::FOR_EQUATION).clone() {
                 let mut body_eqn = body_eqn.clone();
                 (body_eqn, diffArguments) = differentiateEquation(body_eqn.clone(), diffArguments.clone(), (literal!("")).clone())?;
@@ -512,14 +531,14 @@ pub fn differentiateEquation(mut eq: Arc<Equation::Equation>, mut diffArguments:
             (Arc::new(Equation::Equation::FOR_EQUATION { size: var_field!((*eq).size, Equation::Equation::FOR_EQUATION).clone(), iter: var_field!((*eq).iter, Equation::Equation::FOR_EQUATION).clone(), body: forBody.clone().reverse(), source: var_field!((*eq).source, Equation::Equation::FOR_EQUATION).clone(), attr: attr.clone() }), diffArguments.clone())
         },
         Deref @ Equation::WHEN_EQUATION { .. } => {
-            let mut whenBody: Arc<WhenEquationBody::WhenEquationBody>;
-            let mut attr: Arc<EquationAttributes::EquationAttributes>;
+            let mut whenBody: Arc<WhenEquationBody::WhenEquationBody> = Arc::new(<WhenEquationBody::WhenEquationBody as ::std::default::Default>::default());
+            let mut attr: Arc<EquationAttributes::EquationAttributes> = Arc::new(<EquationAttributes::EquationAttributes as ::std::default::Default>::default());
             (whenBody, diffArguments) = differentiateWhenEquationBody(var_field!((*eq).body, Equation::Equation::WHEN_EQUATION).clone(), diffArguments.clone())?;
             attr = differentiateEquationAttributes(var_field!((*eq).attr, Equation::Equation::WHEN_EQUATION).clone(), diffArguments.clone())?;
             (Arc::new(Equation::Equation::WHEN_EQUATION { size: var_field!((*eq).size, Equation::Equation::WHEN_EQUATION).clone(), body: whenBody.clone(), source: var_field!((*eq).source, Equation::Equation::WHEN_EQUATION).clone(), attr: attr.clone() }), diffArguments.clone())
         },
         Deref @ Equation::ALGORITHM { .. } => {
-            let mut alg: Arc<Algorithm::NFAlgorithm>;
+            let mut alg: Arc<Algorithm::NFAlgorithm> = Arc::new(<Algorithm::NFAlgorithm as ::std::default::Default>::default());
             (alg, diffArguments) = differentiateAlgorithm(var_field!((*eq).alg, Equation::Equation::ALGORITHM).clone(), diffArguments.clone())?;
             (Arc::new(Equation::Equation::ALGORITHM { size: var_field!((*eq).size, Equation::Equation::ALGORITHM).clone(), alg: alg.clone(), source: var_field!((*eq).source, Equation::Equation::ALGORITHM).clone(), expand: var_field!((*eq).expand, Equation::Equation::ALGORITHM).clone(), attr: var_field!((*eq).attr, Equation::Equation::ALGORITHM).clone() }), diffArguments.clone())
         },
@@ -543,7 +562,7 @@ pub fn differentiateIfEquationBody(mut body: Arc<IfEquationBody::IfEquationBody>
     let mut body: Arc<IfEquationBody::IfEquationBody> = body;
     let mut diffArguments_ptr: Pointer::Pointer<Arc<DifferentiationArguments::DifferentiationArguments>> = diffArguments_ptr;
     let mut then_eqns: Arc<metamodelica::List<Pointer::Pointer<Arc<Equation::Equation>>>> = metamodelica::nil();
-    let mut else_if: Arc<IfEquationBody::IfEquationBody>;
+    let mut else_if: Arc<IfEquationBody::IfEquationBody> = Arc::new(<IfEquationBody::IfEquationBody as ::std::default::Default>::default());
     then_eqns = List::map(body.then_eqns.clone(), Arc::new({ let __pe_b1 = diffArguments_ptr.clone(); let __pe_b2 = (literal!("")).clone(); move |__pe_a0| differentiateEquationPointer(__pe_a0, __pe_b1.clone(), __pe_b2.clone()) }));
     if isSome(body.else_if.clone()) {
         (else_if, diffArguments_ptr) = differentiateIfEquationBody(Util::getOption(body.else_if.clone())?, diffArguments_ptr.clone())?;
@@ -558,7 +577,7 @@ pub fn differentiateWhenEquationBody(mut body: Arc<WhenEquationBody::WhenEquatio
     let mut body: Arc<WhenEquationBody::WhenEquationBody> = body;
     let mut diffArguments: Arc<DifferentiationArguments::DifferentiationArguments> = diffArguments;
     let mut when_stmts: Arc<metamodelica::List<Arc<WhenStatement::WhenStatement>>> = metamodelica::nil();
-    let mut else_when: Arc<WhenEquationBody::WhenEquationBody>;
+    let mut else_when: Arc<WhenEquationBody::WhenEquationBody> = Arc::new(<WhenEquationBody::WhenEquationBody as ::std::default::Default>::default());
     (when_stmts, diffArguments) = List::mapFold(body.when_stmts.clone(), Arc::new(move |__pe_a0, __pe_a1| differentiateWhenStatement(__pe_a0, __pe_a1)), diffArguments.clone());
     if isSome(body.else_when.clone()) {
         (else_when, diffArguments) = differentiateWhenEquationBody(Util::getOption(body.else_when.clone())?, diffArguments.clone())?;
@@ -1206,13 +1225,13 @@ pub fn differentiateBuiltinCall(mut name: ArcStr, mut exp: Arc<Expression::NFExp
             let mut current_grad: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut ty: Arc<Type::NFType> = Arc::new(Type::ANY);
             let mut elTy: Arc<Type::NFType> = Arc::new(Type::ANY);
-            let mut addM: Arc<Operator::NFOperator>;
-            let mut subM: Arc<Operator::NFOperator>;
+            let mut addM: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
+            let mut subM: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
             let mut sumG: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut triuG: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut nExp: i32 = 0;
             let mut eyeNN: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-            let mut mulEW: Arc<Operator::NFOperator>;
+            let mut mulEW: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
             let mut diagG: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             arg1 = (::match_deref::match_deref! { match &(Call::arguments(var_field!((*exp).call, Expression::NFExpression::CALL).clone())?) {
         Deref @ metamodelica::List::Cons { head: arg1, tail: Deref @ metamodelica::List::Nil } => arg1.clone(),
@@ -1811,7 +1830,7 @@ pub fn differentiateFunction(mut func: Arc<Function::Function>, mut interface_ma
         (::match_deref::match_deref! { match &(func.clone()) {
         der_func @ Deref @ NFFunction::Function::FUNCTION { node: node @ Deref @ InstNode::CLASS_NODE { cls, .. }, .. } => {
             let mut new_cls: Arc<Class::NFClass> = Arc::new(Class::NOT_INSTANTIATED);
-            let mut funcDiffArgs: Arc<DifferentiationArguments::DifferentiationArguments>;
+            let mut funcDiffArgs: Arc<DifferentiationArguments::DifferentiationArguments> = Arc::new(<DifferentiationArguments::DifferentiationArguments as ::std::default::Default>::default());
             let mut diffInfo: Arc<UnorderedSet::UnorderedSet<Arc<InstNode::InstNode>>>;
             let mut algorithms: Arc<metamodelica::List<Arc<Algorithm::NFAlgorithm>>> = metamodelica::nil();
             let mut funcDer: Arc<FunctionDerivative::NFFunctionDerivative> = Arc::new(<FunctionDerivative::NFFunctionDerivative as ::std::default::Default>::default());
@@ -2312,7 +2331,7 @@ pub fn differentiateBinary(mut exp: Arc<Expression::NFExpression>, mut diffArgum
         Deref @ Expression::BINARY { exp2, operator, exp1 } if (Operator::getMathClassification(operator.clone())? == Operator::MathClassification::SUBTRACTION.clone()) => {
             let mut diffExp1: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut diffExp2: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-            let mut addOp: Arc<Operator::NFOperator>;
+            let mut addOp: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
             let mut sizeClass: Operator::SizeClassification = Operator::SizeClassification::SCALAR;
             let mut current_grad: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             current_grad = diffArguments.current_grad.clone();
@@ -2327,7 +2346,7 @@ pub fn differentiateBinary(mut exp: Arc<Expression::NFExpression>, mut diffArgum
         Deref @ Expression::BINARY { exp2, operator, exp1 } if (Operator::getMathClassification(operator.clone())? == Operator::MathClassification::MULTIPLICATION.clone()) => {
             let mut diffExp1: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut diffExp2: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-            let mut addOp: Arc<Operator::NFOperator>;
+            let mut addOp: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
             let mut sizeClass: Operator::SizeClassification = Operator::SizeClassification::SCALAR;
             let mut current_grad: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut grad_exp1: Arc<Expression::NFExpression> = Arc::new(Expression::END);
@@ -2390,10 +2409,10 @@ pub fn differentiateBinary(mut exp: Arc<Expression::NFExpression>, mut diffArgum
         Deref @ Expression::BINARY { exp2, operator, exp1 } if (Operator::getMathClassification(operator.clone())? == Operator::MathClassification::DIVISION.clone()) => {
             let mut diffExp1: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut diffExp2: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-            let mut addOp: Arc<Operator::NFOperator>;
-            let mut mulOp: Arc<Operator::NFOperator>;
-            let mut powOp: Arc<Operator::NFOperator>;
-            let mut divOp: Arc<Operator::NFOperator>;
+            let mut addOp: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
+            let mut mulOp: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
+            let mut powOp: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
+            let mut divOp: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
             let mut sizeClass: Operator::SizeClassification = Operator::SizeClassification::SCALAR;
             let mut powSizeClass: Operator::SizeClassification = Operator::SizeClassification::SCALAR;
             let mut current_grad: Arc<Expression::NFExpression> = Arc::new(Expression::END);
@@ -2431,8 +2450,8 @@ pub fn differentiateBinary(mut exp: Arc<Expression::NFExpression>, mut diffArgum
             let mut e2: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut e3: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut res: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-            let mut addOp: Arc<Operator::NFOperator>;
-            let mut mulOp: Arc<Operator::NFOperator>;
+            let mut addOp: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
+            let mut mulOp: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
             let mut sizeClass: Operator::SizeClassification = Operator::SizeClassification::SCALAR;
             let mut current_grad: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             (_, sizeClass) = Operator::classify(operator.clone())?;
@@ -2528,7 +2547,7 @@ pub fn differentiateMultary(mut exp: Arc<Expression::NFExpression>, mut diffArgu
             Arc::new(Expression::NFExpression::MULTARY { arguments: new_arguments.clone(), inv_arguments: new_inv_arguments.clone(), operator: operator.clone() })
         },
         Deref @ Expression::MULTARY { operator, inv_arguments: Deref @ metamodelica::List::Nil, arguments } if (Operator::getMathClassification(operator.clone())? == Operator::MathClassification::MULTIPLICATION.clone()) => {
-            let mut addOp: Arc<Operator::NFOperator>;
+            let mut addOp: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
             let mut sizeClass: Operator::SizeClassification = Operator::SizeClassification::SCALAR;
             sizeClass = Operator::classifyAddition(operator.clone());
             addOp = Operator::fromClassification((Operator::MathClassification::ADDITION.clone(), sizeClass.clone()), operator.ty.clone())?;
@@ -2537,7 +2556,7 @@ pub fn differentiateMultary(mut exp: Arc<Expression::NFExpression>, mut diffArgu
         },
         Deref @ Expression::MULTARY { operator, inv_arguments, arguments } if (Operator::getMathClassification(operator.clone())? == Operator::MathClassification::MULTIPLICATION.clone() && !(inv_arguments.clone().is_empty()) && isReverse.clone()) => {
             let mut diff_arg: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-            let mut mulEWOp: Arc<Operator::NFOperator>;
+            let mut mulEWOp: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
             let mut sizeClass: Operator::SizeClassification = Operator::SizeClassification::SCALAR;
             let mut powSizeClass: Operator::SizeClassification = Operator::SizeClassification::SCALAR;
             let mut upstream: Arc<Expression::NFExpression> = Arc::new(Expression::END);
@@ -2597,8 +2616,8 @@ pub fn differentiateMultary(mut exp: Arc<Expression::NFExpression>, mut diffArgu
             let mut diff_divisor: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut diff_arguments: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
             let mut diff_inv_arguments: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
-            let mut addOp: Arc<Operator::NFOperator>;
-            let mut powOp: Arc<Operator::NFOperator>;
+            let mut addOp: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
+            let mut powOp: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
             let mut sizeClass: Operator::SizeClassification = Operator::SizeClassification::SCALAR;
             let mut powSizeClass: Operator::SizeClassification = Operator::SizeClassification::SCALAR;
             let mut powTy: Arc<Type::NFType> = Arc::new(Type::ANY);
@@ -2759,7 +2778,7 @@ fn expLog(mut exp: Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFEx
 }
 
 fn makeMulFromOperator(mut operator: Arc<Operator::NFOperator>) -> Result<Arc<Operator::NFOperator>> {
-    let mut mulOp: Arc<Operator::NFOperator>;
+    let mut mulOp: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
     mulOp = Operator::fromClassification((Operator::MathClassification::MULTIPLICATION.clone(), Operator::getSizeClassification(operator.clone())?), operator.ty.clone())?;
     Ok(mulOp)
 }
@@ -2949,7 +2968,7 @@ fn buildMultiHotVectorAdjoint(mut derBaseCref: Arc<ComponentRef::NFComponentRef>
     let mut scatter: Option<Arc<Expression::NFExpression>> = None;
     let mut arrTy: Arc<Type::NFType> = Arc::new(Type::ANY);
     let mut elTy: Arc<Type::NFType> = Arc::new(Type::ANY);
-    let mut addOp: Arc<Operator::NFOperator>;
+    let mut addOp: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
     let mut seedIsArray: bool = false;
     let mut m: i32 = 0;
     let mut j: i32 = 0;

@@ -118,7 +118,7 @@ pub fn EntryString(mut entry: Entry) -> Result<ArcStr> {
 
 pub fn eliminateAliases(mut flatModel: Arc<FlatModel::NFFlatModel>) -> Result<Arc<FlatModel::NFFlatModel>> {
     let mut flatModel: Arc<FlatModel::NFFlatModel> = flatModel;
-    let mut sets: Sets;
+    let mut sets: Sets = <Sets as ::std::default::Default>::default();
     let mut replacements: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<Expression::NFExpression>>>;
     let mut aliases: Arc<metamodelica::List<(Arc<FlowAlias::FlowAlias>, Arc<metamodelica::List<Arc<FlowAlias::FlowAlias>>>)>> = metamodelica::nil();
     (flatModel, sets) = fromModel(flatModel.clone())?;
@@ -130,7 +130,7 @@ pub fn eliminateAliases(mut flatModel: Arc<FlatModel::NFFlatModel>) -> Result<Ar
 
 pub fn fromModel(mut flatModel: Arc<FlatModel::NFFlatModel>) -> Result<(Arc<FlatModel::NFFlatModel>, Sets)> {
     let mut flatModel: Arc<FlatModel::NFFlatModel> = flatModel;
-    let mut sets: Sets;
+    let mut sets: Sets = <Sets as ::std::default::Default>::default();
     let mut alias_eqs: Arc<metamodelica::List<Arc<Equation::NFEquation>>> = metamodelica::nil();
     let mut other_eqs: Arc<metamodelica::List<Arc<Equation::NFEquation>>> = metamodelica::nil();
     let mut flow_aliases: Arc<metamodelica::List<Arc<metamodelica::List<Arc<FlowAlias::FlowAlias>>>>> = metamodelica::nil();
@@ -646,6 +646,16 @@ pub struct Sets {
     pub nodeCount: i32,
 }
 
+impl Default for Sets {
+    fn default() -> Self {
+        Self {
+            nodes: Default::default(),
+            elements: Default::default(),
+            nodeCount: Default::default(),
+        }
+    }
+}
+
 pub type DISJOINT_SETS = Sets;
 
 
@@ -701,7 +711,7 @@ pub fn contains(mut entry: Entry, mut sets: Sets) -> bool {
 }
 
 pub fn emptySets(mut setCount: i32) -> Sets {
-    let mut sets: Sets;
+    let mut sets: Sets = <Sets as ::std::default::Default>::default();
     let mut nodes: metamodelica::Array<i32>;
     let mut elements: IndexTable;
     let mut sz: i32 = 0;
@@ -714,7 +724,7 @@ pub fn emptySets(mut setCount: i32) -> Sets {
 
 pub fn extractSets(mut sets: Sets) -> (metamodelica::Array<Arc<metamodelica::List<Arc<FlowAlias::FlowAlias>>>>, Sets) {
     let mut setsArray: metamodelica::Array<Arc<metamodelica::List<Arc<FlowAlias::FlowAlias>>>>;
-    let mut assignedSets: Sets;
+    let mut assignedSets: Sets = <Sets as ::std::default::Default>::default();
     let mut nodes: metamodelica::Array<i32>;
     let mut set_idx: i32 = 0;
     let mut idx: i32 = 0;
@@ -782,7 +792,7 @@ pub fn findRoot(mut nodeIndex: i32, mut nodes: metamodelica::Array<i32>) -> Resu
 
 pub fn findSet(mut entry: Entry, mut sets: Sets) -> Result<(i32, Sets)> {
     let mut set: i32 = 0;
-    let mut updatedSets: Sets;
+    let mut updatedSets: Sets = <Sets as ::std::default::Default>::default();
     let mut index: i32 = 0;
     (updatedSets, index) = find(entry.clone(), sets.clone())?;
     set = findRoot(index.clone(), updatedSets.nodes.clone())?;

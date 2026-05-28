@@ -73,6 +73,15 @@ pub mod Rational {
         pub d: i32,
     }
 
+    impl Default for Rational {
+        fn default() -> Self {
+            Self {
+                n: Default::default(),
+                d: Default::default(),
+            }
+        }
+    }
+
     pub type RATIONAL = Rational;
 
     pub fn toString(mut r: Arc<Rational>) -> ArcStr {
@@ -109,7 +118,7 @@ pub mod Rational {
     }
 
     fn finalize(mut i1: i32, mut i2: i32) -> Arc<Rational> {
-        let mut r: Arc<Rational>;
+        let mut r: Arc<Rational> = Arc::new(<Rational as ::std::default::Default>::default());
         let mut d: i32 = intGcd(i1.clone(), i2.clone());
         r = normalize(Arc::new(Rational { n: intDiv(i1.clone(), d.clone()), d: intDiv(i2.clone(), d.clone()) }));
         r

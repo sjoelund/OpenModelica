@@ -75,7 +75,7 @@ pub mod ConnectionSets {
     }
 
     pub fn fromConnections(mut connections: Arc<Connections::NFConnections>) -> Result<Sets> {
-        let mut sets: Sets;
+        let mut sets: Sets = <Sets as ::std::default::Default>::default();
         sets = emptySets((connections.connections.clone().len() as i32) + (connections.flows.clone().len() as i32));
         if !(Flags::isSet(Flags::DISABLE_SINGLE_FLOW_EQ.clone())?) {
             sets = List::fold(connections.flows.clone(), (std::sync::Arc::new(addSingleConnector) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Connector::NFConnector>, Sets) -> Result<Sets> + 'static>), sets.clone());
@@ -147,6 +147,16 @@ pub mod ConnectionSets {
         pub nodeCount: i32,
     }
 
+    impl Default for Sets {
+        fn default() -> Self {
+            Self {
+                nodes: Default::default(),
+                elements: Default::default(),
+                nodeCount: Default::default(),
+            }
+        }
+    }
+
     pub type DISJOINT_SETS = Sets;
 
 
@@ -202,7 +212,7 @@ pub mod ConnectionSets {
     }
 
     pub fn emptySets(mut setCount: i32) -> Sets {
-        let mut sets: Sets;
+        let mut sets: Sets = <Sets as ::std::default::Default>::default();
         let mut nodes: metamodelica::Array<i32>;
         let mut elements: IndexTable;
         let mut sz: i32 = 0;
@@ -215,7 +225,7 @@ pub mod ConnectionSets {
 
     pub fn extractSets(mut sets: Sets) -> (metamodelica::Array<Arc<metamodelica::List<Arc<Connector::NFConnector>>>>, Sets) {
         let mut setsArray: metamodelica::Array<Arc<metamodelica::List<Arc<Connector::NFConnector>>>>;
-        let mut assignedSets: Sets;
+        let mut assignedSets: Sets = <Sets as ::std::default::Default>::default();
         let mut nodes: metamodelica::Array<i32>;
         let mut set_idx: i32 = 0;
         let mut idx: i32 = 0;
@@ -283,7 +293,7 @@ pub mod ConnectionSets {
 
     pub fn findSet(mut entry: Entry, mut sets: Sets) -> Result<(i32, Sets)> {
         let mut set: i32 = 0;
-        let mut updatedSets: Sets;
+        let mut updatedSets: Sets = <Sets as ::std::default::Default>::default();
         let mut index: i32 = 0;
         (updatedSets, index) = find(entry.clone(), sets.clone())?;
         set = findRoot(index.clone(), updatedSets.nodes.clone())?;

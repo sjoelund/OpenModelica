@@ -17056,7 +17056,7 @@ fn fun_627(mut in_txt: Tpl::Text, mut in_mArg: SimCodeVar::SimVar) -> Result<Tpl
         (txt, i_v @ SimCodeVar::SimVar { name: i_v_name @ i_name, .. }) => {
             let mut txt_4: Tpl::Text;
             let mut ret_3: ArcStr = arcstr::literal!("");
-            let mut ret_2: SimCode::SimCode;
+            let mut ret_2: SimCode::SimCode = <SimCode::SimCode as ::std::default::Default>::default();
             let mut l_index: Tpl::Text;
             let mut l_c__comment: Tpl::Text;
             let mut txt = (*txt).clone();
@@ -17088,8 +17088,8 @@ fn fun_628(mut in_txt: Tpl::Text, mut in_mArg: SimCodeVar::SimVar, mut in_a_comp
     let mut out_txt: Tpl::Text;
     out_txt = (::match_deref::match_deref! { match &((in_txt.clone(), in_mArg.clone(), in_a_componentRef.clone())) {
         (txt, SimCodeVar::SimVar { index: (-2), .. }, a_componentRef) => {
-            let mut ret_1: SimCodeVar::SimVar;
-            let mut ret_0: SimCode::SimCode;
+            let mut ret_1: SimCodeVar::SimVar = <SimCodeVar::SimVar as ::std::default::Default>::default();
+            let mut ret_0: SimCode::SimCode = <SimCode::SimCode as ::std::default::Default>::default();
             let mut txt = (*txt).clone();
             ret_0 = SimCodeUtil::getSimCode()?;
             ret_1 = SimCodeUtil::cref2simvar(a_componentRef.clone(), ret_0.clone())?;
@@ -17098,7 +17098,7 @@ fn fun_628(mut in_txt: Tpl::Text, mut in_mArg: SimCodeVar::SimVar, mut in_a_comp
         },
         (txt, i_v @ SimCodeVar::SimVar { name: i_name, .. }, _) => {
             let mut ret_5: ArcStr = arcstr::literal!("");
-            let mut ret_4: SimCode::SimCode;
+            let mut ret_4: SimCode::SimCode = <SimCode::SimCode as ::std::default::Default>::default();
             let mut l_index: Tpl::Text;
             let mut l_c__comment: Tpl::Text;
             let mut txt = (*txt).clone();
@@ -17128,7 +17128,7 @@ fn fun_629(mut in_txt: Tpl::Text, mut in_mArg: SimCodeVar::SimVar) -> Result<Tpl
         (mut txt, ref i_v @ SimCodeVar::SimVar { name: ref i_name, .. }) => {
             let mut l_c__comment: Tpl::Text;
             let mut ret_2: ArcStr = arcstr::literal!("");
-            let mut ret_1: SimCode::SimCode;
+            let mut ret_1: SimCode::SimCode = <SimCode::SimCode as ::std::default::Default>::default();
             let mut l_index: Tpl::Text;
             ret_1 = SimCodeUtil::getSimCode()?;
             ret_2 = (SimCodeUtil::getValueReference(i_v.clone(), ret_1.clone(), false)?).clone();
@@ -17153,8 +17153,8 @@ fn fun_630(mut in_txt: Tpl::Text, mut in_mArg: SimCodeVar::SimVar, mut in_a_cref
     let mut out_txt: Tpl::Text;
     out_txt = (::match_deref::match_deref! { match &((in_txt.clone(), in_mArg.clone(), in_a_cref.clone())) {
         (txt, SimCodeVar::SimVar { index: (-2), .. }, a_cref) => {
-            let mut ret_1: SimCodeVar::SimVar;
-            let mut ret_0: SimCode::SimCode;
+            let mut ret_1: SimCodeVar::SimVar = <SimCodeVar::SimVar as ::std::default::Default>::default();
+            let mut ret_0: SimCode::SimCode = <SimCode::SimCode as ::std::default::Default>::default();
             let mut txt = (*txt).clone();
             ret_0 = SimCodeUtil::getSimCode()?;
             ret_1 = SimCodeUtil::cref2simvar(a_cref.clone(), ret_0.clone())?;
@@ -17199,7 +17199,7 @@ fn fun_630(mut in_txt: Tpl::Text, mut in_mArg: SimCodeVar::SimVar, mut in_a_cref
         },
         (txt, i_v @ SimCodeVar::SimVar { name: i_name, .. }, _) => {
             let mut ret_5: ArcStr = arcstr::literal!("");
-            let mut ret_4: SimCode::SimCode;
+            let mut ret_4: SimCode::SimCode = <SimCode::SimCode as ::std::default::Default>::default();
             let mut l_index: Tpl::Text;
             let mut l_c__comment: Tpl::Text;
             let mut txt = (*txt).clone();
@@ -17236,14 +17236,14 @@ pub fn crefToOMSICStr(mut in_txt: Tpl::Text, mut in_a_cref: Arc<DAE::ComponentRe
             txt.clone()
         },
         (txt, Deref @ DAE::ComponentRef::CREF_QUAL { componentRef: i_componentRef, ident: Deref @ "$PRE", .. }, a_hashTable) => {
-            let mut ret_0: SimCodeVar::SimVar;
+            let mut ret_0: SimCodeVar::SimVar = <SimCodeVar::SimVar as ::std::default::Default>::default();
             let mut txt = (*txt).clone();
             ret_0 = SimCodeUtil::localCref2SimVar(i_componentRef.clone(), a_hashTable.clone())?;
             txt = fun_628(txt.clone(), ret_0.clone(), i_componentRef.clone())?;
             txt.clone()
         },
         (txt, i_cref, a_hashTable) => {
-            let mut ret_1: SimCodeVar::SimVar;
+            let mut ret_1: SimCodeVar::SimVar = <SimCodeVar::SimVar as ::std::default::Default>::default();
             let mut txt = (*txt).clone();
             ret_1 = SimCodeUtil::localCref2SimVar(i_cref.clone(), a_hashTable.clone())?;
             txt = fun_630(txt.clone(), ret_1.clone(), i_cref.clone())?;
@@ -20129,7 +20129,7 @@ fn fun_717(mut in_txt: Tpl::Text, mut in_a_context: SimCodeFunction::Context, mu
     let mut out_txt: Tpl::Text;
     out_txt = (::match_deref::match_deref! { match &((in_txt.clone(), in_a_context.clone(), in_a_cr.clone(), in_a_ix.clone())) {
         (txt, SimCodeFunction::Context::JACOBIAN_CONTEXT { jacHT: Some(i_jacHT), .. }, a_cr, a_ix) => {
-            let mut ret_0: SimCodeVar::SimVar;
+            let mut ret_0: SimCodeVar::SimVar = <SimCodeVar::SimVar as ::std::default::Default>::default();
             let mut txt = (*txt).clone();
             ret_0 = SimCodeUtil::simVarFromHT(a_cr.clone(), i_jacHT.clone())?;
             txt = fun_716(txt.clone(), ret_0.clone(), a_ix.clone(), a_cr.clone())?;
@@ -20561,8 +20561,8 @@ pub fn crefToCStr(mut in_txt: Tpl::Text, mut in_a_cr: Arc<DAE::ComponentRef>, mu
             (txt.clone(), a_sub.clone())
         },
         (txt, i_cr, a_ix, a_isPre, a_isStart, a_sub) => {
-            let mut ret_1: SimCodeVar::SimVar;
-            let mut ret_0: SimCode::SimCode;
+            let mut ret_1: SimCodeVar::SimVar = <SimCodeVar::SimVar as ::std::default::Default>::default();
+            let mut ret_0: SimCode::SimCode = <SimCode::SimCode as ::std::default::Default>::default();
             let mut txt = (*txt).clone();
             let mut a_sub = (*a_sub).clone();
             ret_0 = SimCodeUtil::getSimCode()?;
@@ -20592,8 +20592,8 @@ fn fun_735(mut in_txt: Tpl::Text, mut in_mArg: SimCodeVar::SimVar) -> Result<Tpl
 
 pub fn crefToIndex(mut txt: Tpl::Text, mut a_cr: Arc<DAE::ComponentRef>) -> Result<Tpl::Text> {
     let mut out_txt: Tpl::Text;
-    let mut ret_1: SimCodeVar::SimVar;
-    let mut ret_0: SimCode::SimCode;
+    let mut ret_1: SimCodeVar::SimVar = <SimCodeVar::SimVar as ::std::default::Default>::default();
+    let mut ret_0: SimCode::SimCode = <SimCode::SimCode as ::std::default::Default>::default();
     ret_0 = SimCodeUtil::getSimCode()?;
     ret_1 = SimCodeUtil::cref2simvar(a_cr.clone(), ret_0.clone())?;
     out_txt = fun_735(txt.clone(), ret_1.clone())?;
@@ -37282,7 +37282,7 @@ fn fun_1201(mut in_txt: Tpl::Text, mut in_a_ty: DAE::MatchType, mut in_a_prefix:
     let mut out_txt: Tpl::Text;
     out_txt = (::match_deref::match_deref! { match &((in_txt.clone(), in_a_ty.clone(), in_a_prefix.clone(), in_a_cases.clone())) {
         (txt, DAE::MatchType::MATCH { switch: Some((i_n, Deref @ DAE::Type::T_STRING { varLst: _ }, i_div)) }, a_prefix, a_cases) => {
-            let mut ret_0: Arc<DAE::MatchCase>;
+            let mut ret_0: Arc<DAE::MatchCase> = Arc::new(<DAE::MatchCase as ::std::default::Default>::default());
             let mut txt = (*txt).clone();
             ret_0 = List::last(a_cases.clone())?;
             txt = fun_1200(txt.clone(), ret_0.clone(), a_prefix.clone(), i_div.clone(), i_n.clone())?;
@@ -38388,8 +38388,8 @@ fn fun_1239(mut in_txt: Tpl::Text, mut in_mArg: SimCodeVar::SimVar) -> Result<Tp
 
 pub fn crefVarInfo(mut txt: Tpl::Text, mut a_cr: Arc<DAE::ComponentRef>) -> Result<Tpl::Text> {
     let mut out_txt: Tpl::Text;
-    let mut ret_1: SimCodeVar::SimVar;
-    let mut ret_0: SimCode::SimCode;
+    let mut ret_1: SimCodeVar::SimVar = <SimCodeVar::SimVar as ::std::default::Default>::default();
+    let mut ret_0: SimCode::SimCode = <SimCode::SimCode as ::std::default::Default>::default();
     ret_0 = SimCodeUtil::getSimCode()?;
     ret_1 = SimCodeUtil::cref2simvar(a_cr.clone(), ret_0.clone())?;
     out_txt = fun_1239(txt.clone(), ret_1.clone())?;
@@ -38445,8 +38445,8 @@ fn fun_1242(mut in_txt: Tpl::Text, mut in_mArg: SimCodeVar::SimVar) -> Result<Tp
 
 pub fn crefVarDimension(mut txt: Tpl::Text, mut a_cr: Arc<DAE::ComponentRef>) -> Result<Tpl::Text> {
     let mut out_txt: Tpl::Text;
-    let mut ret_1: SimCodeVar::SimVar;
-    let mut ret_0: SimCode::SimCode;
+    let mut ret_1: SimCodeVar::SimVar = <SimCodeVar::SimVar as ::std::default::Default>::default();
+    let mut ret_0: SimCode::SimCode = <SimCode::SimCode as ::std::default::Default>::default();
     ret_0 = SimCodeUtil::getSimCode()?;
     ret_1 = SimCodeUtil::cref2simvar(a_cr.clone(), ret_0.clone())?;
     out_txt = fun_1242(txt.clone(), ret_1.clone())?;
@@ -38539,8 +38539,8 @@ fn fun_1246(mut in_txt: Tpl::Text, mut in_mArg: SimCodeVar::SimVar) -> Result<Tp
 
 pub fn crefIndexWithComment(mut txt: Tpl::Text, mut a_cr: Arc<DAE::ComponentRef>) -> Result<Tpl::Text> {
     let mut out_txt: Tpl::Text;
-    let mut ret_2: SimCodeVar::SimVar;
-    let mut ret_1: SimCode::SimCode;
+    let mut ret_2: SimCodeVar::SimVar = <SimCodeVar::SimVar as ::std::default::Default>::default();
+    let mut ret_1: SimCode::SimCode = <SimCode::SimCode as ::std::default::Default>::default();
     let mut ret_0: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
     ret_0 = ComponentReference::crefRemovePrePrefix(a_cr.clone());
     ret_1 = SimCodeUtil::getSimCode()?;
@@ -38656,8 +38656,8 @@ fn fun_1252(mut in_txt: Tpl::Text, mut in_mArg: SimCodeVar::SimVar) -> Result<Tp
 
 pub fn crefAttributes(mut txt: Tpl::Text, mut a_cr: Arc<DAE::ComponentRef>) -> Result<Tpl::Text> {
     let mut out_txt: Tpl::Text;
-    let mut ret_2: SimCodeVar::SimVar;
-    let mut ret_1: SimCode::SimCode;
+    let mut ret_2: SimCodeVar::SimVar = <SimCodeVar::SimVar as ::std::default::Default>::default();
+    let mut ret_1: SimCode::SimCode = <SimCode::SimCode as ::std::default::Default>::default();
     let mut ret_0: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
     ret_0 = ComponentReference::crefRemovePrePrefix(a_cr.clone());
     ret_1 = SimCodeUtil::getSimCode()?;

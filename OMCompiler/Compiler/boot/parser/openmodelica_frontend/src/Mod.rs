@@ -688,7 +688,7 @@ fn elabSubmods2(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inIH: Ar
     let mut outSubMods: Arc<metamodelica::List<Arc<DAE::SubMod>>> = metamodelica::nil();
     (outCache, outSubMods) = (::match_deref::match_deref! { match &((inCache.clone(), inEnv.clone(), inIH.clone(), inPrefix.clone(), inSubMods.clone(), inImpl.clone(), inInfo.clone(), inAccumMods.clone())) {
         (cache, _, _, _, Deref @ metamodelica::List::Cons { head: smod, tail: rest_smods }, _, _, _) => {
-            let mut dmod: Arc<DAE::SubMod>;
+            let mut dmod: Arc<DAE::SubMod> = Arc::new(<DAE::SubMod as ::std::default::Default>::default());
             let mut accum_mods: Arc<metamodelica::List<Arc<DAE::SubMod>>> = metamodelica::nil();
             let mut cache = (*cache).clone();
             (cache, dmod) = elabSubmod(cache.clone(), inEnv.clone(), inIH.clone(), inPrefix.clone(), smod.clone(), inImpl.clone(), inInfo.clone())?;
@@ -721,14 +721,14 @@ fn compactSubMod(mut inSubMod: Arc<SCode::SubMod>, mut inModScope: ModScope, mut
 }
 
 fn compactSubMod2(mut inExistingMod: Arc<SCode::SubMod>, mut inNewMod: Arc<SCode::SubMod>, mut inModScope: ModScope, mut inName: Arc<metamodelica::List<ArcStr>>) -> Result<(Arc<SCode::SubMod>, bool)> {
-    let mut outMod: Arc<SCode::SubMod>;
+    let mut outMod: Arc<SCode::SubMod> = Arc::new(<SCode::SubMod as ::std::default::Default>::default());
     let mut outFound: bool = false;
     (outMod, outFound) = (::match_deref::match_deref! { match &((inExistingMod.clone(), inNewMod.clone(), inModScope.clone(), inName.clone())) {
         (Deref @ SCode::SubMod { ident: name1, .. }, Deref @ SCode::SubMod { ident: name2, .. }, _, _) if (!(stringEqual((name1.clone()).clone(), (name2.clone()).clone()))) => {
             (inExistingMod.clone(), false)
         },
         (Deref @ SCode::SubMod { ident: name1, .. }, _, _, _) => {
-            let mut submod: Arc<SCode::SubMod>;
+            let mut submod: Arc<SCode::SubMod> = Arc::new(<SCode::SubMod as ::std::default::Default>::default());
             submod = mergeSubModsInSameScope(inExistingMod.clone(), inNewMod.clone(), cons((name1.clone()).clone(), inName.clone()), inModScope.clone())?;
             (submod.clone(), true)
         },
@@ -738,7 +738,7 @@ fn compactSubMod2(mut inExistingMod: Arc<SCode::SubMod>, mut inNewMod: Arc<SCode
 }
 
 fn mergeSubModsInSameScope(mut inMod1: Arc<SCode::SubMod>, mut inMod2: Arc<SCode::SubMod>, mut inElementName: Arc<metamodelica::List<ArcStr>>, mut inModScope: ModScope) -> Result<Arc<SCode::SubMod>> {
-    let mut outMod: Arc<SCode::SubMod>;
+    let mut outMod: Arc<SCode::SubMod> = Arc::new(<SCode::SubMod as ::std::default::Default>::default());
     let mut scope: ArcStr = arcstr::literal!("");
     let mut name: ArcStr = arcstr::literal!("");
     let mut submods: Arc<metamodelica::List<Arc<SCode::SubMod>>> = metamodelica::nil();
@@ -787,7 +787,7 @@ fn printModScope(mut inModScope: ModScope) -> Result<ArcStr> {
 
 fn elabSubmod(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inIH: Arc<metamodelica::List<InnerOuter::TopInstance>>, mut inPrefix: DAE::Prefix, mut inSubMod: Arc<SCode::SubMod>, mut inBoolean: bool, mut info: SourceInfo) -> Result<(FCore::Cache, Arc<DAE::SubMod>)> {
     let mut outCache: FCore::Cache = FCore::Cache::NO_CACHE;
-    let mut outSubMod: Arc<DAE::SubMod>;
+    let mut outSubMod: Arc<DAE::SubMod> = Arc::new(<DAE::SubMod as ::std::default::Default>::default());
     let mut smod: Arc<SCode::Mod> = Arc::new(SCode::Mod::NOMOD);
     let mut dmod: Arc<DAE::Mod> = Arc::new(DAE::Mod::NOMOD);
     let mut i: ArcStr = arcstr::literal!("");
@@ -1112,7 +1112,7 @@ fn checkDuplicateModifications2(mut inSubMods1: Arc<metamodelica::List<Arc<DAE::
     let mut outSubMods: Arc<metamodelica::List<Arc<DAE::SubMod>>> = metamodelica::nil();
     let mut submods: Arc<metamodelica::List<Arc<DAE::SubMod>>> = inSubMods2.clone();
     let mut osubmod: Option<Arc<DAE::SubMod>> = None;
-    let mut submod: Arc<DAE::SubMod>;
+    let mut submod: Arc<DAE::SubMod> = Arc::new(<DAE::SubMod as ::std::default::Default>::default());
     let mut info1: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     let mut info2: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     for mut s in &*inSubMods1.clone() {
@@ -1166,7 +1166,7 @@ fn modEqualNoPrefix(mut mod1: Arc<DAE::Mod>, mut mod2: Arc<DAE::Mod>) -> Result<
 }
 
 fn lookupNamedSubMod(mut inSubMods: Arc<metamodelica::List<Arc<DAE::SubMod>>>, mut inIdent: ArcStr) -> Result<Arc<DAE::SubMod>> {
-    let mut outSubMod: Arc<DAE::SubMod>;
+    let mut outSubMod: Arc<DAE::SubMod> = Arc::new(<DAE::SubMod as ::std::default::Default>::default());
     outSubMod = List::getMemberOnTrue((inIdent.clone()).clone(), inSubMods.clone(), (std::sync::Arc::new(isSubModNamed) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, Arc<DAE::SubMod>) -> Result<bool> + 'static>))?;
     Ok(outSubMod)
 }
@@ -1529,7 +1529,7 @@ fn doMerge(mut inModOuter: Arc<DAE::Mod>, mut inModInner: Arc<DAE::Mod>, mut inC
             let mut vals: Arc<metamodelica::List<Arc<Values::Value>>> = metamodelica::nil();
             let mut names: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
             let mut name: ArcStr = arcstr::literal!("");
-            let mut submod: Arc<DAE::SubMod>;
+            let mut submod: Arc<DAE::SubMod> = Arc::new(<DAE::SubMod as ::std::default::Default>::default());
             let mut eqmod = (*eqmod).clone();
             let mut val = (*val).clone();
             let mut submods = (*submods).clone();
@@ -1573,7 +1573,7 @@ fn doMerge(mut inModOuter: Arc<DAE::Mod>, mut inModInner: Arc<DAE::Mod>, mut inC
             let mut vals: Arc<metamodelica::List<Arc<Values::Value>>> = metamodelica::nil();
             let mut names: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
             let mut name: ArcStr = arcstr::literal!("");
-            let mut submod: Arc<DAE::SubMod>;
+            let mut submod: Arc<DAE::SubMod> = Arc::new(<DAE::SubMod as ::std::default::Default>::default());
             let mut submods = (*submods).clone();
             let mut eqmod = (*eqmod).clone();
             let mut val = (*val).clone();
@@ -1630,7 +1630,7 @@ fn mergeSubs(mut inSubMods1: Arc<metamodelica::List<Arc<DAE::SubMod>>>, mut inSu
     let mut m1: Arc<DAE::Mod> = Arc::new(DAE::Mod::NOMOD);
     let mut m2: Arc<DAE::Mod> = Arc::new(DAE::Mod::NOMOD);
     let mut osm2: Option<Arc<DAE::SubMod>> = None;
-    let mut sm2: Arc<DAE::SubMod>;
+    let mut sm2: Arc<DAE::SubMod> = Arc::new(<DAE::SubMod as ::std::default::Default>::default());
     if inSubMods1.clone().is_empty() {
         outSubMods = inSubMods2.clone();
     } else if inSubMods2.clone().is_empty() {
@@ -2227,7 +2227,7 @@ pub fn renameTopLevelNamedSubMod(mut r#mod: Arc<DAE::Mod>, mut oldIdent: ArcStr,
 }
 
 pub fn renameNamedSubMod(mut submod: Arc<DAE::SubMod>, mut oldIdent: ArcStr, mut newIdent: ArcStr) -> Arc<DAE::SubMod> {
-    let mut outMod: Arc<DAE::SubMod>;
+    let mut outMod: Arc<DAE::SubMod> = Arc::new(<DAE::SubMod as ::std::default::Default>::default());
     outMod = (::match_deref::match_deref! { match &((submod.clone(), oldIdent.clone(), newIdent.clone())) {
         (Deref @ DAE::SubMod { ident: id, r#mod }, _, _) if (stringEq((id.clone()).clone(), (oldIdent.clone()).clone())) => {
             Arc::new(DAE::SubMod { ident: (newIdent.clone()).clone(), r#mod: r#mod.clone() })
@@ -2819,13 +2819,13 @@ pub fn isRedeclareMod(mut inMod: Arc<DAE::Mod>) -> bool {
 
 pub fn getClassModifier(mut inEnv: FCore::Graph, mut inName: ArcStr) -> Result<Arc<DAE::Mod>> {
     let mut outMod: Arc<DAE::Mod> = Arc::new(DAE::Mod::NOMOD);
-    let mut n: FCore::Node;
+    let mut n: FCore::Node = <FCore::Node as ::std::default::Default>::default();
     let mut r#mod: Arc<DAE::Mod> = Arc::new(DAE::Mod::NOMOD);
     outMod = 'mc: {
         let __mc_input = (inEnv.clone(), inName.clone());
         if let Ok(__v) = (|| -> Result<_> {
             let (_, _) = __mc_input.clone() else { bail!("nomatch") };
-            let mut n: FCore::Node;
+            let mut n: FCore::Node = n.clone();
             let mut r#mod: Arc<DAE::Mod> = r#mod.clone();
             n = FNode::fromRef(FNode::child(FGraph::lastScopeRef(inEnv.clone())?, (inName.clone()).clone())?)?;
             if !(FNode::isInstance(FNode::fromRef(FGraph::lastScopeRef(inEnv.clone())?)?)) {

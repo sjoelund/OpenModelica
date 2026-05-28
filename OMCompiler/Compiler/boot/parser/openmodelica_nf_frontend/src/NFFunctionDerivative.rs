@@ -181,12 +181,12 @@ pub fn conditionToDAE(mut cond: (i32, ArcStr, Condition)) -> Result<(i32, DAE::d
 }
 
 pub fn toSubMod(mut fnDer: Arc<NFFunctionDerivative>) -> Result<Arc<SCode::SubMod>> {
-    let mut subMod: Arc<SCode::SubMod>;
+    let mut subMod: Arc<SCode::SubMod> = Arc::new(<SCode::SubMod as ::std::default::Default>::default());
     let mut tpl: (i32, Condition);
     let mut condition: Condition = Condition::ZERO_DERIVATIVE;
     let mut id: ArcStr = arcstr::literal!("");
     let mut r#mod: Arc<SCode::Mod> = Arc::new(SCode::Mod::NOMOD);
-    let mut orderMod: Arc<SCode::SubMod>;
+    let mut orderMod: Arc<SCode::SubMod> = Arc::new(<SCode::SubMod as ::std::default::Default>::default());
     let mut subMods: Arc<metamodelica::List<Arc<SCode::SubMod>>> = metamodelica::nil();
     let mut order: i32 = 0;
     let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();

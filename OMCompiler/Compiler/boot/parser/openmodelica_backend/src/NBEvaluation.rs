@@ -62,10 +62,21 @@ pub mod Stages {
         pub discreteEval: bool,
     }
 
+    impl Default for Stages {
+        fn default() -> Self {
+            Self {
+                dynamicEval: Default::default(),
+                algebraicEval: Default::default(),
+                zerocrossEval: Default::default(),
+                discreteEval: Default::default(),
+            }
+        }
+    }
+
     pub type STAGES = Stages;
 
     pub fn convert(mut stages: Arc<Stages>) -> OldBackendDAE::EvaluationStages {
-        let mut oldEvalStages: OldBackendDAE::EvaluationStages;
+        let mut oldEvalStages: OldBackendDAE::EvaluationStages = <OldBackendDAE::EvaluationStages as ::std::default::Default>::default();
         oldEvalStages = OldBackendDAE::EvaluationStages { discreteEval: stages.discreteEval.clone(), zerocrossEval: stages.zerocrossEval.clone(), algebraicEval: stages.algebraicEval.clone(), dynamicEval: stages.dynamicEval.clone() };
         oldEvalStages
     }

@@ -116,7 +116,7 @@ pub mod ConversionRules {
 
     pub fn newNode() -> Arc<ConversionRules> {
         let mut node: Arc<ConversionRules> = Arc::new(<ConversionRules as ::std::default::Default>::default());
-        node = Arc::new(ConversionRules { nodes: UnorderedMap::new((std::sync::Arc::new(fnptr!(stringHashDjb2, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr) -> Result<i32> + 'static>), (std::sync::Arc::new(stringEq) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>), 1), rules: metamodelica::nil() });
+        node = Arc::new(ConversionRules { nodes: UnorderedMap::new((std::sync::Arc::new(fnptr!(stringHashDjb2, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr) -> Result<i32> + 'static>), (std::sync::Arc::new(fnptr!(stringEq, ArcStr, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>), 1), rules: metamodelica::nil() });
         node
     }
 
@@ -164,6 +164,17 @@ pub struct ImportData {
     pub importName: ArcStr,
     /// Shadowed by another element or not
     pub shadowed: bool,
+}
+
+impl Default for ImportData {
+    fn default() -> Self {
+        Self {
+            originalPath: Default::default(),
+            convertedPath: Default::default(),
+            importName: Default::default(),
+            shadowed: Default::default(),
+        }
+    }
 }
 
 pub type IMPORT_DATA = ImportData;
@@ -220,6 +231,9 @@ pub mod ImportTreeImpl {
         },
         EMPTY,
     }
+    impl Default for Tree {
+        fn default() -> Self { Self::EMPTY }
+    }
     pub use self::Tree::{NODE,LEAF,EMPTY};
 
     pub type ValueNode = ArcStr;
@@ -231,7 +245,7 @@ pub mod ImportTreeImpl {
             Arc::new(Tree::LEAF { key: (inKey.clone()).clone(), value: inValue.clone() })
         },
         Deref @ Tree::NODE { key, .. } => {
-            let mut value: Value;
+            let mut value: Value = <ImportData as ::std::default::Default>::default();
             let mut key_comp: i32 = 0;
             key_comp = keyCompare((inKey.clone()).clone(), (key.clone()).clone());
             if key_comp.clone() == -1 {
@@ -247,7 +261,7 @@ pub mod ImportTreeImpl {
             if (key_comp.clone() == 0) {tree.clone()} else {balance(tree.clone())?}
         },
         Deref @ Tree::LEAF { .. } => {
-            let mut value: Value;
+            let mut value: Value = <ImportData as ::std::default::Default>::default();
             let mut key_comp: i32 = 0;
             let mut outTree: Arc<Tree> = Arc::new(Tree::EMPTY);
             key_comp = keyCompare((inKey.clone()).clone(), (var_field!((*tree).key, Tree::LEAF).clone()).clone());
@@ -270,7 +284,7 @@ pub mod ImportTreeImpl {
     }
 
     pub fn addConflictFail(mut newValue: Value, mut oldValue: Value, mut key: Key) -> Result<Value> {
-        let mut value: Value;
+        let mut value: Value = <ImportData as ::std::default::Default>::default();
         bail!("fail");
         Ok(value)
     }
@@ -288,7 +302,7 @@ pub mod ImportTreeImpl {
     pub fn addList(mut tree: Arc<Tree>, mut inValues: Arc<metamodelica::List<(ArcStr, ImportData)>>, mut conflictFunc: Arc<dyn ::std::ops::Fn(ImportData, ImportData, ArcStr) -> Result<ImportData> + 'static>) -> Result<Arc<Tree>> {
         let mut tree: Arc<Tree> = tree;
         let mut key: Key = arcstr::literal!("");
-        let mut value: Value;
+        let mut value: Value = <ImportData as ::std::default::Default>::default();
         for mut t in &*inValues.clone() {
             let mut t = t.clone();
             (key, value) = t.clone();
@@ -470,7 +484,7 @@ pub mod ImportTreeImpl {
     pub fn fromList(mut inValues: Arc<metamodelica::List<(ArcStr, ImportData)>>, mut conflictFunc: Arc<dyn ::std::ops::Fn(ImportData, ImportData, ArcStr) -> Result<ImportData> + 'static>) -> Result<Arc<Tree>> {
         let mut tree: Arc<Tree> = Arc::new(crate::Conversion::ImportTreeImpl::Tree::EMPTY);
         let mut key: Key = arcstr::literal!("");
-        let mut value: Value;
+        let mut value: Value = <ImportData as ::std::default::Default>::default();
         for mut t in &*inValues.clone() {
             let mut t = t.clone();
             (key, value) = t.clone();
@@ -480,7 +494,7 @@ pub mod ImportTreeImpl {
     }
 
     pub fn get(mut tree: Arc<Tree>, mut key: Key) -> Result<Value> {
-        let mut value: Value;
+        let mut value: Value = <ImportData as ::std::default::Default>::default();
         let mut k: Key = arcstr::literal!("");
         k = ((::match_deref::match_deref! { match &(tree.clone()) {
         Deref @ Tree::NODE { .. } => var_field!((*tree).key, Tree::NODE).clone(),
@@ -648,7 +662,7 @@ pub mod ImportTreeImpl {
         let mut outTree: Arc<Tree> = inTree.clone();
         outTree = (::match_deref::match_deref! { match &(outTree.clone()) {
         Deref @ Tree::NODE { value, key, .. } => {
-            let mut new_value: Value;
+            let mut new_value: Value = <ImportData as ::std::default::Default>::default();
             let mut new_left: Arc<Tree> = Arc::new(Tree::EMPTY);
             let mut new_right: Arc<Tree> = Arc::new(Tree::EMPTY);
             new_left = map(var_field!((*outTree).left, Tree::NODE).clone(), inFunc.clone());
@@ -660,7 +674,7 @@ pub mod ImportTreeImpl {
             outTree.clone()
         },
         Deref @ Tree::LEAF { value, key } => {
-            let mut new_value: Value;
+            let mut new_value: Value = <ImportData as ::std::default::Default>::default();
             new_value = inFunc((key.clone()).clone(), value.clone()).unwrap();
             if !(referenceEq(&value.clone(),&new_value.clone())) {
                 assign_variant_field!(outTree => Tree::LEAF; value = new_value.clone());
@@ -682,7 +696,7 @@ pub mod ImportTreeImpl {
         let mut outResult: FT = inStartValue.clone();
         outTree = (::match_deref::match_deref! { match &(outTree.clone()) {
         Deref @ Tree::NODE { value, key, .. } => {
-            let mut new_value: Value;
+            let mut new_value: Value = <ImportData as ::std::default::Default>::default();
             let mut new_left: Arc<Tree> = Arc::new(Tree::EMPTY);
             let mut new_right: Arc<Tree> = Arc::new(Tree::EMPTY);
             (new_left, outResult) = mapFold(var_field!((*outTree).left, Tree::NODE).clone(), inFunc.clone(), outResult.clone());
@@ -694,7 +708,7 @@ pub mod ImportTreeImpl {
             outTree.clone()
         },
         Deref @ Tree::LEAF { value, key } => {
-            let mut new_value: Value;
+            let mut new_value: Value = <ImportData as ::std::default::Default>::default();
             (new_value, outResult) = inFunc((key.clone()).clone(), value.clone(), outResult.clone()).unwrap();
             if !(referenceEq(&value.clone(),&new_value.clone())) {
                 assign_variant_field!(outTree => Tree::LEAF; value = new_value.clone());
@@ -863,13 +877,22 @@ pub struct Env {
     pub imports: ImportTree,
 }
 
+impl Default for Env {
+    fn default() -> Self {
+        Self {
+            components: Default::default(),
+            imports: Default::default(),
+        }
+    }
+}
+
 pub type ENV = Env;
 
 
 pub fn convertPackage(mut cls: Arc<Absyn::Class>, mut scriptFile: ArcStr) -> Result<Arc<Absyn::Class>> {
     let mut cls: Arc<Absyn::Class> = cls;
     let mut rules: Arc<ConversionRules::ConversionRules> = Arc::new(<ConversionRules::ConversionRules as ::std::default::Default>::default());
-    let mut env: Env;
+    let mut env: Env = <Env as ::std::default::Default>::default();
     let mut stmts: Arc<metamodelica::List<GlobalScript::Statement>> = metamodelica::nil();
     stmts = loadScript((scriptFile.clone()).clone())?;
     rules = ConversionRules::newNode();
@@ -1305,13 +1328,13 @@ fn lookupTypeRules(mut typePath: Arc<Path>, mut rules: Arc<ConversionRules::Conv
 
 fn newRuleTable() -> RuleTable {
     let mut table: RuleTable;
-    table = UnorderedMap::new((std::sync::Arc::new(fnptr!(stringHashDjb2, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr) -> Result<i32> + 'static>), (std::sync::Arc::new(stringEq) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>), 1);
+    table = UnorderedMap::new((std::sync::Arc::new(fnptr!(stringHashDjb2, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr) -> Result<i32> + 'static>), (std::sync::Arc::new(fnptr!(stringEq, ArcStr, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>), 1);
     table
 }
 
 fn newTypeTable() -> TypeTable {
     let mut table: TypeTable;
-    table = UnorderedMap::new((std::sync::Arc::new(fnptr!(stringHashDjb2, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr) -> Result<i32> + 'static>), (std::sync::Arc::new(stringEq) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>), 1);
+    table = UnorderedMap::new((std::sync::Arc::new(fnptr!(stringHashDjb2, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr) -> Result<i32> + 'static>), (std::sync::Arc::new(fnptr!(stringEq, ArcStr, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>), 1);
     table
 }
 
@@ -1511,7 +1534,7 @@ fn convertClassParts(mut parts: Arc<metamodelica::List<Arc<Absyn::ClassPart>>>, 
     let mut parts: Arc<metamodelica::List<Arc<Absyn::ClassPart>>> = parts;
     let mut extends_rules: Arc<metamodelica::List<Arc<ConversionRules::ConversionRules>>> = metamodelica::nil();
     let mut imps: ImportTree = Arc::new(ImportTreeImpl::Tree::EMPTY);
-    let mut cls_env: Env;
+    let mut cls_env: Env = <Env as ::std::default::Default>::default();
     cls_env = addImportNamesToEnv(getImportsInParts(parts.clone()), rules.clone(), env.clone())?;
     addComponentTypesToEnv(parts.clone(), env.components.clone())?;
     cls_env.imports = shadowImportsInParts(parts.clone(), cls_env.imports.clone())?;
@@ -1721,7 +1744,7 @@ fn isEqualNameMod(mut mod1: Arc<Absyn::ElementArg>, mut mod2: Arc<Absyn::Element
 
 fn makePlaceholderTable(mut args: Arc<metamodelica::List<Arc<Absyn::ElementArg>>>) -> Result<Arc<UnorderedMap::UnorderedMap<ArcStr, Option<Arc<Absyn::Exp>>>>> {
     let mut placeholders: Arc<UnorderedMap::UnorderedMap<ArcStr, Option<Arc<Absyn::Exp>>>>;
-    placeholders = UnorderedMap::new((std::sync::Arc::new(fnptr!(stringHashDjb2, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr) -> Result<i32> + 'static>), (std::sync::Arc::new(stringEq) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>), 1);
+    placeholders = UnorderedMap::new((std::sync::Arc::new(fnptr!(stringHashDjb2, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr) -> Result<i32> + 'static>), (std::sync::Arc::new(fnptr!(stringEq, ArcStr, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>), 1);
     for mut arg in &*args.clone() {
         let mut arg = arg.clone();
         UnorderedMap::add((AbsynUtil::pathString(AbsynUtil::elementArgName(arg.clone())?, (literal!(".")).clone(), true, false)?).clone(), getElementArgBinding(arg.clone()), placeholders.clone())?;
@@ -1742,7 +1765,7 @@ fn getElementArgBinding(mut arg: Arc<Absyn::ElementArg>) -> Option<Arc<Absyn::Ex
 
 fn replacePlaceholders(mut arg: Arc<Absyn::ElementArg>, mut placeholders: Arc<UnorderedMap::UnorderedMap<ArcStr, Option<Arc<Absyn::Exp>>>>, mut info: SourceInfo) -> Result<Arc<Absyn::ElementArg>> {
     let mut arg: Arc<Absyn::ElementArg> = arg;
-    let mut r#mod: Arc<Absyn::Modification>;
+    let mut r#mod: Arc<Absyn::Modification> = Arc::new(<Absyn::Modification as ::std::default::Default>::default());
     let mut args: Arc<metamodelica::List<Arc<Absyn::ElementArg>>> = metamodelica::nil();
     let mut eq_mod: Arc<Absyn::EqMod> = Arc::new(Absyn::EqMod::NOMOD);
     let () = (::match_deref::match_deref! { match &(arg.clone()) {
@@ -2928,7 +2951,7 @@ fn shadowImportsInElementSpec(mut spec: Arc<Absyn::ElementSpec>, mut imports: Im
 
 fn shadowImport(mut name: ArcStr, mut imports: ImportTree) -> Result<ImportTree> {
     let mut imports: ImportTree = imports;
-    let mut imp_data: ImportData;
+    let mut imp_data: ImportData = <ImportData as ::std::default::Default>::default();
     if !(ImportTreeImpl::hasKey(imports.clone(), (name.clone()).clone())?) {
         return Ok(imports);
     }
@@ -2942,7 +2965,7 @@ fn applyImportsToPath(mut path: Arc<Path>, mut imports: ImportTree) -> Result<(A
     let mut path: Arc<Path> = path;
     let mut importPath: Option<(Arc<Path>, ArcStr)> = None;
     let mut imp_data_opt: Option<ImportData> = None;
-    let mut imp_data: ImportData;
+    let mut imp_data: ImportData = <ImportData as ::std::default::Default>::default();
     imp_data_opt = (::match_deref::match_deref! { match &(path.clone()) {
         Deref @ Absyn::Path::QUALIFIED { .. } => ImportTreeImpl::getOpt(imports.clone(), (var_field!((*path).name, Path::QUALIFIED).clone()).clone()),
         Deref @ Absyn::Path::IDENT { .. } => ImportTreeImpl::getOpt(imports.clone(), (var_field!((*path).name, Path::IDENT).clone()).clone()),

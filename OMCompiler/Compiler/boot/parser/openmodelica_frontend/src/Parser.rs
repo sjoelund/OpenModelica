@@ -83,7 +83,7 @@ pub fn parse(mut filename: ArcStr, mut encoding: ArcStr, mut libraryPath: ArcStr
 }
 
 pub fn parseexp(mut filename: ArcStr) -> Result<GlobalScript::Statements> {
-    let mut outStatements: GlobalScript::Statements;
+    let mut outStatements: GlobalScript::Statements = <GlobalScript::Statements as ::std::default::Default>::default();
     outStatements = ParserExt::parseexp((System::realpath((filename.clone()).clone())?).clone(), (Testsuite::friendly((System::realpath((filename.clone()).clone())?).clone())?).clone(), Config::acceptedGrammar()?, Flags::getConfigEnum(Flags::LANGUAGE_STANDARD.clone())?, Testsuite::isRunning()?)?;
     Ok(outStatements)
 }
@@ -95,7 +95,7 @@ pub fn parsestring(mut r#str: ArcStr, mut infoFilename: ArcStr, mut grammar: i32
 }
 
 pub fn parsestringexp(mut r#str: ArcStr, mut infoFilename: ArcStr) -> Result<GlobalScript::Statements> {
-    let mut outStatements: GlobalScript::Statements;
+    let mut outStatements: GlobalScript::Statements = <GlobalScript::Statements as ::std::default::Default>::default();
     outStatements = ParserExt::parsestringexp((r#str.clone()).clone(), (infoFilename.clone()).clone(), Config::acceptedGrammar()?, Flags::getConfigEnum(Flags::LANGUAGE_STANDARD.clone())?, Testsuite::isRunning()?)?;
     Ok(outStatements)
 }
@@ -186,6 +186,15 @@ pub struct ParserResult {
     pub program: Option<Absyn::Program>,
 }
 
+impl Default for ParserResult {
+    fn default() -> Self {
+        Self {
+            filename: Default::default(),
+            program: Default::default(),
+        }
+    }
+}
+
 pub type PARSERRESULT = ParserResult;
 
 
@@ -215,7 +224,7 @@ fn parallelParseFilesWork(mut filenames: Arc<metamodelica::List<ArcStr>>, mut en
 }
 
 fn loadFileThread(mut inFileEncoding: (ArcStr, ArcStr, ArcStr, Option<i32>)) -> Result<ParserResult> {
-    let mut result: ParserResult;
+    let mut result: ParserResult = <ParserResult as ::std::default::Default>::default();
     result = 'mc: {
         let __mc_input = inFileEncoding.clone();
         if let Ok(__v) = (|| -> Result<_> {

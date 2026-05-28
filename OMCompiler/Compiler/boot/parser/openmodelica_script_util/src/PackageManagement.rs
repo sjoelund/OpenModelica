@@ -1631,7 +1631,7 @@ pub fn updateIndex() -> Result<bool> {
         Error::addSourceMessage(Error::NOTIFY_PKG_INDEX_DOWNLOAD.clone(), list![(url.clone()).clone()], makeSourceInfo((getIndexPath()?).clone()))?;
         success = true;
     }
-    openmodelica_util::Globals::packageIndexCacheIndex.with(|__root| *__root.borrow_mut() = 0);
+    openmodelica_util::Globals::packageIndexCacheIndex.with(|__root| *__root.borrow_mut() = None);
     Ok(success)
 }
 
@@ -1663,7 +1663,7 @@ pub fn getPackageIndex(mut printError: bool) -> Result<Arc<JSON::JSON>> {
     let mut mp: ArcStr = arcstr::literal!("");
     let mut mps: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
     if '__try0: {
-        obj = openmodelica_util::Globals::packageIndexCacheIndex.with(|__root| __root.borrow().clone());
+        obj = unwrap_break_err!(openmodelica_util::Globals::packageIndexCacheIndex.with(|__root| __root.borrow().clone()).ok_or_else(|| anyhow::anyhow!("getGlobalRoot: empty slot packageIndexCacheIndex")), '__try0);
         return Ok(obj);
         Ok::<(), anyhow::Error>(())
     }.is_err() {
@@ -1687,7 +1687,7 @@ pub fn getPackageIndex(mut printError: bool) -> Result<Arc<JSON::JSON>> {
     }
     match '__try1: {
         obj = unwrap_break_err!(JSON::parseFile((packageIndex.clone()).clone()), '__try1);
-        openmodelica_util::Globals::packageIndexCacheIndex.with(|__root| *__root.borrow_mut() = obj.clone());
+        openmodelica_util::Globals::packageIndexCacheIndex.with(|__root| *__root.borrow_mut() = Some(obj.clone()));
         Ok::<_, anyhow::Error>((obj.clone(),))
     } {
         Ok((__try1_o0,)) => {
@@ -2057,6 +2057,21 @@ pub struct PackageInstallInfo {
     pub json: Arc<JSON::JSON>,
 }
 
+impl Default for PackageInstallInfo {
+    fn default() -> Self {
+        Self {
+            needsInstall: Default::default(),
+            pkg: Default::default(),
+            version: Default::default(),
+            urlToZipFile: Default::default(),
+            path: Default::default(),
+            sha: Default::default(),
+            singleFileStructureCopyAllFiles: Default::default(),
+            json: Default::default(),
+        }
+    }
+}
+
 pub type PKG_INSTALL_INFO = PackageInstallInfo;
 
 
@@ -2081,7 +2096,7 @@ fn installPackageWork(mut pkg: ArcStr, mut version: ArcStr, mut exactMatch: bool
     let mut versionsObj: Arc<JSON::JSON> = Arc::new(JSON::FALSE);
     let mut usesObj: Arc<JSON::JSON> = Arc::new(JSON::FALSE);
     let mut indexHasPkg: bool = false;
-    let mut packageToInstall: PackageInstallInfo;
+    let mut packageToInstall: PackageInstallInfo = <PackageInstallInfo as ::std::default::Default>::default();
     candidates = versionsThatProvideTheWanted((pkg.clone()).clone(), (version.clone()).clone(), true);
     candidatesSemver = {
         let mut __acc: Arc<metamodelica::List<SemanticVersion::Version>> = metamodelica::nil();

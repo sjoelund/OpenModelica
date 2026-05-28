@@ -50,6 +50,7 @@ use crate::ExpressionDump;
 use crate::Types;
 use openmodelica_ast::Absyn;
 use openmodelica_frontend_dump::AbsynUtil;
+use openmodelica_frontend_dump::AvlTreePathFunction;
 use openmodelica_frontend_dump::ComponentReferenceBasics;
 use openmodelica_frontend_dump::DAEDumpTpl;
 use openmodelica_frontend_dump::DAEDumpTypes::*;
@@ -77,6 +78,25 @@ use openmodelica_util_datatypes_basic::List;
 
 // public imports
 // protected imports
+pub fn dump(mut dae: DAE::DAElist, mut functionTree: Arc<AvlTreePathFunction::Tree>) -> Result<()> {
+    let _ = (::match_deref::match_deref! { match &((dae.clone(), functionTree.clone())) {
+        (DAE::DAElist { elementLst: daelist }, _) => {
+            List::map_0(sortFunctions(DAEUtil::getFunctionList(functionTree.clone(), false)?)?, (std::sync::Arc::new(dumpFunction) as std::sync::Arc<dyn ::std::ops::Fn(DAE::Function) -> Result<()> + 'static>));
+            List::map_0(daelist.clone(), (std::sync::Arc::new(dumpExtObjectClass) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Element>) -> Result<()> + 'static>));
+            List::map_0(daelist.clone(), (std::sync::Arc::new(dumpCompElement) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Element>) -> Result<()> + 'static>));
+            ()
+        },
+        _ => bail!("match: no arm matched"),
+    } });
+    Ok(())
+}
+
+pub fn dumpFunctionNamesStr(mut funcs: Arc<AvlTreePathFunction::Tree>) -> Result<ArcStr> {
+    let mut r#str: ArcStr = arcstr::literal!("");
+    r#str = stringDelimitList(List::map(sortFunctions(DAEUtil::getFunctionList(funcs.clone(), false)?)?, (std::sync::Arc::new(functionNameStr) as std::sync::Arc<dyn ::std::ops::Fn(DAE::Function) -> Result<ArcStr> + 'static>)), (literal!(",")).clone());
+    Ok(r#str)
+}
+
 pub fn functionNameStr(mut inElement: DAE::Function) -> Result<ArcStr> {
     let mut res: ArcStr = arcstr::literal!("");
     res = ('mc: {
@@ -496,7 +516,7 @@ pub fn dumpFunctionElements(mut l: Arc<metamodelica::List<Arc<DAE::Element>>>) -
 
 fn dumpVars(mut lst: Arc<metamodelica::List<Arc<DAE::Element>>>, mut printTypeDimension: bool) -> Result<()> {
     let mut r#str: ArcStr = arcstr::literal!("");
-    let mut myStream: IOStream::IOStream;
+    let mut myStream: IOStream::IOStream = <IOStream::IOStream as ::std::default::Default>::default();
     myStream = IOStream::create((literal!("")).clone(), openmodelica_util::IOStream::IOStreamType::LIST)?;
     myStream = dumpVarsStream(lst.clone(), printTypeDimension.clone(), myStream.clone())?;
     r#str = (IOStream::string(myStream.clone())?).clone();
@@ -1024,7 +1044,7 @@ fn dumpInitialEquation(mut inElement: Arc<DAE::Element>) -> Result<()> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ DAE::Element::INITIAL_IF_EQUATION { equations3: xs2, equations2: Deref @ metamodelica::List::Cons { head: xs1, tail: trueBranches }, condition1: Deref @ metamodelica::List::Cons { head: e, tail: conds }, .. } => {
                     let mut s: ArcStr = arcstr::literal!("");
-                    let mut r#str: IOStream::IOStream;
+                    let mut r#str: IOStream::IOStream = <IOStream::IOStream as ::std::default::Default>::default();
                     Print::printBuf((literal!("  if ")).clone())?;
                     ExpressionDump::printExp(e.clone())?;
                     Print::printBuf((literal!(" then\n")).clone())?;
@@ -1527,7 +1547,7 @@ fn printRecordConstructorInputStr(mut inVar: Arc<DAE::Var>) -> Result<ArcStr> {
     let mut binding_str: ArcStr = arcstr::literal!("");
     let mut ty_str: ArcStr = arcstr::literal!("");
     let mut ty_vars_str: ArcStr = arcstr::literal!("");
-    let mut attr: Arc<DAE::Attributes>;
+    let mut attr: Arc<DAE::Attributes> = Arc::new(<DAE::Attributes as ::std::default::Default>::default());
     let mut ty: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
     let mut binding: Arc<DAE::Binding> = Arc::new(DAE::Binding::UNBOUND);
     let (__pa0, __pa1, __pa2, __pa3) = ::match_deref::match_deref! { match &(inVar.clone()) {
@@ -3072,11 +3092,24 @@ pub fn unparseDimensions(mut dims: Arc<metamodelica::List<Arc<DAE::Dimension>>>,
     Ok(dimsStr)
 }
 
+pub fn dumpStr(mut inDAElist: DAE::DAElist, mut functionTree: Arc<AvlTreePathFunction::Tree>) -> Result<ArcStr> {
+    let mut outString: ArcStr = arcstr::literal!("");
+    let mut daelist: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
+    let mut funList: DAEDumpTypes::functionList = <DAEDumpTypes::functionList as ::std::default::Default>::default();
+    let mut fixedDae: Arc<metamodelica::List<Arc<DAEDumpTypes::compWithSplitElements>>> = metamodelica::nil();
+    let DAE::DAE { elementLst: __pa0 } = (inDAElist.clone()) else { bail!("pattern mismatch") };
+    daelist = __pa0.clone();
+    funList = dumpFunctionList(functionTree.clone())?;
+    fixedDae = List::map(daelist.clone(), (std::sync::Arc::new(DAEUtil::splitComponent) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Element>) -> Result<Arc<DAEDumpTypes::compWithSplitElements>> + 'static>));
+    outString = (Tpl::tplString2((std::sync::Arc::new(DAEDumpTpl::dumpDAE) as std::sync::Arc<dyn ::std::ops::Fn(Tpl::Text, Arc<metamodelica::List<Arc<DAEDumpTypes::compWithSplitElements>>>, DAEDumpTypes::functionList) -> Result<Tpl::Text> + 'static>), fixedDae.clone(), funList.clone())?).clone();
+    Ok(outString)
+}
+
 pub fn dumpElementsStr(mut els: Arc<metamodelica::List<Arc<DAE::Element>>>) -> Result<ArcStr> {
     let mut outString: ArcStr = arcstr::literal!("");
     outString = ((::match_deref::match_deref! { match &(els.clone()) {
         _ => {
-            let mut myStream: IOStream::IOStream;
+            let mut myStream: IOStream::IOStream = <IOStream::IOStream as ::std::default::Default>::default();
             let mut r#str: ArcStr = arcstr::literal!("");
             myStream = IOStream::create((literal!("dae")).clone(), openmodelica_util::IOStream::IOStreamType::LIST)?;
             myStream = dumpElementsStream(els.clone(), myStream.clone())?;
@@ -3092,7 +3125,7 @@ pub fn dumpAlgorithmsStr(mut algs: Arc<metamodelica::List<Arc<DAE::Element>>>) -
     let mut outString: ArcStr = arcstr::literal!("");
     outString = ((::match_deref::match_deref! { match &(algs.clone()) {
         _ => {
-            let mut myStream: IOStream::IOStream;
+            let mut myStream: IOStream::IOStream = <IOStream::IOStream as ::std::default::Default>::default();
             let mut r#str: ArcStr = arcstr::literal!("");
             myStream = IOStream::create((literal!("algs")).clone(), openmodelica_util::IOStream::IOStreamType::LIST)?;
             myStream = dumpAlgorithmsStream(algs.clone(), myStream.clone())?;
@@ -3108,7 +3141,7 @@ pub fn dumpConstraintsStr(mut constrs: Arc<metamodelica::List<Arc<DAE::Element>>
     let mut outString: ArcStr = arcstr::literal!("");
     outString = ((::match_deref::match_deref! { match &(constrs.clone()) {
         _ => {
-            let mut myStream: IOStream::IOStream;
+            let mut myStream: IOStream::IOStream = <IOStream::IOStream as ::std::default::Default>::default();
             let mut r#str: ArcStr = arcstr::literal!("");
             myStream = IOStream::create((literal!("constrs")).clone(), openmodelica_util::IOStream::IOStreamType::LIST)?;
             myStream = dumpConstraintStream(constrs.clone(), myStream.clone())?;
@@ -3124,6 +3157,40 @@ pub fn dumpConstraintsStr(mut constrs: Arc<metamodelica::List<Arc<DAE::Element>>
 /* *********** IOStream based implementation ***************/
 /* *********** IOStream based implementation ***************/
 /* *********** IOStream based implementation ***************/
+pub fn dumpStream(mut dae: DAE::DAElist, mut functionTree: Arc<AvlTreePathFunction::Tree>, mut inStream: IOStream::IOStream) -> Result<IOStream::IOStream> {
+    let mut outStream: IOStream::IOStream = <IOStream::IOStream as ::std::default::Default>::default();
+    outStream = (::match_deref::match_deref! { match &((dae.clone(), functionTree.clone(), inStream.clone())) {
+        (DAE::DAElist { elementLst: daelist }, _, r#str) => {
+            let mut funcs: Arc<metamodelica::List<DAE::Function>> = metamodelica::nil();
+            let mut r#str = (*r#str).clone();
+            funcs = DAEUtil::getFunctionList(functionTree.clone(), false)?;
+            funcs = sortFunctions(funcs.clone())?;
+            r#str = List::fold(funcs.clone(), (std::sync::Arc::new(dumpFunctionStream) as std::sync::Arc<dyn ::std::ops::Fn(DAE::Function, IOStream::IOStream) -> Result<IOStream::IOStream> + 'static>), r#str.clone());
+            r#str = IOStream::appendList(r#str.clone(), List::map(daelist.clone(), (std::sync::Arc::new(dumpExtObjClassStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Element>) -> Result<ArcStr> + 'static>)));
+            r#str = List::fold(daelist.clone(), (std::sync::Arc::new(dumpCompElementStream) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Element>, IOStream::IOStream) -> Result<IOStream::IOStream> + 'static>), r#str.clone());
+            r#str.clone()
+        },
+        _ => bail!("match: no arm matched"),
+    } });
+    Ok(outStream)
+}
+
+pub fn dumpFunctionList(mut functionTree: Arc<AvlTreePathFunction::Tree>) -> Result<DAEDumpTypes::functionList> {
+    let mut funList: DAEDumpTypes::functionList = <DAEDumpTypes::functionList as ::std::default::Default>::default();
+    funList = (::match_deref::match_deref! { match &(functionTree.clone()) {
+        _ => {
+            let mut funcs: Arc<metamodelica::List<DAE::Function>> = metamodelica::nil();
+            funcs = DAEUtil::getFunctionList(functionTree.clone(), false)?;
+            funcs = List::filter2OnTrue(funcs.clone(), (std::sync::Arc::new(isVisibleFunction) as std::sync::Arc<dyn ::std::ops::Fn(DAE::Function, bool, bool) -> Result<bool> + 'static>), Flags::isSet(Flags::DISABLE_RECORD_CONSTRUCTOR_OUTPUT.clone())?, Flags::isSet(Flags::INLINE_FUNCTIONS.clone())?);
+            funcs = sortFunctions(funcs.clone())?;
+            funList = DAEDumpTypes::functionList { funcs: funcs.clone() };
+            funList.clone()
+        },
+        _ => unreachable!("match_deref! exhaustiveness placeholder"),
+    } });
+    Ok(funList)
+}
+
 fn isVisibleFunction(mut inFunc: DAE::Function, mut inHideRecordCons: bool, mut inInliningEnabled: bool) -> Result<bool> {
     let mut outIsVisible: bool = false;
     outIsVisible = (::match_deref::match_deref! { match &((inFunc.clone(), inHideRecordCons.clone(), inInliningEnabled.clone())) {
@@ -3154,7 +3221,7 @@ fn isVisibleFunction(mut inFunc: DAE::Function, mut inHideRecordCons: bool, mut 
 }
 
 fn dumpCompElementStream(mut inElement: Arc<DAE::Element>, mut inStream: IOStream::IOStream) -> Result<IOStream::IOStream> {
-    let mut outStream: IOStream::IOStream;
+    let mut outStream: IOStream::IOStream = <IOStream::IOStream as ::std::default::Default>::default();
     outStream = 'mc: {
         let __mc_input = (inElement.clone(), inStream.clone());
         if let Ok(__v) = (|| -> Result<_> {
@@ -3189,7 +3256,7 @@ fn dumpCompElementStream(mut inElement: Arc<DAE::Element>, mut inStream: IOStrea
 }
 
 pub fn dumpElementsStream(mut l: Arc<metamodelica::List<Arc<DAE::Element>>>, mut inStream: IOStream::IOStream) -> Result<IOStream::IOStream> {
-    let mut outStream: IOStream::IOStream;
+    let mut outStream: IOStream::IOStream = <IOStream::IOStream as ::std::default::Default>::default();
     outStream = (::match_deref::match_deref! { match &((l.clone(), inStream.clone())) {
         (_, r#str) => {
             let mut v: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
@@ -3235,7 +3302,7 @@ pub fn dumpElementsStream(mut l: Arc<metamodelica::List<Arc<DAE::Element>>>, mut
 // NOTE: #[tailcall::tailcall] disabled: function body contains a `match_deref!{…}` match,
 // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
 pub fn dumpCompWithSplitElementsStream(mut inCompLst: Arc<metamodelica::List<Arc<DAEDumpTypes::compWithSplitElements>>>, mut inStream: IOStream::IOStream) -> Result<IOStream::IOStream> {
-    let mut outStream: IOStream::IOStream;
+    let mut outStream: IOStream::IOStream = <IOStream::IOStream as ::std::default::Default>::default();
     outStream = (::match_deref::match_deref! { match &((inCompLst.clone(), inStream.clone())) {
         (Deref @ metamodelica::List::Nil, r#str) => {
             r#str.clone()
@@ -3300,7 +3367,7 @@ pub fn dumpCompWithSplitElementsStream(mut inCompLst: Arc<metamodelica::List<Arc
 // NOTE: #[tailcall::tailcall] disabled: function body contains a `match_deref!{…}` match,
 // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
 pub fn dumpAlgorithmsStream(mut inElementLst: Arc<metamodelica::List<Arc<DAE::Element>>>, mut inStream: IOStream::IOStream) -> Result<IOStream::IOStream> {
-    let mut outStream: IOStream::IOStream;
+    let mut outStream: IOStream::IOStream = <IOStream::IOStream as ::std::default::Default>::default();
     outStream = 'mc: {
         let __mc_input = (inElementLst.clone(), inStream.clone());
         if let Ok(__v) = (|| -> Result<_> {
@@ -3341,7 +3408,7 @@ pub fn dumpAlgorithmsStream(mut inElementLst: Arc<metamodelica::List<Arc<DAE::El
 // NOTE: #[tailcall::tailcall] disabled: function body contains a `match_deref!{…}` match,
 // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
 fn dumpInitialAlgorithmsStream(mut inElementLst: Arc<metamodelica::List<Arc<DAE::Element>>>, mut inStream: IOStream::IOStream) -> Result<IOStream::IOStream> {
-    let mut outStream: IOStream::IOStream;
+    let mut outStream: IOStream::IOStream = <IOStream::IOStream as ::std::default::Default>::default();
     outStream = 'mc: {
         let __mc_input = (inElementLst.clone(), inStream.clone());
         if let Ok(__v) = (|| -> Result<_> {
@@ -3382,7 +3449,7 @@ fn dumpInitialAlgorithmsStream(mut inElementLst: Arc<metamodelica::List<Arc<DAE:
 // NOTE: #[tailcall::tailcall] disabled: function body contains a `match_deref!{…}` match,
 // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
 fn dumpEquationsStream(mut inElementLst: Arc<metamodelica::List<Arc<DAE::Element>>>, mut inStream: IOStream::IOStream) -> Result<IOStream::IOStream> {
-    let mut outStream: IOStream::IOStream;
+    let mut outStream: IOStream::IOStream = <IOStream::IOStream as ::std::default::Default>::default();
     outStream = (::match_deref::match_deref! { match &((inElementLst.clone(), inStream.clone())) {
         (Deref @ metamodelica::List::Nil, r#str) => {
             r#str.clone()
@@ -3570,7 +3637,7 @@ fn dumpEquationsStream(mut inElementLst: Arc<metamodelica::List<Arc<DAE::Element
 // NOTE: #[tailcall::tailcall] disabled: function body contains a `match_deref!{…}` match,
 // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
 fn dumpIfEquationsStream(mut iconds: Arc<metamodelica::List<Arc<DAE::Exp>>>, mut itbs: Arc<metamodelica::List<Arc<metamodelica::List<Arc<DAE::Element>>>>>, mut inStream: IOStream::IOStream) -> Result<IOStream::IOStream> {
-    let mut outStream: IOStream::IOStream;
+    let mut outStream: IOStream::IOStream = <IOStream::IOStream as ::std::default::Default>::default();
     outStream = (::match_deref::match_deref! { match &((iconds.clone(), itbs.clone(), inStream.clone())) {
         (Deref @ metamodelica::List::Nil, Deref @ metamodelica::List::Nil, r#str) => {
             r#str.clone()
@@ -3592,7 +3659,7 @@ fn dumpIfEquationsStream(mut iconds: Arc<metamodelica::List<Arc<DAE::Exp>>>, mut
 // NOTE: #[tailcall::tailcall] disabled: function body contains a `match_deref!{…}` match,
 // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
 fn dumpInitialEquationsStream(mut inElementLst: Arc<metamodelica::List<Arc<DAE::Element>>>, mut inStream: IOStream::IOStream) -> Result<IOStream::IOStream> {
-    let mut outStream: IOStream::IOStream;
+    let mut outStream: IOStream::IOStream = <IOStream::IOStream as ::std::default::Default>::default();
     outStream = 'mc: {
         let __mc_input = (inElementLst.clone(), inStream.clone());
         if let Ok(__v) = (|| -> Result<_> {
@@ -3760,7 +3827,7 @@ fn dumpInitialEquationsStream(mut inElementLst: Arc<metamodelica::List<Arc<DAE::
 // NOTE: #[tailcall::tailcall] disabled: function body contains a `match_deref!{…}` match,
 // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
 pub fn dumpConstraintStream(mut inElementLst: Arc<metamodelica::List<Arc<DAE::Element>>>, mut inStream: IOStream::IOStream) -> Result<IOStream::IOStream> {
-    let mut outStream: IOStream::IOStream;
+    let mut outStream: IOStream::IOStream = <IOStream::IOStream as ::std::default::Default>::default();
     outStream = 'mc: {
         let __mc_input = (inElementLst.clone(), inStream.clone());
         if let Ok(__v) = (|| -> Result<_> {
@@ -3803,7 +3870,7 @@ pub fn dumpDAEElementsStr(mut d: DAE::DAElist) -> Result<ArcStr> {
     let mut r#str: ArcStr = arcstr::literal!("");
     r#str = ((match d.clone() {
         DAE::DAElist { elementLst: ref l } => {
-            let mut myStream: IOStream::IOStream;
+            let mut myStream: IOStream::IOStream = <IOStream::IOStream as ::std::default::Default>::default();
             myStream = IOStream::create((literal!("")).clone(), openmodelica_util::IOStream::IOStreamType::LIST)?;
             myStream = dumpElementsStream(l.clone(), myStream.clone())?;
             r#str = (IOStream::string(myStream.clone())?).clone();
@@ -3817,7 +3884,7 @@ pub fn dumpDAEElementsStr(mut d: DAE::DAElist) -> Result<ArcStr> {
 // NOTE: #[tailcall::tailcall] disabled: function body contains a `match_deref!{…}` match,
 // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
 pub fn dumpVarsStream(mut inElementLst: Arc<metamodelica::List<Arc<DAE::Element>>>, mut printTypeDimension: bool, mut inStream: IOStream::IOStream) -> Result<IOStream::IOStream> {
-    let mut outStream: IOStream::IOStream;
+    let mut outStream: IOStream::IOStream = <IOStream::IOStream as ::std::default::Default>::default();
     outStream = (::match_deref::match_deref! { match &((inElementLst.clone(), printTypeDimension.clone(), inStream.clone())) {
         (Deref @ metamodelica::List::Nil, _, _) => {
             inStream.clone()
@@ -3900,7 +3967,7 @@ pub fn dumpVarBindingStr(mut inBinding: Option<Arc<DAE::Exp>>) -> Result<ArcStr>
 }
 
 fn dumpVarStream(mut inElement: Arc<DAE::Element>, mut printTypeDimension: bool, mut inStream: IOStream::IOStream) -> Result<IOStream::IOStream> {
-    let mut outStream: IOStream::IOStream;
+    let mut outStream: IOStream::IOStream = <IOStream::IOStream as ::std::default::Default>::default();
     outStream = 'mc: {
         let __mc_input = (inElement.clone(), printTypeDimension.clone(), inStream.clone());
         if let Ok(__v) = (|| -> Result<_> {
@@ -3950,7 +4017,7 @@ fn dumpVarStream(mut inElement: Arc<DAE::Element>, mut printTypeDimension: bool,
 }
 
 pub fn dumpAlgorithmStream(mut inElement: Arc<DAE::Element>, mut inStream: IOStream::IOStream) -> Result<IOStream::IOStream> {
-    let mut outStream: IOStream::IOStream;
+    let mut outStream: IOStream::IOStream = <IOStream::IOStream as ::std::default::Default>::default();
     outStream = 'mc: {
         let __mc_input = (inElement.clone(), inStream.clone());
         if let Ok(__v) = (|| -> Result<_> {
@@ -3978,7 +4045,7 @@ pub fn dumpAlgorithmStream(mut inElement: Arc<DAE::Element>, mut inStream: IOStr
 }
 
 pub fn dumpInitialAlgorithmStream(mut inElement: Arc<DAE::Element>, mut inStream: IOStream::IOStream) -> Result<IOStream::IOStream> {
-    let mut outStream: IOStream::IOStream;
+    let mut outStream: IOStream::IOStream = <IOStream::IOStream as ::std::default::Default>::default();
     outStream = 'mc: {
         let __mc_input = (inElement.clone(), inStream.clone());
         if let Ok(__v) = (|| -> Result<_> {
@@ -4006,7 +4073,7 @@ pub fn dumpInitialAlgorithmStream(mut inElement: Arc<DAE::Element>, mut inStream
 }
 
 pub fn ppStatementStream(mut alg: Arc<DAE::Statement>, mut inStream: IOStream::IOStream) -> Result<IOStream::IOStream> {
-    let mut outStream: IOStream::IOStream;
+    let mut outStream: IOStream::IOStream = <IOStream::IOStream as ::std::default::Default>::default();
     let mut tmp: ArcStr = arcstr::literal!("");
     let mut hnd: i32 = 0;
     hnd = Print::saveAndClearBuf()?;
@@ -4014,6 +4081,15 @@ pub fn ppStatementStream(mut alg: Arc<DAE::Statement>, mut inStream: IOStream::I
     outStream = IOStream::append(inStream.clone(), (Print::getString()?).clone())?;
     Print::restoreBuf(hnd.clone())?;
     Ok(outStream)
+}
+
+pub fn dumpFunctionTree(mut inFunctionTree: Arc<AvlTreePathFunction::Tree>, mut inHeading: ArcStr) -> Result<()> {
+    println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n")); __mm_s.push_str(&*inHeading.clone()); __mm_s.push_str(&*literal!("\n========================================\n")); ArcStr::from(__mm_s) }).clone());
+    for mut fnc in &*sortFunctions(DAEUtil::getFunctionList(inFunctionTree.clone(), false)?)? {
+        let mut fnc = fnc.clone();
+        println!("{}", (dumpFunctionStr(fnc.clone())?).clone());
+    }
+    Ok(())
 }
 
 pub fn dumpFunctionStr(mut inElement: DAE::Function) -> Result<ArcStr> {
@@ -4071,7 +4147,7 @@ fn dumpExtObjClassStr(mut inElement: Arc<DAE::Element>) -> Result<ArcStr> {
 }
 
 fn dumpFunctionStream(mut inElement: DAE::Function, mut inStream: IOStream::IOStream) -> Result<IOStream::IOStream> {
-    let mut outStream: IOStream::IOStream;
+    let mut outStream: IOStream::IOStream = <IOStream::IOStream as ::std::default::Default>::default();
     outStream = 'mc: {
         let __mc_input = (inElement.clone(), inStream.clone());
         if let Ok(__v) = (|| -> Result<_> {
@@ -4169,7 +4245,7 @@ fn dumpFunctionStream(mut inElement: DAE::Function, mut inStream: IOStream::IOSt
 }
 
 pub fn dumpFunctionElementsStream(mut l: Arc<metamodelica::List<Arc<DAE::Element>>>, mut inStream: IOStream::IOStream) -> Result<IOStream::IOStream> {
-    let mut outStream: IOStream::IOStream;
+    let mut outStream: IOStream::IOStream = <IOStream::IOStream as ::std::default::Default>::default();
     outStream = dumpVarsStream(l.clone(), true, inStream.clone())?;
     outStream = List::fold(l.clone(), (std::sync::Arc::new(dumpAlgorithmStream) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Element>, IOStream::IOStream) -> Result<IOStream::IOStream> + 'static>), outStream.clone());
     Ok(outStream)

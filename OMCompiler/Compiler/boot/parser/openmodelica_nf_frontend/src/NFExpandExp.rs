@@ -419,7 +419,7 @@ pub fn expandBuiltinGeneric(mut call: Arc<Call::NFCall>) -> Result<(Arc<Expressi
     let mut ty: Arc<Type::NFType> = Arc::new(Type::ANY);
     let mut var: Variability = Variability::CONSTANT;
     let mut pur: Purity = Purity::PURE;
-    let mut attr: Arc<NFCallAttributes::NFCallAttributes>;
+    let mut attr: Arc<NFCallAttributes::NFCallAttributes> = Arc::new(<NFCallAttributes::NFCallAttributes as ::std::default::Default>::default());
     let mut arg: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut args: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
     let (__pa0, __pa1, __pa2, __pa3, __pa4, __pa5) = ::match_deref::match_deref! { match &(call.clone()) {
@@ -585,7 +585,7 @@ pub fn expandBinaryElementWise(mut exp: Arc<Expression::NFExpression>) -> Result
     let mut expanded: bool = false;
     let mut exp1: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut exp2: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-    let mut op: Arc<Operator::NFOperator>;
+    let mut op: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
     let (__pa0, __pa1, __pa2) = ::match_deref::match_deref! { match &(exp.clone()) {
         Deref @ Expression::BINARY { exp2: __pa0, operator: __pa1, exp1: __pa2 } => (__pa0.clone(), __pa1.clone(), __pa2.clone()),
         _ => bail!("pattern mismatch"),
@@ -618,7 +618,7 @@ pub fn expandBinaryElementWise2(mut exp1: Arc<Expression::NFExpression>, mut op:
     let mut expl2: metamodelica::Array<Arc<Expression::NFExpression>>;
     let mut expl: metamodelica::Array<Arc<Expression::NFExpression>>;
     let mut ty: Arc<Type::NFType> = Arc::new(Type::ANY);
-    let mut eop: Arc<Operator::NFOperator>;
+    let mut eop: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
     expl1 = Expression::arrayElements(exp1.clone())?;
     expl2 = Expression::arrayElements(exp2.clone())?;
     ty = Operator::typeOf(op.clone());
@@ -637,7 +637,7 @@ pub fn expandBinaryScalarArray(mut exp: Arc<Expression::NFExpression>, mut scala
     let mut expanded: bool = false;
     let mut exp1: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut exp2: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-    let mut op: Arc<Operator::NFOperator>;
+    let mut op: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
     let (__pa0, __pa1, __pa2) = ::match_deref::match_deref! { match &(exp.clone()) {
         Deref @ Expression::BINARY { exp2: __pa0, operator: __pa1, exp1: __pa2 } => (__pa0.clone(), __pa1.clone(), __pa2.clone()),
         _ => bail!("pattern mismatch"),
@@ -670,7 +670,7 @@ pub fn expandBinaryArrayScalar(mut exp: Arc<Expression::NFExpression>, mut scala
     let mut expanded: bool = false;
     let mut exp1: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut exp2: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-    let mut op: Arc<Operator::NFOperator>;
+    let mut op: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
     let (__pa0, __pa1, __pa2) = ::match_deref::match_deref! { match &(exp.clone()) {
         Deref @ Expression::BINARY { exp2: __pa0, operator: __pa1, exp1: __pa2 } => (__pa0.clone(), __pa1.clone(), __pa2.clone()),
         _ => bail!("pattern mismatch"),
@@ -799,8 +799,8 @@ pub fn makeScalarProduct(mut exp1: Arc<Expression::NFExpression>, mut exp2: Arc<
     let mut arr2: metamodelica::Array<Arc<Expression::NFExpression>>;
     let mut ty: Arc<Type::NFType> = Arc::new(Type::ANY);
     let mut elem_ty: Arc<Type::NFType> = Arc::new(Type::ANY);
-    let mut mul_op: Arc<Operator::NFOperator>;
-    let mut add_op: Arc<Operator::NFOperator>;
+    let mut mul_op: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
+    let mut add_op: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
     let (__pa0, __pa1) = ::match_deref::match_deref! { match &(exp1.clone()) {
         Deref @ Expression::ARRAY { ty: __pa0, elements: __pa1, .. } => (__pa0.clone(), __pa1.clone()),
         _ => bail!("pattern mismatch"),
@@ -899,7 +899,7 @@ pub fn expandBinaryPowMatrix(mut exp: Arc<Expression::NFExpression>, mut resize:
     let mut expanded: bool = false;
     let mut exp1: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut exp2: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-    let mut op: Arc<Operator::NFOperator>;
+    let mut op: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
     let mut n: i32 = 0;
     let (__pa0, __pa1, __pa2) = ::match_deref::match_deref! { match &(exp.clone()) {
         Deref @ Expression::BINARY { exp2: __pa0, operator: __pa1, exp1: __pa2 } => (__pa0.clone(), __pa1.clone(), __pa2.clone()),
@@ -947,8 +947,8 @@ pub fn expandUnary(mut exp: Arc<Expression::NFExpression>) -> Result<(Arc<Expres
     let mut outExp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut expanded: bool = false;
     let mut operand: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-    let mut op: Arc<Operator::NFOperator>;
-    let mut scalar_op: Arc<Operator::NFOperator>;
+    let mut op: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
+    let mut scalar_op: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
     let (__pa0, __pa1) = ::match_deref::match_deref! { match &(exp.clone()) {
         Deref @ Expression::UNARY { operator: __pa0, exp: __pa1 } => (__pa0.clone(), __pa1.clone()),
         _ => bail!("pattern mismatch"),
@@ -970,7 +970,7 @@ pub fn expandLogicalBinary(mut exp: Arc<Expression::NFExpression>) -> Result<(Ar
     let mut expanded: bool = false;
     let mut exp1: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut exp2: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-    let mut op: Arc<Operator::NFOperator>;
+    let mut op: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
     let (__pa0, __pa1, __pa2) = ::match_deref::match_deref! { match &(exp.clone()) {
         Deref @ Expression::LBINARY { exp2: __pa0, operator: __pa1, exp1: __pa2 } => (__pa0.clone(), __pa1.clone(), __pa2.clone()),
         _ => bail!("pattern mismatch"),
@@ -1009,8 +1009,8 @@ pub fn expandLogicalUnary(mut exp: Arc<Expression::NFExpression>) -> Result<(Arc
     let mut outExp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut expanded: bool = false;
     let mut operand: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-    let mut op: Arc<Operator::NFOperator>;
-    let mut scalar_op: Arc<Operator::NFOperator>;
+    let mut op: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
+    let mut scalar_op: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
     let (__pa0, __pa1) = ::match_deref::match_deref! { match &(exp.clone()) {
         Deref @ Expression::LUNARY { operator: __pa0, exp: __pa1 } => (__pa0.clone(), __pa1.clone()),
         _ => bail!("pattern mismatch"),

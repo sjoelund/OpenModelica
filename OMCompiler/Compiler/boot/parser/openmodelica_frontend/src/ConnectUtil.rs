@@ -116,7 +116,7 @@ pub fn newSet(mut prefix: DAE::Prefix, mut sets: Sets) -> Result<Sets> {
 }
 
 pub fn addSet(mut parentSets: Sets, mut childSets: Sets) -> Result<Sets> {
-    let mut sets: Sets;
+    let mut sets: Sets = <Sets as ::std::default::Default>::default();
     sets = 'mc: {
         let __mc_input = (parentSets.clone(), childSets.clone());
         if let Ok(__v) = (|| -> Result<_> {
@@ -153,10 +153,7 @@ pub fn addSet(mut parentSets: Sets, mut childSets: Sets) -> Result<Sets> {
                     let mut o1 = (*o1).clone();
                     c1 = listAppend(c2.clone(), c1.clone());
                     o1 = listAppend(o2.clone(), o1.clone());
-                    let __owned_variant_nodes_0 = cons(childSets.sets.clone(), var_field!((*node).nodes, SetTrieNode::SET_TRIE_NODE).clone());
-                    if let SetTrieNode::SET_TRIE_NODE { nodes, .. } = &mut node {
-                        *nodes = __owned_variant_nodes_0;
-                    } else { panic!("owned-variant field-assign: value held a different variant than SetTrieNode::SET_TRIE_NODE"); }
+                    assign_variant_field!(node => SetTrieNode::SET_TRIE_NODE; nodes = cons(childSets.sets.clone(), var_field!((*node).nodes, SetTrieNode::SET_TRIE_NODE).clone()));
                     Ok(Sets { sets: node.clone(), setCount: sc.clone(), connections: c1.clone(), outerConnects: o1.clone() })
                 }
                 _ => bail!("nomatch"),
@@ -179,8 +176,8 @@ fn isEmptySet(mut sets: Sets) -> bool {
 
 pub fn addConnection(mut sets: Sets, mut cref1: Arc<DAE::ComponentRef>, mut face1: Face, mut cref2: Arc<DAE::ComponentRef>, mut face2: Face, mut connectorType: Arc<DAE::ConnectorType>, mut source: Arc<DAE::ElementSource>) -> Result<Sets> {
     let mut sets: Sets = sets;
-    let mut e1: ConnectorElement;
-    let mut e2: ConnectorElement;
+    let mut e1: ConnectorElement = <ConnectorElement as ::std::default::Default>::default();
+    let mut e2: ConnectorElement = <ConnectorElement as ::std::default::Default>::default();
     let mut ty: ConnectorType = ConnectorType::EQU;
     ty = makeConnectorType(connectorType.clone())?;
     e1 = findElement(cref1.clone(), face1.clone(), ty.clone(), source.clone(), sets.clone());
@@ -356,7 +353,7 @@ fn getStreamAndFlowVariables(mut variables: Arc<metamodelica::List<Arc<DAE::Var>
 
 fn addStreamFlowAssociations(mut sets: Sets, mut prefix: DAE::Prefix, mut streamVars: Arc<metamodelica::List<Arc<DAE::Var>>>, mut flowVars: Arc<metamodelica::List<Arc<DAE::Var>>>) -> Result<Sets> {
     let mut sets: Sets = sets;
-    let mut flow_var: Arc<DAE::Var>;
+    let mut flow_var: Arc<DAE::Var> = Arc::new(<DAE::Var as ::std::default::Default>::default());
     let mut flow_cr: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
     let mut stream_crs: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
     if streamVars.clone().is_empty() {
@@ -518,7 +515,7 @@ fn getNextIndex(mut dim: Arc<DAE::Dimension>) -> Result<(Arc<DAE::Exp>, Arc<DAE:
 
 fn addInsideFlowVariable(mut sets: Sets, mut cref: Arc<DAE::ComponentRef>, mut source: Arc<DAE::ElementSource>, mut prefix: DAE::Prefix) -> Result<Sets> {
     let mut sets: Sets = sets;
-    let mut e: ConnectorElement;
+    let mut e: ConnectorElement = <ConnectorElement as ::std::default::Default>::default();
     if '__try0: {
         unwrap_break_err!(setTrieGetElement(cref.clone(), openmodelica_frontend_types::DAE::Connect::Face::INSIDE, sets.sets.clone()), '__try0);
         Ok::<(), anyhow::Error>(())
@@ -560,7 +557,7 @@ fn getStreamFlowAssociation(mut streamCref: Arc<DAE::ComponentRef>, mut sets: Se
 
 pub fn addOuterConnection(mut scope: DAE::Prefix, mut sets: Sets, mut cr1: Arc<DAE::ComponentRef>, mut cr2: Arc<DAE::ComponentRef>, mut io1: Absyn::InnerOuter, mut io2: Absyn::InnerOuter, mut f1: Face, mut f2: Face, mut source: Arc<DAE::ElementSource>) -> Sets {
     let mut sets: Sets = sets;
-    let mut new_oc: OuterConnect;
+    let mut new_oc: OuterConnect = <OuterConnect as ::std::default::Default>::default();
     if !(List::any(sets.outerConnects.clone(), Arc::new({ let __pe_b1 = cr1.clone(); let __pe_b2 = cr2.clone(); move |__pe_a0| outerConnectionMatches(__pe_a0, __pe_b1.clone(), __pe_b2.clone()) }))) {
         new_oc = OuterConnect { scope: scope.clone(), cr1: cr1.clone(), io1: io1.clone(), f1: f1.clone(), cr2: cr2.clone(), io2: io2.clone(), f2: f2.clone(), source: source.clone() };
         sets.outerConnects = cons(new_oc.clone(), sets.outerConnects.clone());
@@ -662,7 +659,7 @@ fn collectOuterElements2(mut node: Arc<SetTrieNode>, mut face: Face, mut prefix:
         },
         Deref @ DAE::Connect::SetTrieNode::SET_TRIE_LEAF { .. } => {
             let mut cr: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
-            let mut e: ConnectorElement;
+            let mut e: ConnectorElement = <ConnectorElement as ::std::default::Default>::default();
             e = setTrieGetLeafElement(node.clone(), face.clone())?;
             cr = getElementName(e.clone())?;
             e = setElementName(e.clone(), optPrefixCref(prefix.clone(), cr.clone())?);
@@ -674,7 +671,7 @@ fn collectOuterElements2(mut node: Arc<SetTrieNode>, mut face: Face, mut prefix:
 }
 
 fn findInnerElement(mut outerElement: ConnectorElement, mut innerCref: Arc<DAE::ComponentRef>, mut innerFace: Face, mut sets: Sets) -> Result<ConnectorElement> {
-    let mut innerElement: ConnectorElement;
+    let mut innerElement: ConnectorElement = <ConnectorElement as ::std::default::Default>::default();
     let mut name: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
     let mut ty: ConnectorType = ConnectorType::EQU;
     let mut src: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
@@ -702,7 +699,7 @@ fn optPrefixCref(mut prefix: Option<Arc<DAE::ComponentRef>>, mut cref: Arc<DAE::
 }
 
 fn findElement(mut cref: Arc<DAE::ComponentRef>, mut face: Face, mut ty: ConnectorType, mut source: Arc<DAE::ElementSource>, mut sets: Sets) -> ConnectorElement {
-    let mut element: ConnectorElement;
+    let mut element: ConnectorElement = <ConnectorElement as ::std::default::Default>::default();
     match '__try0: {
         element = unwrap_break_err!(setTrieGetElement(cref.clone(), face.clone(), sets.sets.clone()), '__try0);
         Ok::<_, anyhow::Error>((element.clone(),))
@@ -718,7 +715,7 @@ fn findElement(mut cref: Arc<DAE::ComponentRef>, mut face: Face, mut ty: Connect
 }
 
 fn newElement(mut cref: Arc<DAE::ComponentRef>, mut face: Face, mut ty: ConnectorType, mut source: Arc<DAE::ElementSource>, mut set: i32) -> ConnectorElement {
-    let mut element: ConnectorElement;
+    let mut element: ConnectorElement = <ConnectorElement as ::std::default::Default>::default();
     element = ConnectorElement { name: cref.clone(), face: face.clone(), ty: ty.clone(), source: source.clone(), set: set.clone() };
     element
 }
@@ -832,8 +829,8 @@ fn addNewSet(mut element1: ConnectorElement, mut element2: ConnectorElement, mut
     let mut sets: Sets = sets;
     let mut node: Arc<SetTrieNode>;
     let mut sc: i32 = 0;
-    let mut e1: ConnectorElement;
-    let mut e2: ConnectorElement;
+    let mut e1: ConnectorElement = <ConnectorElement as ::std::default::Default>::default();
+    let mut e2: ConnectorElement = <ConnectorElement as ::std::default::Default>::default();
     sc = sets.setCount.clone() + 1;
     e1 = setElementSetIndex(element1.clone(), sc.clone());
     e2 = setElementSetIndex(element2.clone(), sc.clone());
@@ -847,7 +844,7 @@ fn addNewSet(mut element1: ConnectorElement, mut element2: ConnectorElement, mut
 fn addToSet(mut element: ConnectorElement, mut set: ConnectorElement, mut sets: Sets) -> Result<Sets> {
     let mut sets: Sets = sets;
     let mut index: i32 = 0;
-    let mut e: ConnectorElement;
+    let mut e: ConnectorElement = <ConnectorElement as ::std::default::Default>::default();
     index = getElementSetIndex(set.clone())?;
     e = setElementSetIndex(element.clone(), index.clone());
     sets.sets = setTrieAdd(e.clone(), sets.sets.clone())?;
@@ -867,7 +864,7 @@ fn connectSets(mut element1: ConnectorElement, mut element2: ConnectorElement, m
 }
 
 fn setTrieGetElement(mut cref: Arc<DAE::ComponentRef>, mut face: Face, mut trie: Arc<SetTrieNode>) -> Result<ConnectorElement> {
-    let mut element: ConnectorElement;
+    let mut element: ConnectorElement = <ConnectorElement as ::std::default::Default>::default();
     let mut node: Arc<SetTrieNode>;
     node = setTrieGet(cref.clone(), trie.clone(), false)?;
     element = setTrieGetLeafElement(node.clone(), face.clone())?;
@@ -897,7 +894,7 @@ fn setTrieAddLeafElement(mut element: ConnectorElement, mut node: Arc<SetTrieNod
 }
 
 fn setTrieGetLeafElement(mut node: Arc<SetTrieNode>, mut face: Face) -> Result<ConnectorElement> {
-    let mut element: ConnectorElement;
+    let mut element: ConnectorElement = <ConnectorElement as ::std::default::Default>::default();
     element = (::match_deref::match_deref! { match &((face.clone(), node.clone())) {
         (DAE::Connect::Face::INSIDE, Deref @ DAE::Connect::SetTrieNode::SET_TRIE_LEAF { insideElement: Some(e), .. }) => {
             e.clone()
@@ -914,7 +911,7 @@ fn setTrieAdd(mut element: ConnectorElement, mut trie: Arc<SetTrieNode>) -> Resu
     let mut trie: Arc<SetTrieNode> = trie;
     let mut cref: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
     let mut el_cr: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
-    let mut el: ConnectorElement;
+    let mut el: ConnectorElement = <ConnectorElement as ::std::default::Default>::default();
     cref = getElementName(element.clone())?;
     el_cr = ComponentReferenceBasics::crefLastCref(cref.clone())?;
     el = setElementName(element.clone(), el_cr.clone());
@@ -1138,8 +1135,8 @@ pub fn equations(mut topScope: bool, mut sets: Sets, mut DAE: DAE::DAElist, mut 
     let mut DAE: DAE::DAElist = DAE;
     let mut set_list: Arc<metamodelica::List<Set>> = metamodelica::nil();
     let mut set_array: metamodelica::Array<Set>;
-    let mut dae: DAE::DAElist;
-    let mut dae2: DAE::DAElist;
+    let mut dae: DAE::DAElist = <DAE::DAElist as ::std::default::Default>::default();
+    let mut dae2: DAE::DAElist = <DAE::DAElist as ::std::default::Default>::default();
     let mut has_stream: bool = false;
     let mut has_expandable: bool = false;
     let mut has_cardinality: bool = false;
@@ -1360,7 +1357,7 @@ fn generateSetArray2(mut sets: Arc<SetTrieNode>, mut prefix: Arc<metamodelica::L
 
 fn insertFlowAssociationInStreamElement(mut element: Option<ConnectorElement>, mut flowCref: Option<Arc<DAE::ComponentRef>>) -> Result<Option<ConnectorElement>> {
     let mut element: Option<ConnectorElement> = element;
-    let mut el: ConnectorElement;
+    let mut el: ConnectorElement = <ConnectorElement as ::std::default::Default>::default();
     if isSome(element.clone()) {
         let Some(__pa0) = (element.clone()) else { bail!("pattern mismatch") };
         el = __pa0.clone();
@@ -1461,7 +1458,7 @@ fn equationsDispatch(mut sets: Arc<metamodelica::List<Set>>, mut connected: Arc<
     let mut eql: Arc<metamodelica::List<ConnectorElement>> = metamodelica::nil();
     let mut eqll: Arc<metamodelica::List<Arc<metamodelica::List<ConnectorElement>>>> = metamodelica::nil();
     let mut flowThreshold: metamodelica::Real = Flags::getConfigReal(Flags::FLOW_THRESHOLD.clone())?;
-    let mut dae: DAE::DAElist;
+    let mut dae: DAE::DAElist = <DAE::DAElist as ::std::default::Default>::default();
     for mut set in &*sets.clone() {
         let mut set = set.clone();
         DAE = (match set.clone() {
@@ -1492,7 +1489,7 @@ fn equationsDispatch(mut sets: Arc<metamodelica::List<Set>>, mut connected: Arc<
 fn generateEquEquations(mut elements: Arc<metamodelica::List<ConnectorElement>>) -> Result<DAE::DAElist> {
     let mut DAE: DAE::DAElist = DAE.emptyDae.clone();
     let mut eql: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
-    let mut e1: ConnectorElement;
+    let mut e1: ConnectorElement = <ConnectorElement as ::std::default::Default>::default();
     let mut src: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
     let mut x_src: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
     let mut y_src: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
@@ -1538,7 +1535,7 @@ fn shouldFlipEquEquation(mut lhsCref: Arc<DAE::ComponentRef>, mut lhsSource: Arc
 }
 
 fn generateFlowEquations(mut elements: Arc<metamodelica::List<ConnectorElement>>) -> Result<DAE::DAElist> {
-    let mut DAE: DAE::DAElist;
+    let mut DAE: DAE::DAElist = <DAE::DAElist as ::std::default::Default>::default();
     let mut sum: Arc<DAE::Exp>;
     let mut src: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
     sum = makeFlowExp(listHead(elements.clone())?)?;
@@ -1599,7 +1596,7 @@ fn increaseRefCount(mut amount: i32, mut node: Arc<SetTrieNode>) -> Result<Arc<S
 }
 
 fn generateStreamEquations(mut elements: Arc<metamodelica::List<ConnectorElement>>, mut flowThreshold: metamodelica::Real) -> Result<DAE::DAElist> {
-    let mut DAE: DAE::DAElist;
+    let mut DAE: DAE::DAElist = <DAE::DAElist as ::std::default::Default>::default();
     DAE = (::match_deref::match_deref! { match &(elements.clone()) {
         Deref @ metamodelica::List::Cons { head: ConnectorElement { face: DAE::Connect::Face::INSIDE, .. }, tail: Deref @ metamodelica::List::Nil } => {
             DAE.emptyDae.clone()
@@ -1609,7 +1606,7 @@ fn generateStreamEquations(mut elements: Arc<metamodelica::List<ConnectorElement
         },
         Deref @ metamodelica::List::Cons { head: ConnectorElement { source: src1, face: DAE::Connect::Face::OUTSIDE, name: cr1, .. }, tail: Deref @ metamodelica::List::Cons { head: ConnectorElement { source: src2, face: DAE::Connect::Face::OUTSIDE, name: cr2, .. }, tail: Deref @ metamodelica::List::Nil } } => {
             let mut src: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
-            let mut dae: DAE::DAElist;
+            let mut dae: DAE::DAElist = <DAE::DAElist as ::std::default::Default>::default();
             let mut cref1: Arc<DAE::Exp>;
             let mut cref2: Arc<DAE::Exp>;
             let mut e1: Arc<DAE::Exp>;
@@ -1624,7 +1621,7 @@ fn generateStreamEquations(mut elements: Arc<metamodelica::List<ConnectorElement
         },
         Deref @ metamodelica::List::Cons { head: ConnectorElement { source: src1, name: cr1, .. }, tail: Deref @ metamodelica::List::Cons { head: ConnectorElement { source: src2, name: cr2, .. }, tail: Deref @ metamodelica::List::Nil } } => {
             let mut src: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
-            let mut dae: DAE::DAElist;
+            let mut dae: DAE::DAElist = <DAE::DAElist as ::std::default::Default>::default();
             let mut e1: Arc<DAE::Exp>;
             let mut e2: Arc<DAE::Exp>;
             src = ElementSource::mergeSources(src1.clone(), src2.clone())?;
@@ -1634,7 +1631,7 @@ fn generateStreamEquations(mut elements: Arc<metamodelica::List<ConnectorElement
             dae.clone()
         },
         _ => {
-            let mut dae: DAE::DAElist;
+            let mut dae: DAE::DAElist = <DAE::DAElist as ::std::default::Default>::default();
             let mut inside: Arc<metamodelica::List<ConnectorElement>> = metamodelica::nil();
             let mut outside: Arc<metamodelica::List<ConnectorElement>> = metamodelica::nil();
             (outside, inside) = List::splitOnTrue(elements.clone(), (std::sync::Arc::new(fnptr!(isOutsideElement, ConnectorElement)) as std::sync::Arc<dyn ::std::ops::Fn(ConnectorElement) -> Result<bool> + 'static>));
@@ -1690,12 +1687,12 @@ fn isZeroFlow(mut element: ConnectorElement, mut attr: ArcStr) -> Result<bool> {
 }
 
 fn streamEquationGeneral(mut outsideElements: Arc<metamodelica::List<ConnectorElement>>, mut insideElements: Arc<metamodelica::List<ConnectorElement>>, mut flowThreshold: metamodelica::Real) -> Result<DAE::DAElist> {
-    let mut DAE: DAE::DAElist;
+    let mut DAE: DAE::DAElist = <DAE::DAElist as ::std::default::Default>::default();
     let mut outside: Arc<metamodelica::List<ConnectorElement>> = metamodelica::nil();
     let mut cref_exp: Arc<DAE::Exp>;
     let mut res: Arc<DAE::Exp>;
     let mut src: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
-    let mut dae: DAE::DAElist;
+    let mut dae: DAE::DAElist = <DAE::DAElist as ::std::default::Default>::default();
     let mut name: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
     let mut eql: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
     for mut e in &*outsideElements.clone() {
@@ -1851,7 +1848,7 @@ fn evaluateConnectionOperators(mut sets: Sets, mut setArray: metamodelica::Array
     let mut has_cardinality: bool = System::getUsesCardinality();
     if System::getHasStreamConnectors() || has_cardinality.clone() {
         flow_threshold = Flags::getConfigReal(Flags::FLOW_THRESHOLD.clone())?;
-        DAE = DAEUtil::traverseDAE(DAE.clone(), AvlTreePathFunction::Tree::EMPTY()?, Arc::new({ let __pe_b2 = setArray.clone(); let __pe_b3 = has_cardinality.clone(); let __pe_b4 = flow_threshold.clone(); move |__pe_a0, __pe_a1| evaluateConnectionOperators2(__pe_a0, __pe_a1, __pe_b2.clone(), __pe_b3.clone(), __pe_b4.clone()) }), sets.clone());
+        (DAE, _, _) = DAEUtil::traverseDAE(DAE.clone(), Arc::new(openmodelica_frontend_dump::AvlTreePathFunction::Tree::EMPTY), Arc::new({ let __pe_b2 = setArray.clone(); let __pe_b3 = has_cardinality.clone(); let __pe_b4 = flow_threshold.clone(); move |__pe_a0, __pe_a1| evaluateConnectionOperators2(__pe_a0, __pe_a1, __pe_b2.clone(), __pe_b3.clone(), __pe_b4.clone()) }), sets.clone());
         DAE = simplifyDAEElements(has_cardinality.clone(), DAE.clone());
     }
     Ok(DAE)
@@ -1903,7 +1900,7 @@ fn mkArrayIfNeeded(mut ty: Arc<DAE::Type>, mut exp: Arc<DAE::Exp>) -> Result<Arc
 
 fn evaluateInStream(mut streamCref: Arc<DAE::ComponentRef>, mut sets: Sets, mut setArray: metamodelica::Array<Set>, mut flowThreshold: metamodelica::Real) -> Result<Arc<DAE::Exp>> {
     let mut exp: Arc<DAE::Exp>;
-    let mut e: ConnectorElement;
+    let mut e: ConnectorElement = <ConnectorElement as ::std::default::Default>::default();
     let mut sl: Arc<metamodelica::List<ConnectorElement>> = metamodelica::nil();
     let mut set: i32 = 0;
     match '__try0: {
@@ -2210,7 +2207,7 @@ fn countConnectorVars(mut vars: Arc<metamodelica::List<Arc<DAE::Var>>>) -> Resul
     let mut streamVars: i32 = 0;
     let mut ty: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
     let mut ty2: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
-    let mut attr: Arc<DAE::Attributes>;
+    let mut attr: Arc<DAE::Attributes> = Arc::new(<DAE::Attributes as ::std::default::Default>::default());
     let mut n: i32 = 0;
     let mut p: i32 = 0;
     let mut f: i32 = 0;
@@ -2515,7 +2512,7 @@ fn removeUnusedExpandableVariablesAndConnections(mut sets: Arc<metamodelica::Lis
     let mut usedInDAE: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
     let mut onlyExpandableConnected: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
     let mut equVars: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
-    let mut dae: DAE::DAElist;
+    let mut dae: DAE::DAElist = <DAE::DAElist as ::std::default::Default>::default();
     let mut setsAsCrefs: Arc<metamodelica::List<Arc<metamodelica::List<Arc<DAE::ComponentRef>>>>> = metamodelica::nil();
     let DAE::DAE { elementLst: __pa0 } = (DAE.clone()) else { bail!("pattern mismatch") };
     elems = __pa0.clone();

@@ -76,6 +76,13 @@ pub enum PathIdent {
         path: Arc<PathIdent>,
     },
 }
+impl Default for PathIdent {
+    fn default() -> Self {
+        Self::IDENT {
+            ident: Default::default(),
+        }
+    }
+}
 pub use self::PathIdent::{IDENT,PATH_IDENT};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -107,6 +114,9 @@ pub enum TypeSignature {
     UNRESOLVED_TYPE {
         reason: ArcStr,
     },
+}
+impl Default for TypeSignature {
+    fn default() -> Self { Self::STRING_TYPE }
 }
 pub use self::TypeSignature::{LIST_TYPE,ARRAY_TYPE,OPTION_TYPE,TUPLE_TYPE,NAMED_TYPE,STRING_TYPE,TEXT_TYPE,STRING_TOKEN_TYPE,INTEGER_TYPE,REAL_TYPE,BOOLEAN_TYPE,UNRESOLVED_TYPE};
 
@@ -247,6 +257,13 @@ pub enum TypeInfo {
         constType: Arc<TypeSignature>,
     },
 }
+impl Default for TypeInfo {
+    fn default() -> Self {
+        Self::TI_UNION_TYPE {
+            recTags: Default::default(),
+        }
+    }
+}
 pub use self::TypeInfo::{TI_UNION_TYPE,TI_RECORD_TYPE,TI_ALIAS_TYPE,TI_FUN_TYPE,TI_CONST_TYPE};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -254,6 +271,16 @@ pub struct ASTDef {
     pub importPackage: Arc<PathIdent>,
     pub isDefault: bool,
     pub types: Arc<metamodelica::List<(ArcStr, TypeInfo)>>,
+}
+
+impl Default for ASTDef {
+    fn default() -> Self {
+        Self {
+            importPackage: Default::default(),
+            isDefault: Default::default(),
+            types: Default::default(),
+        }
+    }
 }
 
 pub type AST_DEF = ASTDef;
@@ -265,6 +292,17 @@ pub struct TemplPackage {
     pub astDefs: Arc<metamodelica::List<ASTDef>>,
     pub templateDefs: Arc<metamodelica::List<(ArcStr, TemplateDef)>>,
     pub annotationFooter: ArcStr,
+}
+
+impl Default for TemplPackage {
+    fn default() -> Self {
+        Self {
+            name: Default::default(),
+            astDefs: Default::default(),
+            templateDefs: Default::default(),
+            annotationFooter: Default::default(),
+        }
+    }
 }
 
 pub type TEMPL_PACKAGE = TemplPackage;
@@ -286,6 +324,13 @@ pub enum TemplateDef {
         exp: Expression,
     },
 }
+impl Default for TemplateDef {
+    fn default() -> Self {
+        Self::STR_TOKEN_DEF {
+            value: Default::default(),
+        }
+    }
+}
 pub use self::TemplateDef::{STR_TOKEN_DEF,LITERAL_DEF,TEMPLATE_DEF};
 
 /* Output AST */
@@ -295,6 +340,16 @@ pub struct MMPackage {
     pub name: Arc<PathIdent>,
     pub mmDeclarations: Arc<metamodelica::List<MMDeclaration>>,
     pub annotationFooter: ArcStr,
+}
+
+impl Default for MMPackage {
+    fn default() -> Self {
+        Self {
+            name: Default::default(),
+            mmDeclarations: Default::default(),
+            annotationFooter: Default::default(),
+        }
+    }
 }
 
 pub type MM_PACKAGE = MMPackage;
@@ -327,6 +382,14 @@ pub enum MMDeclaration {
         /// internal use only - a type of elaboration of the funtion.
         genInfoOpt: GenInfo,
     },
+}
+impl Default for MMDeclaration {
+    fn default() -> Self {
+        Self::MM_IMPORT {
+            isPublic: Default::default(),
+            packageName: Default::default(),
+        }
+    }
 }
 pub use self::MMDeclaration::{MM_IMPORT,MM_STR_TOKEN_DECL,MM_LITERAL_DECL,MM_FUN};
 
@@ -523,13 +586,13 @@ pub use self::GenInfo::{GI_TEMPL_FUN,GI_MATCH_FUN,GI_MAP_FUN};
 
 // *** functions ***
 pub fn transformAST(mut inTplPackage: TemplPackage) -> Result<MMPackage> {
-    let mut outMMPackage: MMPackage;
+    let mut outMMPackage: MMPackage = <MMPackage as ::std::default::Default>::default();
     outMMPackage = (match inTplPackage.clone() {
         _ => {
             let mut name: Arc<PathIdent>;
             let mut templateDefs: Arc<metamodelica::List<(ArcStr, TemplateDef)>> = metamodelica::nil();
             let mut mmDeclarations: Arc<metamodelica::List<MMDeclaration>> = metamodelica::nil();
-            let mut tp: TemplPackage;
+            let mut tp: TemplPackage = <TemplPackage as ::std::default::Default>::default();
             let mut astDefs: Arc<metamodelica::List<ASTDef>> = metamodelica::nil();
             let mut annotationFooter: ArcStr = arcstr::literal!("");
             tp = fullyQualifyTemplatePackage(inTplPackage.clone())?;
@@ -548,7 +611,7 @@ pub fn transformAST(mut inTplPackage: TemplPackage) -> Result<MMPackage> {
 }
 
 pub fn fullyQualifyTemplatePackage(mut inTplPackage: TemplPackage) -> Result<TemplPackage> {
-    let mut outTplPackage: TemplPackage;
+    let mut outTplPackage: TemplPackage = <TemplPackage as ::std::default::Default>::default();
     outTplPackage = (match inTplPackage.clone() {
         TemplPackage { name: mut name, astDefs: mut astDefs, templateDefs: mut templateDefs, annotationFooter: mut ann } => {
             let mut astDefs = astDefs.clone();
@@ -6704,7 +6767,7 @@ fn alignTupleList<Type_a: Clone + 'static + PartialEq, Type_b: Clone + 'static, 
     Ok(outAlignedList)
 }
 
-fn listMap1Tuple22<Type_a: Clone + 'static, Type_b: Clone + 'static, Type_c: Clone + 'static, Type_d: Clone + 'static>(mut inList: Arc<metamodelica::List<(Type_a, Type_b)>>, mut inFun_Tbd_to_Tc: Arc<dyn ::std::ops::Fn(Type_b, Type_d) -> Result<Type_c> + 'static>, mut inExtraArg: Type_d) -> Result<Arc<metamodelica::List<(Type_a, Type_c)>>> {
+fn listMap1Tuple22<Type_a: Clone + 'static, Type_b: Clone + 'static, Type_d: Clone + 'static, Type_c: Clone + 'static>(mut inList: Arc<metamodelica::List<(Type_a, Type_b)>>, mut inFun_Tbd_to_Tc: Arc<dyn ::std::ops::Fn(Type_b, Type_d) -> Result<Type_c> + 'static>, mut inExtraArg: Type_d) -> Result<Arc<metamodelica::List<(Type_a, Type_c)>>> {
     pub type Fun_Tbd_to_Tc<Type_b: Clone + 'static, Type_c: Clone + 'static, Type_d: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Type_b, Type_d) -> Result<Type_c> + 'static>;
 
     let mut outList: Arc<metamodelica::List<(Type_a, Type_c)>> = metamodelica::nil();
@@ -6724,7 +6787,7 @@ fn listMap1Tuple22<Type_a: Clone + 'static, Type_b: Clone + 'static, Type_c: Clo
     Ok(outList)
 }
 
-fn listMap2Tuple22<Type_a: Clone + 'static, Type_b: Clone + 'static, Type_c: Clone + 'static, Type_d: Clone + 'static, Type_e: Clone + 'static>(mut inList: Arc<metamodelica::List<(Type_a, Type_b)>>, mut inFun_Tbde_to_Tc: Arc<dyn ::std::ops::Fn(Type_b, Type_d, Type_e) -> Result<Type_c> + 'static>, mut inExtraArg: Type_d, mut inExtraArg2: Type_e) -> Result<Arc<metamodelica::List<(Type_a, Type_c)>>> {
+fn listMap2Tuple22<Type_a: Clone + 'static, Type_b: Clone + 'static, Type_d: Clone + 'static, Type_e: Clone + 'static, Type_c: Clone + 'static>(mut inList: Arc<metamodelica::List<(Type_a, Type_b)>>, mut inFun_Tbde_to_Tc: Arc<dyn ::std::ops::Fn(Type_b, Type_d, Type_e) -> Result<Type_c> + 'static>, mut inExtraArg: Type_d, mut inExtraArg2: Type_e) -> Result<Arc<metamodelica::List<(Type_a, Type_c)>>> {
     pub type Fun_Tbde_to_Tc<Type_b: Clone + 'static, Type_c: Clone + 'static, Type_d: Clone + 'static, Type_e: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Type_b, Type_d, Type_e) -> Result<Type_c> + 'static>;
 
     let mut outList: Arc<metamodelica::List<(Type_a, Type_c)>> = metamodelica::nil();

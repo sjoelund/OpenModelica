@@ -306,7 +306,7 @@ pub fn mergeRedeclaredComponentAttributes(mut origAttr: Arc<NFAttributes>, mut r
 }
 
 pub fn mergeRedeclaredClassPrefixes(mut origPrefs: Arc<Class::Prefixes::Prefixes>, mut redeclPrefs: Arc<Class::Prefixes::Prefixes>, mut node: Arc<InstNode::InstNode>) -> Result<Arc<Class::Prefixes::Prefixes>> {
-    let mut prefs: Arc<Class::Prefixes::Prefixes>;
+    let mut prefs: Arc<Class::Prefixes::Prefixes> = Arc::new(<Class::Prefixes::Prefixes as ::std::default::Default>::default());
     let mut enc: SCode::Encapsulated = SCode::Encapsulated::ENCAPSULATED;
     let mut par: SCode::Partial = SCode::Partial::NOT_PARTIAL;
     let mut fin: SCode::Final = SCode::Final::FINAL;
@@ -348,6 +348,7 @@ pub fn mergeRedeclaredClassPrefixes(mut origPrefs: Arc<Class::Prefixes::Prefixes
 
 pub fn printRedeclarePrefixError(mut node: Arc<InstNode::InstNode>, mut prefix1: ArcStr, mut prefix2: ArcStr) -> Result<()> {
     Error::addSourceMessageAndFail(Error::REDECLARE_MISMATCHED_PREFIX.clone(), list![(prefix1.clone()).clone(), (InstNode::name(node.clone())?).clone(), (prefix2.clone()).clone()], InstNode::info(node.clone())?)?;
+    unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
     Ok(())
 }
 
@@ -504,7 +505,7 @@ pub fn setReplaceable(mut repl: Arc<Prefixes::Replaceable>, mut attr: Arc<NFAttr
 }
 
 pub fn toDAE(mut ina: Arc<NFAttributes>, mut vis: Prefixes::Visibility) -> Result<Arc<DAE::Attributes>> {
-    let mut outa: Arc<DAE::Attributes>;
+    let mut outa: Arc<DAE::Attributes> = Arc::new(<DAE::Attributes as ::std::default::Default>::default());
     outa = Arc::new(DAE::Attributes { connectorType: Prefixes::ConnectorType::toDAE(ina.connectorType.clone()), parallelism: parallelismToSCode(ina.parallelism.clone())?, variability: variabilityToSCode(ina.variability.clone()), direction: directionToAbsyn(ina.direction.clone()), innerOuter: innerOuterToAbsyn(ina.innerOuter.clone())?, visibility: visibilityToSCode(vis.clone()) });
     Ok(outa)
 }

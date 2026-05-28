@@ -108,6 +108,19 @@ pub struct ConnectionGraph {
     pub connections: DaeEdges,
 }
 
+impl Default for ConnectionGraph {
+    fn default() -> Self {
+        Self {
+            updateGraph: Default::default(),
+            definiteRoots: Default::default(),
+            potentialRoots: Default::default(),
+            uniqueRoots: Default::default(),
+            branches: Default::default(),
+            connections: Default::default(),
+        }
+    }
+}
+
 pub type GRAPH = ConnectionGraph;
 
 
@@ -118,7 +131,7 @@ thread_local! { static __NOUPDATE_EMPTY_TLS: ConnectionGraph = ConnectionGraph {
 pub fn NOUPDATE_EMPTY() -> ConnectionGraph { __NOUPDATE_EMPTY_TLS.with(|__t| __t.clone()) }
 
 pub fn handleOverconstrainedConnections(mut inGraph: ConnectionGraph, mut modelNameQualified: ArcStr, mut inDAE: DAE::DAElist) -> Result<(DAE::DAElist, DaeEdges, DaeEdges)> {
-    let mut outDAE: DAE::DAElist;
+    let mut outDAE: DAE::DAElist = <DAE::DAElist as ::std::default::Default>::default();
     let mut outConnected: DaeEdges = metamodelica::nil();
     let mut outBroken: DaeEdges = metamodelica::nil();
     (outDAE, outConnected, outBroken) = 'mc: {
@@ -169,7 +182,7 @@ pub fn handleOverconstrainedConnections(mut inGraph: ConnectionGraph, mut modelN
 }
 
 pub fn addDefiniteRoot(mut inGraph: ConnectionGraph, mut inRoot: Arc<DAE::ComponentRef>) -> Result<ConnectionGraph> {
-    let mut outGraph: ConnectionGraph;
+    let mut outGraph: ConnectionGraph = <ConnectionGraph as ::std::default::Default>::default();
     outGraph = (::match_deref::match_deref! { match &((inGraph.clone(), inRoot.clone())) {
         (ConnectionGraph { connections, branches, uniqueRoots, potentialRoots, definiteRoots, updateGraph }, root) => {
             if Flags::isSet(Flags::CGRAPH.clone())? {
@@ -183,7 +196,7 @@ pub fn addDefiniteRoot(mut inGraph: ConnectionGraph, mut inRoot: Arc<DAE::Compon
 }
 
 pub fn addPotentialRoot(mut inGraph: ConnectionGraph, mut inRoot: Arc<DAE::ComponentRef>, mut inPriority: metamodelica::Real) -> Result<ConnectionGraph> {
-    let mut outGraph: ConnectionGraph;
+    let mut outGraph: ConnectionGraph = <ConnectionGraph as ::std::default::Default>::default();
     outGraph = (::match_deref::match_deref! { match &((inGraph.clone(), inRoot.clone(), inPriority.clone())) {
         (ConnectionGraph { connections, branches, uniqueRoots, potentialRoots, definiteRoots, updateGraph }, root, priority) => {
             if Flags::isSet(Flags::CGRAPH.clone())? {
@@ -199,7 +212,7 @@ pub fn addPotentialRoot(mut inGraph: ConnectionGraph, mut inRoot: Arc<DAE::Compo
 // NOTE: #[tailcall::tailcall] disabled: function body contains a `match_deref!{…}` match,
 // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
 pub fn addUniqueRoots(mut inGraph: ConnectionGraph, mut inRoots: Arc<DAE::Exp>, mut inMessage: Arc<DAE::Exp>) -> Result<ConnectionGraph> {
-    let mut outGraph: ConnectionGraph;
+    let mut outGraph: ConnectionGraph = <ConnectionGraph as ::std::default::Default>::default();
     outGraph = (::match_deref::match_deref! { match &((inGraph.clone(), inRoots.clone(), inMessage.clone())) {
         (ConnectionGraph { connections, branches, uniqueRoots, potentialRoots, definiteRoots, updateGraph }, Deref @ DAE::Exp::CREF { componentRef: root, ty: _ }, _) => {
             if Flags::isSet(Flags::CGRAPH.clone())? {
@@ -211,7 +224,7 @@ pub fn addUniqueRoots(mut inGraph: ConnectionGraph, mut inRoots: Arc<DAE::Exp>, 
             inGraph.clone()
         },
         (ConnectionGraph { connections, branches, uniqueRoots, potentialRoots, definiteRoots, updateGraph }, Deref @ DAE::Exp::ARRAY { ty, scalar, array: Deref @ metamodelica::List::Cons { head: Deref @ DAE::Exp::CREF { componentRef: root, ty: _ }, tail: rest } }, _) => {
-            let mut graph: ConnectionGraph;
+            let mut graph: ConnectionGraph = <ConnectionGraph as ::std::default::Default>::default();
             if Flags::isSet(Flags::CGRAPH.clone())? {
                 Debug::traceln(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("- ConnectionGraph.addUniqueRoots(")); __mm_s.push_str(&*ComponentReferenceBasics::printComponentRefStr(root.clone())?); __mm_s.push_str(&*literal!(", ")); __mm_s.push_str(&*ExpressionBasics::printExpStr(inMessage.clone())?); __mm_s.push_str(&*literal!(")")); ArcStr::from(__mm_s) }).clone())?;
             }
@@ -228,7 +241,7 @@ pub fn addUniqueRoots(mut inGraph: ConnectionGraph, mut inRoots: Arc<DAE::Exp>, 
 }
 
 pub fn addBranch(mut inGraph: ConnectionGraph, mut inRef1: Arc<DAE::ComponentRef>, mut inRef2: Arc<DAE::ComponentRef>) -> Result<ConnectionGraph> {
-    let mut outGraph: ConnectionGraph;
+    let mut outGraph: ConnectionGraph = <ConnectionGraph as ::std::default::Default>::default();
     outGraph = (::match_deref::match_deref! { match &((inGraph.clone(), inRef1.clone(), inRef2.clone())) {
         (ConnectionGraph { connections, branches, uniqueRoots, potentialRoots, definiteRoots, updateGraph }, ref1, ref2) => {
             if Flags::isSet(Flags::CGRAPH.clone())? {
@@ -242,7 +255,7 @@ pub fn addBranch(mut inGraph: ConnectionGraph, mut inRef1: Arc<DAE::ComponentRef
 }
 
 pub fn addConnection(mut inGraph: ConnectionGraph, mut inRef1: Arc<DAE::ComponentRef>, mut inRef2: Arc<DAE::ComponentRef>, mut inDae: Arc<metamodelica::List<Arc<DAE::Element>>>) -> Result<ConnectionGraph> {
-    let mut outGraph: ConnectionGraph;
+    let mut outGraph: ConnectionGraph = <ConnectionGraph as ::std::default::Default>::default();
     outGraph = (::match_deref::match_deref! { match &((inGraph.clone(), inRef1.clone(), inRef2.clone(), inDae.clone())) {
         (ConnectionGraph { connections, branches, uniqueRoots, potentialRoots, definiteRoots, updateGraph }, ref1, ref2, dae) => {
             if Flags::isSet(Flags::CGRAPH.clone())? {
@@ -430,7 +443,7 @@ fn connectCanonicalComponents(mut inPartition: (metamodelica::Array<Arc<metamode
             ::match_deref::match_deref! { match &__mc_input {
                 (partition, ref1, ref2) => {
                     let mut partition = (*partition).clone();
-                    (partition, _, _, _) = BaseHashTable::add((ref1.clone(), ref2.clone()), partition.clone())?;
+                    partition = BaseHashTable::add((ref1.clone(), ref2.clone()), partition.clone())?;
                     Ok((partition.clone(), true))
                 }
                 _ => bail!("nomatch"),
@@ -1229,7 +1242,7 @@ fn getConnections(mut inGraph: ConnectionGraph) -> Result<DaeEdges> {
 }
 
 pub fn merge(mut inGraph1: ConnectionGraph, mut inGraph2: ConnectionGraph) -> Result<ConnectionGraph> {
-    let mut outGraph: ConnectionGraph;
+    let mut outGraph: ConnectionGraph = <ConnectionGraph as ::std::default::Default>::default();
     outGraph = 'mc: {
         let __mc_input = (inGraph1.clone(), inGraph2.clone());
         if let Ok(__v) = (|| -> Result<_> {
@@ -1393,7 +1406,7 @@ fn generateGraphViz(mut modelNameQualified: ArcStr, mut definiteRoots: DefiniteR
                     let mut tStart: metamodelica::Real = metamodelica::OrderedFloat(0.0_f64);
                     let mut tEnd: metamodelica::Real = metamodelica::OrderedFloat(0.0_f64);
                     let mut t: metamodelica::Real = metamodelica::OrderedFloat(0.0_f64);
-                    let mut graphVizStream: IOStream::IOStream;
+                    let mut graphVizStream: IOStream::IOStream = <IOStream::IOStream as ::std::default::Default>::default();
                     let mut infoNode: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
                     tStart = clock();
                     i = (literal!("\t")).clone();
@@ -1525,9 +1538,9 @@ fn splitSetByAllowed(mut inConnects: Arc<metamodelica::List<DAE::Connect::Connec
     let mut e: DaeEdge;
     let mut cr1: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
     let mut cr2: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
-    let mut ce: DAE::Connect::ConnectorElement;
-    let mut ce1: DAE::Connect::ConnectorElement;
-    let mut ce2: DAE::Connect::ConnectorElement;
+    let mut ce: DAE::Connect::ConnectorElement = <DAE::Connect::ConnectorElement as ::std::default::Default>::default();
+    let mut ce1: DAE::Connect::ConnectorElement = <DAE::Connect::ConnectorElement as ::std::default::Default>::default();
+    let mut ce2: DAE::Connect::ConnectorElement = <DAE::Connect::ConnectorElement as ::std::default::Default>::default();
     csets = metamodelica::nil();
     for mut e in &*inConnected.clone() {
         let mut e = e.clone();
@@ -1618,7 +1631,7 @@ fn removeFromConnects(mut inConnects: Arc<metamodelica::List<DAE::Connect::Conne
 }
 
 pub fn addBrokenEqualityConstraintEquations(mut inDAE: DAE::DAElist, mut inBroken: DaeEdges) -> Result<DAE::DAElist> {
-    let mut outDAE: DAE::DAElist;
+    let mut outDAE: DAE::DAElist = <DAE::DAElist as ::std::default::Default>::default();
     outDAE = 'mc: {
         let __mc_input = (inDAE.clone(), inBroken.clone());
         if let Ok(__v) = (|| -> Result<_> {
@@ -1633,7 +1646,7 @@ pub fn addBrokenEqualityConstraintEquations(mut inDAE: DAE::DAElist, mut inBroke
             ::match_deref::match_deref! { match &__mc_input {
                 _ => {
                     let mut equalityConstraintElements: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
-                    let mut dae: DAE::DAElist;
+                    let mut dae: DAE::DAElist = <DAE::DAElist as ::std::default::Default>::default();
                     equalityConstraintElements = List::flatten(List::map(inBroken.clone(), std::sync::Arc::new(fnptr!(Util::tuple33, _))));
                     dae = DAEUtil::joinDaes(DAE::DAElist { elementLst: equalityConstraintElements.clone() }, inDAE.clone())?;
                     Ok(dae.clone())

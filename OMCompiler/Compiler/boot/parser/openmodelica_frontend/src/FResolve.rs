@@ -181,7 +181,7 @@ pub fn derived_one(mut name: Name, mut inRef: Ref, mut ig: Graph) -> Result<Grap
             let mut p: Arc<Absyn::Path>;
             let true = (FNode::isRefDerived(r.clone())?) else { bail!("pattern mismatch") };
             let FCore::CL { e: __t1, .. } = (FNode::refData(r.clone())?) else { bail!("pattern mismatch") };
-            let __pa0 = ::match_deref::match_deref! { match &((*__t1).clone()) {
+            let __pa0 = ::match_deref::match_deref! { match &(__t1.clone()) {
                 Deref @ SCode::Element::CLASS { classDef: Deref @ SCode::ClassDef::DERIVED { typeSpec: Deref @ Absyn::TypeSpec::TPATH { path: __pa0, arrayDim: _ }, .. }, .. } => __pa0.clone(),
                 _ => bail!("pattern mismatch"),
             } };
@@ -195,7 +195,7 @@ pub fn derived_one(mut name: Name, mut inRef: Ref, mut ig: Graph) -> Result<Grap
             let mut p: Arc<Absyn::Path>;
             let true = (FNode::isRefDerived(r.clone())?) else { bail!("pattern mismatch") };
             let FCore::CL { e: __t1, .. } = (FNode::refData(r.clone())?) else { bail!("pattern mismatch") };
-            let __pa0 = ::match_deref::match_deref! { match &((*__t1).clone()) {
+            let __pa0 = ::match_deref::match_deref! { match &(__t1.clone()) {
                 Deref @ SCode::Element::CLASS { classDef: Deref @ SCode::ClassDef::DERIVED { typeSpec: Deref @ Absyn::TypeSpec::TPATH { path: __pa0, arrayDim: _ }, .. }, .. } => __pa0.clone(),
                 _ => bail!("pattern mismatch"),
             } };
@@ -303,7 +303,7 @@ pub fn cc_one(mut name: Name, mut inRef: Ref, mut ig: Graph) -> Result<Graph> {
             let mut p: Arc<Absyn::Path>;
             let true = (FNode::isRefConstrainClass(r.clone())?) else { bail!("pattern mismatch") };
             let FCore::CC { cc: __t1 } = (FNode::refData(r.clone())?) else { bail!("pattern mismatch") };
-            let __pa0 = ::match_deref::match_deref! { match &((*__t1).clone()) {
+            let __pa0 = ::match_deref::match_deref! { match &(__t1.clone()) {
                 Deref @ SCode::ConstrainClass { constrainingClass: __pa0, .. } => __pa0.clone(),
                 _ => bail!("pattern mismatch"),
             } };
@@ -317,7 +317,7 @@ pub fn cc_one(mut name: Name, mut inRef: Ref, mut ig: Graph) -> Result<Graph> {
             let mut p: Arc<Absyn::Path>;
             let true = (FNode::isRefConstrainClass(r.clone())?) else { bail!("pattern mismatch") };
             let FCore::CC { cc: __t1 } = (FNode::refData(r.clone())?) else { bail!("pattern mismatch") };
-            let __pa0 = ::match_deref::match_deref! { match &((*__t1).clone()) {
+            let __pa0 = ::match_deref::match_deref! { match &(__t1.clone()) {
                 Deref @ SCode::ConstrainClass { constrainingClass: __pa0, .. } => __pa0.clone(),
                 _ => bail!("pattern mismatch"),
             } };
@@ -367,7 +367,7 @@ pub fn clsext_one(mut name: Name, mut inRef: Ref, mut ig: Graph) -> Result<Graph
             let mut id: Name = arcstr::literal!("");
             let true = (FNode::isRefClassExtends(r.clone())?) else { bail!("pattern mismatch") };
             let FCore::CL { e: __t1, .. } = (FNode::refData(r.clone())?) else { bail!("pattern mismatch") };
-            let __pa0 = ::match_deref::match_deref! { match &((*__t1).clone()) {
+            let __pa0 = ::match_deref::match_deref! { match &(__t1.clone()) {
                 Deref @ SCode::Element::CLASS { name: __pa0, .. } => __pa0.clone(),
                 _ => bail!("pattern mismatch"),
             } };
@@ -387,7 +387,7 @@ pub fn clsext_one(mut name: Name, mut inRef: Ref, mut ig: Graph) -> Result<Graph
             let mut id: Name = arcstr::literal!("");
             let true = (FNode::isRefClassExtends(r.clone())?) else { bail!("pattern mismatch") };
             let FCore::CL { e: __t1, .. } = (FNode::refData(r.clone())?) else { bail!("pattern mismatch") };
-            let __pa0 = ::match_deref::match_deref! { match &((*__t1).clone()) {
+            let __pa0 = ::match_deref::match_deref! { match &(__t1.clone()) {
                 Deref @ SCode::Element::CLASS { name: __pa0, .. } => __pa0.clone(),
                 _ => bail!("pattern mismatch"),
             } };

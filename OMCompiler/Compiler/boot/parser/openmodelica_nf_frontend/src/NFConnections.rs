@@ -68,6 +68,16 @@ pub struct NFConnections {
     pub broken: BrokenEdges,
 }
 
+impl Default for NFConnections {
+    fn default() -> Self {
+        Self {
+            connections: Default::default(),
+            flows: Default::default(),
+            broken: Default::default(),
+        }
+    }
+}
+
 pub type CONNECTIONS = NFConnections;
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -76,6 +86,17 @@ pub struct BrokenEdge {
     pub rhs: Arc<ComponentRef::NFComponentRef>,
     pub source: Arc<DAE::ElementSource>,
     pub brokenEquations: Arc<metamodelica::List<Arc<Equation::NFEquation>>>,
+}
+
+impl Default for BrokenEdge {
+    fn default() -> Self {
+        Self {
+            lhs: Default::default(),
+            rhs: Default::default(),
+            source: Default::default(),
+            brokenEquations: Default::default(),
+        }
+    }
 }
 
 pub type BROKEN_EDGE = BrokenEdge;
@@ -89,7 +110,7 @@ pub fn new() -> Arc<NFConnections> {
 }
 
 pub fn fromConnectionList(mut connl: Arc<metamodelica::List<Arc<Connection::NFConnection>>>) -> Arc<NFConnections> {
-    let mut conns: Arc<NFConnections>;
+    let mut conns: Arc<NFConnections> = Arc::new(<NFConnections as ::std::default::Default>::default());
     conns = Arc::new(NFConnections { connections: connl.clone(), flows: metamodelica::nil(), broken: metamodelica::nil() });
     conns
 }

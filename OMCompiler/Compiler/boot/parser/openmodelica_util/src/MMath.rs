@@ -52,6 +52,15 @@ pub struct Rational {
     pub denom: i32,
 }
 
+impl Default for Rational {
+    fn default() -> Self {
+        Self {
+            nom: Default::default(),
+            denom: Default::default(),
+        }
+    }
+}
+
 pub type RATIONAL = Rational;
 
 
@@ -66,7 +75,7 @@ pub fn isGreaterThan(mut r1: Rational, mut r2: Rational) -> bool {
 }
 
 pub fn addRational(mut r1: Rational, mut r2: Rational) -> Result<Rational> {
-    let mut r: Rational;
+    let mut r: Rational = <Rational as ::std::default::Default>::default();
     r = (match (r1.clone(), r2.clone()) {
         (Rational { nom: mut i1, denom: mut i2 }, Rational { nom: mut i3, denom: mut i4 }) => {
             let mut ri1: i32 = 0;
@@ -85,7 +94,7 @@ pub fn addRational(mut r1: Rational, mut r2: Rational) -> Result<Rational> {
 }
 
 fn normalizeZero(mut r: Rational) -> Rational {
-    let mut outR: Rational;
+    let mut outR: Rational = <Rational as ::std::default::Default>::default();
     outR = (match r.clone() {
         Rational { nom: 0, denom: _ } => Rational { nom: 0, denom: 1 },
         _ => r.clone(),
@@ -117,7 +126,7 @@ pub fn equals(mut r1: Rational, mut r2: Rational) -> Result<bool> {
 }
 
 pub fn subRational(mut r1: Rational, mut r2: Rational) -> Result<Rational> {
-    let mut r: Rational;
+    let mut r: Rational = <Rational as ::std::default::Default>::default();
     r = (match (r1.clone(), r2.clone()) {
         (Rational { nom: mut i1, denom: mut i2 }, Rational { nom: mut i3, denom: mut i4 }) => {
             let mut ri1: i32 = 0;
@@ -136,7 +145,7 @@ pub fn subRational(mut r1: Rational, mut r2: Rational) -> Result<Rational> {
 }
 
 pub fn multRational(mut r1: Rational, mut r2: Rational) -> Result<Rational> {
-    let mut r: Rational;
+    let mut r: Rational = <Rational as ::std::default::Default>::default();
     r = (match (r1.clone(), r2.clone()) {
         (Rational { nom: mut i1, denom: mut i2 }, Rational { nom: mut i3, denom: mut i4 }) => {
             let mut ri1: i32 = 0;
@@ -155,7 +164,7 @@ pub fn multRational(mut r1: Rational, mut r2: Rational) -> Result<Rational> {
 }
 
 pub fn divRational(mut r1: Rational, mut r2: Rational) -> Result<Rational> {
-    let mut r: Rational;
+    let mut r: Rational = <Rational as ::std::default::Default>::default();
     r = (match (r1.clone(), r2.clone()) {
         (Rational { nom: mut i1, denom: mut i2 }, Rational { nom: mut i3, denom: mut i4 }) => {
             let mut ri1: i32 = 0;

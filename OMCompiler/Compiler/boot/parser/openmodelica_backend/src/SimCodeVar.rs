@@ -83,6 +83,43 @@ pub struct SimVars {
     pub dataReconSetBVars: Arc<metamodelica::List<SimVar>>,
 }
 
+impl Default for SimVars {
+    fn default() -> Self {
+        Self {
+            stateVars: Default::default(),
+            derivativeVars: Default::default(),
+            algVars: Default::default(),
+            discreteAlgVars: Default::default(),
+            intAlgVars: Default::default(),
+            boolAlgVars: Default::default(),
+            inputVars: Default::default(),
+            outputVars: Default::default(),
+            aliasVars: Default::default(),
+            intAliasVars: Default::default(),
+            boolAliasVars: Default::default(),
+            paramVars: Default::default(),
+            intParamVars: Default::default(),
+            boolParamVars: Default::default(),
+            stringAlgVars: Default::default(),
+            stringParamVars: Default::default(),
+            stringAliasVars: Default::default(),
+            extObjVars: Default::default(),
+            constVars: Default::default(),
+            intConstVars: Default::default(),
+            boolConstVars: Default::default(),
+            stringConstVars: Default::default(),
+            jacobianVars: Default::default(),
+            seedVars: Default::default(),
+            realOptimizeConstraintsVars: Default::default(),
+            realOptimizeFinalConstraintsVars: Default::default(),
+            sensitivityVars: Default::default(),
+            dataReconSetcVars: Default::default(),
+            dataReconinputVars: Default::default(),
+            dataReconSetBVars: Default::default(),
+        }
+    }
+}
+
 pub type SIMVARS = SimVars;
 
 
@@ -134,6 +171,44 @@ pub struct SimVar {
     pub relativeQuantity: bool,
 }
 
+impl Default for SimVar {
+    fn default() -> Self {
+        Self {
+            name: Default::default(),
+            varKind: Default::default(),
+            comment: Default::default(),
+            unit: Default::default(),
+            displayUnit: Default::default(),
+            index: Default::default(),
+            minValue: Default::default(),
+            maxValue: Default::default(),
+            initialValue: Default::default(),
+            nominalValue: Default::default(),
+            isFixed: Default::default(),
+            type_: Default::default(),
+            isDiscrete: Default::default(),
+            arrayCref: Default::default(),
+            aliasvar: Default::default(),
+            source: Default::default(),
+            causality: Default::default(),
+            variable_index: Default::default(),
+            fmi_index: Default::default(),
+            numArrayElement: Default::default(),
+            isValueChangeable: Default::default(),
+            isProtected: Default::default(),
+            hideResult: Default::default(),
+            isEncrypted: Default::default(),
+            inputIndex: Default::default(),
+            initNonlinear: Default::default(),
+            matrixName: Default::default(),
+            variability: Default::default(),
+            initial_: Default::default(),
+            exportVar: Default::default(),
+            relativeQuantity: Default::default(),
+        }
+    }
+}
+
 pub type SIMVAR = SimVar;
 
 
@@ -147,6 +222,9 @@ pub enum AliasVariable {
         varName: Arc<DAE::ComponentRef>,
     },
 }
+impl Default for AliasVariable {
+    fn default() -> Self { Self::NOALIAS }
+}
 pub use self::AliasVariable::{NOALIAS,ALIAS,NEGATEDALIAS};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -159,6 +237,9 @@ pub enum Causality {
     PARAMETER,
     CALCULATED_PARAMETER,
 }
+impl Default for Causality {
+    fn default() -> Self { Self::NONECAUS }
+}
 pub use self::Causality::{NONECAUS,OUTPUT,INPUT,LOCAL,PARAMETER,CALCULATED_PARAMETER};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -167,6 +248,9 @@ pub enum Initial {
     EXACT,
     APPROX,
     CALCULATED,
+}
+impl Default for Initial {
+    fn default() -> Self { Self::NONE_INITIAL }
 }
 pub use self::Initial::{NONE_INITIAL,EXACT,APPROX,CALCULATED};
 
@@ -177,6 +261,9 @@ pub enum Variability {
     TUNABLE,
     DISCRETE,
     CONTINUOUS,
+}
+impl Default for Variability {
+    fn default() -> Self { Self::CONSTANT }
 }
 pub use self::Variability::{CONSTANT,FIXED,TUNABLE,DISCRETE,CONTINUOUS};
 

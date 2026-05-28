@@ -1056,7 +1056,7 @@ fn fun_85(mut in_txt: Tpl::Text, mut in_a_context: SimCodeFunction::Context, mut
             txt.clone()
         },
         (txt, i_context, a_inCref, a_simCode, a_useFlatArrayNotation) => {
-            let mut ret_1: SimCodeVar::SimVar;
+            let mut ret_1: SimCodeVar::SimVar = <SimCodeVar::SimVar as ::std::default::Default>::default();
             let mut l_representation: Tpl::Text;
             let mut txt = (*txt).clone();
             ret_1 = SimCodeUtil::cref2simvar(a_inCref.clone(), a_simCode.clone())?;
@@ -1993,7 +1993,7 @@ fn fun_113(mut in_txt: Tpl::Text, mut in_a_context: SimCodeFunction::Context, mu
             (txt.clone(), a_preExp.clone(), a_varDecls.clone(), a_extraFuncs.clone(), a_extraFuncsDecl.clone(), a_extraFuncsNamespace.clone(), a_stateDerVectorName.clone())
         },
         (txt, i_context, a_cr, a_ty, a_preExp, a_varDecls, a_simCode, a_extraFuncs, a_extraFuncsDecl, a_extraFuncsNamespace, a_stateDerVectorName, a_useFlatArrayNotation) => {
-            let mut ret_1: SimCodeVar::SimVar;
+            let mut ret_1: SimCodeVar::SimVar = <SimCodeVar::SimVar as ::std::default::Default>::default();
             let mut l_box: Tpl::Text;
             let mut txt = (*txt).clone();
             let mut a_preExp = (*a_preExp).clone();
@@ -8848,7 +8848,7 @@ pub fn daeExpCall(mut in_txt: Tpl::Text, mut in_a_call: Arc<DAE::Exp>, mut in_a_
             (txt.clone(), a_preExp.clone(), a_varDecls.clone(), a_extraFuncs.clone(), a_extraFuncsDecl.clone(), a_extraFuncsNamespace.clone(), a_stateDerVectorName.clone())
         },
         (txt, Deref @ DAE::Exp::CALL { expLst: Deref @ metamodelica::List::Cons { head: Deref @ DAE::Exp::CREF { componentRef: i_arg_componentRef, .. }, tail: Deref @ metamodelica::List::Nil }, path: Deref @ Absyn::Path::IDENT { name: Deref @ "der" }, .. }, _, a_preExp, a_varDecls, a_simCode, a_extraFuncs, a_extraFuncsDecl, a_extraFuncsNamespace, a_stateDerVectorName, _) => {
-            let mut ret_20: SimCodeVar::SimVar;
+            let mut ret_20: SimCodeVar::SimVar = <SimCodeVar::SimVar as ::std::default::Default>::default();
             let mut l_var: Tpl::Text;
             let mut txt = (*txt).clone();
             ret_20 = SimCodeUtil::cref2simvar(i_arg_componentRef.clone(), a_simCode.clone())?;
@@ -13102,7 +13102,7 @@ pub fn writeLhsCref(mut in_txt: Tpl::Text, mut in_a_exp: Arc<DAE::Exp>, mut in_a
             (txt.clone(), a_preExp.clone(), a_varDecls.clone(), a_extraFuncs.clone(), a_extraFuncsDecl.clone(), a_extraFuncsNamespace.clone(), a_stateDerVectorName.clone())
         },
         (txt, i_ecr @ Deref @ DAE::Exp::CREF { ty: i_ty @ Deref @ DAE::Type::T_ARRAY { ty: _, .. }, componentRef: i_cr }, a_rhsStr, a_context, a_preExp, a_varDecls, a_simCode, a_extraFuncs, a_extraFuncsDecl, a_extraFuncsNamespace, a_stateDerVectorName, a_useFlatArrayNotation) => {
-            let mut ret_1: SimCodeVar::SimVar;
+            let mut ret_1: SimCodeVar::SimVar = <SimCodeVar::SimVar as ::std::default::Default>::default();
             let mut l_lhsStr: Tpl::Text;
             let mut txt = (*txt).clone();
             let mut a_preExp = (*a_preExp).clone();

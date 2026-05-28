@@ -1583,7 +1583,7 @@ fn collectUsedClass(mut inClass: Arc<SCode::Element>, mut inEnv: Env, mut inClsA
             let mut basename: ArcStr = arcstr::literal!("");
             let mut item: Item;
             let mut resolved_item: Item;
-            let mut class_frame: Arc<NFSCodeEnv::Frame>;
+            let mut class_frame: Arc<NFSCodeEnv::Frame> = Arc::new(<NFSCodeEnv::Frame as ::std::default::Default>::default());
             let mut class_env: Env = metamodelica::nil();
             let mut env: Env = metamodelica::nil();
             let mut enclosing_env: Env = metamodelica::nil();
@@ -1608,7 +1608,7 @@ fn collectUsedClass(mut inClass: Arc<SCode::Element>, mut inEnv: Env, mut inClsA
         },
         (Deref @ SCode::Element::CLASS { name, prefixes, encapsulatedPrefix: ep, partialPrefix: pp, restriction: res, classDef: cdef, cmt, info }, _, _, _, _, _) => {
             let mut item: Item;
-            let mut class_frame: Arc<NFSCodeEnv::Frame>;
+            let mut class_frame: Arc<NFSCodeEnv::Frame> = Arc::new(<NFSCodeEnv::Frame as ::std::default::Default>::default());
             let mut class_env: Env = metamodelica::nil();
             let mut env: Env = metamodelica::nil();
             let mut enclosing_env: Env = metamodelica::nil();
@@ -1683,7 +1683,7 @@ fn collectUsedClassDef(mut classDef: Arc<SCode::ClassDef>, mut env: Env, mut inC
 fn collectUsedElements(mut inElements: Arc<metamodelica::List<Arc<SCode::Element>>>, mut inEnv: Env, mut inClassEnv: Arc<NFSCodeEnv::Frame>, mut inClassName: Arc<Absyn::Path>, mut inAccumPath: Arc<Absyn::Path>) -> Result<(Arc<metamodelica::List<Arc<SCode::Element>>>, Env)> {
     let mut outUsedElements: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
     let mut outNewEnv: Env = metamodelica::nil();
-    let mut empty_class_env: Arc<NFSCodeEnv::Frame>;
+    let mut empty_class_env: Arc<NFSCodeEnv::Frame> = Arc::new(<NFSCodeEnv::Frame as ::std::default::Default>::default());
     let mut cls_and_vars: Arc<NFSCodeEnv::EnvTree::Tree> = Arc::new(NFSCodeEnv::EnvTree::Tree::EMPTY);
     let mut collect_constants: bool = false;
     (empty_class_env, cls_and_vars) = NFSCodeEnv::removeClsAndVarsFromFrame(inClassEnv.clone())?;
@@ -1753,7 +1753,7 @@ fn removeUnusedRedeclares(mut inEnv: Env, mut inTotalEnv: Env) -> Result<Env> {
     let mut bcl: Arc<metamodelica::List<Arc<NFSCodeEnv::Extends>>> = metamodelica::nil();
     let mut re: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
     let mut cei: Option<Arc<SCode::Element>> = None;
-    let mut imps: NFSCodeEnv::ImportTable;
+    let mut imps: NFSCodeEnv::ImportTable = <NFSCodeEnv::ImportTable as ::std::default::Default>::default();
     let mut is_used: Option<Mutable::Mutable<bool>> = None;
     let mut env: Env = metamodelica::nil();
     let (__pa0, __pa1, __pa2, __pa3, __pa4, __pa5, __pa6, __pa7) = ::match_deref::match_deref! { match &(inEnv.clone()) {
@@ -1775,7 +1775,7 @@ fn removeUnusedRedeclares(mut inEnv: Env, mut inTotalEnv: Env) -> Result<Env> {
 }
 
 fn removeUnusedRedeclares2(mut inExtends: Arc<NFSCodeEnv::Extends>, mut inEnv: Env) -> Result<Arc<NFSCodeEnv::Extends>> {
-    let mut outExtends: Arc<NFSCodeEnv::Extends>;
+    let mut outExtends: Arc<NFSCodeEnv::Extends> = Arc::new(<NFSCodeEnv::Extends as ::std::default::Default>::default());
     let mut bc: Arc<Absyn::Path>;
     let mut redeclares: Arc<metamodelica::List<Arc<NFSCodeEnv::Redeclaration>>> = metamodelica::nil();
     let mut index: i32 = 0;

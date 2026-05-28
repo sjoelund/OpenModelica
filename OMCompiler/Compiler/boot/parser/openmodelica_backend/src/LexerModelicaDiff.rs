@@ -70,7 +70,7 @@ pub fn scanString(mut fileSource: ArcStr, mut fileName: ArcStr) -> Result<(Arc<m
 }
 
 pub fn action(mut act: i32, mut startSt: i32, mut mm_currSt: i32, mut mm_pos: i32, mut mm_sPos: i32, mut mm_ePos: i32, mut mm_linenr: i32, mut lineNrStart: i32, mut buffer: i32, mut fileNm: ArcStr, mut fileContents: ArcStr, mut inErrorTokens: Arc<metamodelica::List<Token>>) -> Result<(Token, i32, i32, Arc<metamodelica::List<Token>>)> {
-    let mut token: Token;
+    let mut token: Token = <Token as ::std::default::Default>::default();
     let mut mm_startSt: i32 = 0;
     let mut bufferRet: i32 = 0;
     let mut errorTokens: Arc<metamodelica::List<Token>> = inErrorTokens.clone();
@@ -80,502 +80,502 @@ pub fn action(mut act: i32, mut startSt: i32, mut mm_currSt: i32, mut mm_pos: i3
     bufferRet = 0;
     token = (match act.clone() {
         1 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::WHITESPACE.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         2 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::NEWLINE.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         3 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::UNSIGNED_REAL.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         4 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::UNSIGNED_REAL.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         5 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::UNSIGNED_REAL.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         6 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::ALGORITHM.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         7 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::AND.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         8 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::ANNOTATION.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         9 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::BLOCK.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         10 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::CLASS.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         11 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::CONNECT.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         12 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::CONNECTOR.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         13 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::CONSTANT.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         14 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::DISCRETE.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         15 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::DER.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         16 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::DEFINEUNIT.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         17 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::EACH.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         18 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::ELSE.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         19 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::ELSEIF.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         20 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::ELSEWHEN.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         21 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::END.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         22 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::ENUMERATION.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         23 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::EQUATION.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         24 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::ENCAPSULATED.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         25 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::EXPANDABLE.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         26 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::EXTENDS.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         27 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::CONSTRAINEDBY.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         28 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::EXTERNAL.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         29 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::FALSE.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         30 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::FINAL.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         31 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::FLOW.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         32 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::FOR.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         33 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::FUNCTION.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         34 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::IF.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         35 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::IMPORT.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         36 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::IN.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         37 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::INITIAL.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         38 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::INNER.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         39 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::INPUT.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         40 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::LOOP.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         41 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::MODEL.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         42 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::NOT.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         43 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::OUTER.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         44 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::OPERATOR.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         45 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::OVERLOAD.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         46 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::OR.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         47 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::OUTPUT.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         48 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::PACKAGE.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         49 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::PARAMETER.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         50 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::PARTIAL.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         51 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::PROTECTED.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         52 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::PUBLIC.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         53 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::RECORD.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         54 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::REDECLARE.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         55 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::REPLACEABLE.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         56 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::THEN.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         57 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::TRUE.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         58 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::TYPE.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         59 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::WHEN.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         60 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::WHILE.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         61 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::WITHIN.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         62 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::RETURN.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         63 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::BREAK.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         64 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::LPAR.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         65 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::RPAR.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         66 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::LBRACK.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         67 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::RBRACK.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         68 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::LBRACE.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         69 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::RBRACE.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         70 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::EQEQ.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         71 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::EQUALS.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         72 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::COMMA.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         73 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::ASSIGN.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         74 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::COLONCOLON.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         75 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::COLON.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         76 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::SEMICOLON.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         77 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::PURE.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         78 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::IMPURE.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         79 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::OPTIMIZATION.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         80 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::PLUS_EW.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         81 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::MINUS_EW.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         82 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::STAR_EW.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         83 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::SLASH_EW.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         84 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::POWER_EW.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         85 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::STAR.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         86 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::MINUS.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         87 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::PLUS.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         88 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::LESSEQ.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         89 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::LESSGT.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         90 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::LESS.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         91 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::GREATER.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         92 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::GREATEREQ.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         93 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::POWER.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         94 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::SLASH.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         95 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::SUBTYPEOF.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         96 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::STREAM.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         97 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::DOT.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         98 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::IDENT.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         99 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::IDENT.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
         100 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::UNSIGNED_INTEGER.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
         },
@@ -593,7 +593,7 @@ pub fn action(mut act: i32, mut startSt: i32, mut mm_currSt: i32, mut mm_pos: i3
             noToken.clone()
         },
         104 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             mm_startSt = 1;
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::STRING.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
@@ -612,7 +612,7 @@ pub fn action(mut act: i32, mut startSt: i32, mut mm_currSt: i32, mut mm_pos: i3
             noToken.clone()
         },
         108 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             mm_startSt = 1;
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::BLOCK_COMMENT.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
@@ -631,7 +631,7 @@ pub fn action(mut act: i32, mut startSt: i32, mut mm_currSt: i32, mut mm_pos: i3
             noToken.clone()
         },
         112 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             mm_startSt = 1;
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::LINE_COMMENT.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             tok.clone()
@@ -641,13 +641,13 @@ pub fn action(mut act: i32, mut startSt: i32, mut mm_currSt: i32, mut mm_pos: i3
             noToken.clone()
         },
         114 => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::_NO_TOKEN.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             errorTokens = cons(tok.clone(), errorTokens.clone());
             noToken.clone()
         },
         _ => {
-            let mut tok: Token;
+            let mut tok: Token = <Token as ::std::default::Default>::default();
             println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nLexer unknown rule, action=")); __mm_s.push_str(&*ArcStr::from(::std::format!("{}", act.clone()))); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
             tok = Token { fileName: (fileNm.clone()).clone(), id: TokenId::_NO_TOKEN.clone(), fileContents: (fileContents.clone()).clone(), byteOffset: mm_pos.clone() - buffer.clone(), length: buffer.clone(), lineNumberStart: lineNrStart.clone(), columnNumberStart: mm_ePos.clone() + 1, lineNumberEnd: mm_linenr.clone(), columnNumberEnd: mm_sPos.clone() + 1 };
             println!("{}", (printToken(tok.clone())?).clone());
@@ -769,6 +769,9 @@ impl PartialOrd for TokenId {
 impl Ord for TokenId {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering { (*self as i32).cmp(&(*other as i32)) }
 }
+impl Default for TokenId {
+    fn default() -> Self { Self::_NO_TOKEN }
+}
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Token {
@@ -781,6 +784,22 @@ pub struct Token {
     pub columnNumberStart: i32,
     pub lineNumberEnd: i32,
     pub columnNumberEnd: i32,
+}
+
+impl Default for Token {
+    fn default() -> Self {
+        Self {
+            fileName: Default::default(),
+            id: Default::default(),
+            fileContents: Default::default(),
+            byteOffset: Default::default(),
+            length: Default::default(),
+            lineNumberStart: Default::default(),
+            columnNumberStart: Default::default(),
+            lineNumberEnd: Default::default(),
+            columnNumberEnd: Default::default(),
+        }
+    }
 }
 
 pub type TOKEN = Token;
@@ -910,7 +929,7 @@ fn consume(mut cp: i32, mut tokens: Arc<metamodelica::List<Token>>, mut fileCont
     let mut buffer: i32 = 0;
     let mut states: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut errorTokens: Arc<metamodelica::List<Token>> = inErrorTokens.clone();
-    let mut tok: Token;
+    let mut tok: Token = <Token as ::std::default::Default>::default();
     let mut act: i32 = 0;
     let mut buffer2: i32 = 0;
     let mut c: i32 = 0;
@@ -1430,7 +1449,7 @@ pub fn deleteWhitespaceFollowedByEqualNonWhitespace(mut inRest: Arc<metamodelica
     let mut result: Arc<metamodelica::List<(Diff, Token)>> = metamodelica::nil();
     let mut head: (Diff, Token);
     let mut diff: Diff = Diff::Add;
-    let mut t: Token;
+    let mut t: Token = <Token as ::std::default::Default>::default();
     let mut id: TokenId = TokenId::_NO_TOKEN;
     let mut rest: Arc<metamodelica::List<(Diff, Token)>> = metamodelica::nil();
     let mut foundWS: bool = false;

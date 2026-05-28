@@ -66,7 +66,7 @@ pub type DAEHandler = (BackendDAEFunc::StructurallySingularSystemHandlerFunc, Ar
  Singular System check
  *****************************************/
 pub fn singularSystemCheck(mut nvars: i32, mut neqns: i32, mut isyst: Arc<BackendDAE::EqSystem>, mut inMatchingOptions: (BackendDAE::IndexReduction, BackendDAE::EquationConstraints), mut matchingAlgorithm: (BackendDAEFunc::matchingAlgorithmFunc, ArcStr), mut arg: (BackendDAE::StateOrder, metamodelica::Array<Arc<metamodelica::List<Arc<BackendDAE::Equation>>>>, metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<i32>, i32), mut ishared: Arc<BackendDAE::Shared>) -> Result<Arc<BackendDAE::EqSystem>> {
-    let mut outSyst: Arc<BackendDAE::EqSystem>;
+    let mut outSyst: Arc<BackendDAE::EqSystem> = Arc::new(<BackendDAE::EqSystem as ::std::default::Default>::default());
     outSyst = 'mc: {
         let __mc_input = (nvars.clone(), neqns.clone(), isyst.clone(), inMatchingOptions.clone(), matchingAlgorithm.clone(), arg.clone(), ishared.clone());
         if let Ok(__v) = (|| -> Result<_> {
@@ -140,7 +140,7 @@ fn singularSystemCheck1(mut nVars: i32, mut nEqns: i32, mut iSyst: Arc<BackendDA
     let mut ass1: metamodelica::Array<i32>;
     let mut ass2: metamodelica::Array<i32>;
     let mut matchingFunc: BackendDAEFunc::matchingAlgorithmFunc;
-    let mut syst: Arc<BackendDAE::EqSystem>;
+    let mut syst: Arc<BackendDAE::EqSystem> = Arc::new(<BackendDAE::EqSystem as ::std::default::Default>::default());
     let mut mapEqnIncRow: metamodelica::Array<Arc<metamodelica::List<i32>>>;
     let mut mapIncRowEqn: metamodelica::Array<i32>;
     let mut indexType: BackendDAE::IndexType = BackendDAE::IndexType::ABSOLUTE;
@@ -175,7 +175,7 @@ fn singularSystemCheck1(mut nVars: i32, mut nEqns: i32, mut iSyst: Arc<BackendDA
 }
 
 fn freeStateAssignments(mut inVar: BackendDAE::Var, mut inTpl: (i32, metamodelica::Array<i32>, metamodelica::Array<i32>)) -> Result<(BackendDAE::Var, (i32, metamodelica::Array<i32>, metamodelica::Array<i32>))> {
-    let mut outVar: BackendDAE::Var;
+    let mut outVar: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
     let mut outTpl: (i32, metamodelica::Array<i32>, metamodelica::Array<i32>);
     (outVar, outTpl) = (match (inVar.clone(), inTpl.clone()) {
         (mut var @ BackendDAE::Var { varKind: BackendDAE::VarKind::STATE { .. }, .. }, (mut index, mut ass1, mut ass2)) => {
@@ -201,7 +201,7 @@ fn foundSingularSystem(mut eqns: Arc<metamodelica::List<Arc<metamodelica::List<i
     let mut inAssignments2: metamodelica::Array<i32> = inAssignments2;
     let mut inArg: (BackendDAE::StateOrder, metamodelica::Array<Arc<metamodelica::List<Arc<BackendDAE::Equation>>>>, metamodelica::Array<Arc<metamodelica::List<i32>>>, metamodelica::Array<i32>, i32) = inArg;
     let mut mapIncRowEqn: metamodelica::Array<i32>;
-    let mut syst: Arc<BackendDAE::EqSystem>;
+    let mut syst: Arc<BackendDAE::EqSystem> = Arc::new(<BackendDAE::EqSystem as ::std::default::Default>::default());
     let mut source: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
     let mut n: i32 = 0;
     let mut unmatched: Arc<metamodelica::List<i32>> = metamodelica::nil();

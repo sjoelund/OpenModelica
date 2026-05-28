@@ -75,9 +75,9 @@ pub fn collectForLoops(mut varsIn: Arc<metamodelica::List<BackendDAE::Var>>, mut
     let mut ass1: metamodelica::Array<i32>;
     let mut ass2: metamodelica::Array<i32>;
     let mut idxs: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    let mut eqSys: Arc<BackendDAE::EqSystem>;
-    let mut shared: Arc<BackendDAE::Shared>;
-    let mut repl1: BackendVarTransform::VariableReplacements;
+    let mut eqSys: Arc<BackendDAE::EqSystem> = Arc::new(<BackendDAE::EqSystem as ::std::default::Default>::default());
+    let mut shared: Arc<BackendDAE::Shared> = Arc::new(<BackendDAE::Shared as ::std::default::Default>::default());
+    let mut repl1: BackendVarTransform::VariableReplacements = <BackendVarTransform::VariableReplacements as ::std::default::Default>::default();
     let mut cref: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
     let mut exp: Arc<DAE::Exp>;
     let mut scalarCrefs: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
@@ -919,7 +919,7 @@ fn buildBackendDAEForEquations(mut classEqs: Arc<metamodelica::List<Arc<BackendD
                     let mut rhs: Arc<DAE::Exp>;
                     let mut iterator: Arc<DAE::Exp>;
                     let mut source: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
-                    let mut attr: BackendDAE::EquationAttributes;
+                    let mut attr: BackendDAE::EquationAttributes = <BackendDAE::EquationAttributes as ::std::default::Default>::default();
                     let mut similarEqs: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
                     let mut foldEqs: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
                     let mut eq = (*eq).clone();
@@ -954,7 +954,7 @@ fn buildBackendDAEForEquations(mut classEqs: Arc<metamodelica::List<Arc<BackendD
                     let mut rhs: Arc<DAE::Exp>;
                     let mut iterator: Arc<DAE::Exp>;
                     let mut source: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
-                    let mut attr: BackendDAE::EquationAttributes;
+                    let mut attr: BackendDAE::EquationAttributes = <BackendDAE::EquationAttributes as ::std::default::Default>::default();
                     let mut similarEqs: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
                     let mut foldEqs: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
                     let mut crefs: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();

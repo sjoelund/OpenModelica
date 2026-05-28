@@ -100,6 +100,13 @@ pub enum Tag {
         attr: Arc<metamodelica::List<ArcStr>>,
     },
 }
+impl Default for Tag {
+    fn default() -> Self {
+        Self::ANKER {
+            name: Default::default(),
+        }
+    }
+}
 pub use self::Tag::{HEADING,HYPERLINK,ANKER,LINE,DIVISION,SCRIPT,SCRIPT_BODY,CANVAS};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -111,31 +118,41 @@ pub struct Document {
     pub body: Arc<metamodelica::List<Arc<Tag>>>,
 }
 
+impl Default for Document {
+    fn default() -> Self {
+        Self {
+            docType: Default::default(),
+            head: Default::default(),
+            body: Default::default(),
+        }
+    }
+}
+
 pub type DOCUMENT = Document;
 
 
 pub static emptyDocument: std::sync::LazyLock<Document> = std::sync::LazyLock::new(|| { Document { docType: (literal!("")).clone(), head: metamodelica::nil(), body: metamodelica::nil() } });
 
 fn emptyDocumentWithToggleFunktion() -> Result<Document> {
-    let mut outDoc: Document;
+    let mut outDoc: Document = <Document as ::std::default::Default>::default();
     outDoc = addScript((literal!("text/Javascript")).clone(), (literal!("function toggle(name) {\n   var element = document.getElementById(name);\n   if (element.style.display == \"none\") {\n      // show the div\n      element.style.display = \"block\";   \n   } else {\n      // hide the div\n      element.style.display = \"none\";\n      // reset element\n      element.reset();\n   }\n}\n\nfunction show(name) {\n   var element = document.getElementById(name);\n   if (element.style.display == \"none\") {\n      // show the div\n      element.style.display = \"block\";   \n   }\n   return true;\n}\n\n    ")).clone(), emptyDocument.clone())?;
     Ok(outDoc)
 }
 
 fn addScript(mut type_: ArcStr, mut script: ArcStr, mut inDoc: Document) -> Result<Document> {
-    let mut outDoc: Document;
+    let mut outDoc: Document = <Document as ::std::default::Default>::default();
     outDoc = addHeadTag(Arc::new(Tag::SCRIPT { type_: (type_.clone()).clone(), text: (script.clone()).clone() }), inDoc.clone())?;
     Ok(outDoc)
 }
 
 fn addScriptBody(mut type_: ArcStr, mut script: ArcStr, mut inDoc: Document) -> Result<Document> {
-    let mut outDoc: Document;
+    let mut outDoc: Document = <Document as ::std::default::Default>::default();
     outDoc = addBodyTag(Arc::new(Tag::SCRIPT_BODY { type_: (type_.clone()).clone(), text: (script.clone()).clone() }), inDoc.clone())?;
     Ok(outDoc)
 }
 
 fn addHeading(mut stage: i32, mut text: ArcStr, mut inDoc: Document) -> Result<Document> {
-    let mut outDoc: Document;
+    let mut outDoc: Document = <Document as ::std::default::Default>::default();
     outDoc = addBodyTag(Arc::new(Tag::HEADING { stage: stage.clone(), text: (text.clone()).clone() }), inDoc.clone())?;
     Ok(outDoc)
 }
@@ -147,7 +164,7 @@ fn addHeadingTag(mut stage: i32, mut text: ArcStr, mut inTags: Arc<metamodelica:
 }
 
 fn addHyperLink(mut href: ArcStr, mut title: ArcStr, mut text: ArcStr, mut inDoc: Document) -> Result<Document> {
-    let mut outDoc: Document;
+    let mut outDoc: Document = <Document as ::std::default::Default>::default();
     outDoc = addBodyTag(Arc::new(Tag::HYPERLINK { href: (href.clone()).clone(), title: (title.clone()).clone(), text: (text.clone()).clone() }), inDoc.clone())?;
     Ok(outDoc)
 }
@@ -165,7 +182,7 @@ fn addAnkerTag(mut name: ArcStr, mut inTags: Arc<metamodelica::List<Arc<Tag>>>) 
 }
 
 fn addLine(mut text: ArcStr, mut inDoc: Document) -> Result<Document> {
-    let mut outDoc: Document;
+    let mut outDoc: Document = <Document as ::std::default::Default>::default();
     outDoc = addBodyTag(Arc::new(Tag::LINE { text: (text.clone()).clone() }), inDoc.clone())?;
     Ok(outDoc)
 }
@@ -177,7 +194,7 @@ fn addLineTag(mut text: ArcStr, mut inTags: Arc<metamodelica::List<Arc<Tag>>>) -
 }
 
 fn addDivision(mut id: ArcStr, mut style: Arc<metamodelica::List<Style>>, mut tags: Arc<metamodelica::List<Arc<Tag>>>, mut inDoc: Document) -> Result<Document> {
-    let mut outDoc: Document;
+    let mut outDoc: Document = <Document as ::std::default::Default>::default();
     let mut t: Arc<metamodelica::List<Arc<Tag>>> = metamodelica::nil();
     t = tags.clone().reverse();
     outDoc = addBodyTag(Arc::new(Tag::DIVISION { id: (id.clone()).clone(), style: style.clone(), tags: t.clone() }), inDoc.clone())?;
@@ -193,7 +210,7 @@ fn addDivisionTag(mut id: ArcStr, mut style: Arc<metamodelica::List<Style>>, mut
 }
 
 fn addBodyTags(mut tags: Arc<metamodelica::List<Arc<Tag>>>, mut inDoc: Document) -> Result<Document> {
-    let mut outDoc: Document;
+    let mut outDoc: Document = <Document as ::std::default::Default>::default();
     let mut docType: ArcStr = arcstr::literal!("");
     let mut head: Arc<metamodelica::List<Arc<Tag>>> = metamodelica::nil();
     let mut body: Arc<metamodelica::List<Arc<Tag>>> = metamodelica::nil();
@@ -226,7 +243,7 @@ fn dumpDocument(mut inDoc: Document, mut name: ArcStr) -> Result<()> {
 }
 
 fn addHeadTag(mut tag: Arc<Tag>, mut inDoc: Document) -> Result<Document> {
-    let mut outDoc: Document;
+    let mut outDoc: Document = <Document as ::std::default::Default>::default();
     let mut docType: ArcStr = arcstr::literal!("");
     let mut head: Arc<metamodelica::List<Arc<Tag>>> = metamodelica::nil();
     let mut body: Arc<metamodelica::List<Arc<Tag>>> = metamodelica::nil();
@@ -239,7 +256,7 @@ fn addHeadTag(mut tag: Arc<Tag>, mut inDoc: Document) -> Result<Document> {
 }
 
 fn addBodyTag(mut tag: Arc<Tag>, mut inDoc: Document) -> Result<Document> {
-    let mut outDoc: Document;
+    let mut outDoc: Document = <Document as ::std::default::Default>::default();
     let mut docType: ArcStr = arcstr::literal!("");
     let mut head: Arc<metamodelica::List<Arc<Tag>>> = metamodelica::nil();
     let mut body: Arc<metamodelica::List<Arc<Tag>>> = metamodelica::nil();
@@ -317,7 +334,7 @@ fn dumpStyle(mut inStyle: Style) -> Result<ArcStr> {
 }
 
 pub fn dumpDAE(mut inDAE: Arc<BackendDAE::BackendDAE>, mut inHeader: ArcStr, mut inFilename: ArcStr) -> Result<()> {
-    let mut doc: Document;
+    let mut doc: Document = <Document as ::std::default::Default>::default();
     let mut r#str: ArcStr = arcstr::literal!("");
     let mut eqs: Arc<metamodelica::List<Arc<BackendDAE::EqSystem>>> = metamodelica::nil();
     let __pa0 = ::match_deref::match_deref! { match &(inDAE.clone()) {
@@ -344,12 +361,12 @@ fn dumpEqSystem(mut inEqSystem: Arc<BackendDAE::EqSystem>, mut inPrefixIdstr: Ar
     let mut prefixIdstr: ArcStr = arcstr::literal!("");
     let mut prefixId: ArcStr = arcstr::literal!("");
     let mut eqnsl: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
-    let mut vars1: BackendDAE::Variables;
+    let mut vars1: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
     let mut eqns: Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>;
     let mut m: Option<metamodelica::Array<Arc<metamodelica::List<i32>>>> = None;
     let mut mT: Option<metamodelica::Array<Arc<metamodelica::List<i32>>>> = None;
     let mut matching: Arc<BackendDAE::Matching> = Arc::new(BackendDAE::Matching::NO_MATCHING);
-    let mut doc: Document;
+    let mut doc: Document = <Document as ::std::default::Default>::default();
     let mut tags: Arc<metamodelica::List<Arc<Tag>>> = metamodelica::nil();
     let (__pa0, __pa1, __pa2, __pa3, __pa4) = ::match_deref::match_deref! { match &(inEqSystem.clone()) {
         Deref @ BackendDAE::EqSystem { matching: __pa0, mT: __pa1, m: __pa2, orderedEqs: __pa3, orderedVars: __pa4, .. } => (__pa0.clone(), __pa1.clone(), __pa2.clone(), __pa3.clone(), __pa4.clone()),
@@ -499,7 +516,7 @@ pub fn dumpMatrixHTML(mut m: metamodelica::Array<Arc<metamodelica::List<i32>>>, 
     let mut scripts: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
     let mut rowLabelScripts: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
     let mut colLabelScripts: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
-    let mut doc: Document;
+    let mut doc: Document = <Document as ::std::default::Default>::default();
     let mut canvas: Arc<Tag>;
     matrixMargin = 100;
     blockSize = 20;

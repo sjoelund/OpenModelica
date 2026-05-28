@@ -50,6 +50,7 @@ use crate::BackendDump;
 use crate::BackendEquation;
 use crate::BackendVariable;
 use openmodelica_frontend::ComponentReference;
+use openmodelica_frontend_dump::AvlTreePathFunction;
 use openmodelica_frontend_dump::ComponentReferenceBasics;
 use openmodelica_frontend_types::DAE;
 use openmodelica_susan::GraphML;
@@ -65,7 +66,7 @@ use openmodelica_util_datatypes_basic::List;
 pub fn dumpSystem(mut inSystem: Arc<BackendDAE::EqSystem>, mut inShared: Arc<BackendDAE::Shared>, mut inids: Option<metamodelica::Array<i32>>, mut filename: ArcStr, mut numberMode: bool) -> Result<()> {
     let _ = (::match_deref::match_deref! { match &((inSystem.clone(), inShared.clone(), inids.clone(), filename.clone(), numberMode.clone())) {
         (Deref @ BackendDAE::EqSystem { matching: Deref @ BackendDAE::Matching::NO_MATCHING, .. }, _, None, _, _) => {
-            let mut vars: BackendDAE::Variables;
+            let mut vars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
             let mut eqns: Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>;
             let mut m: metamodelica::Array<Arc<metamodelica::List<i32>>>;
             let mut graphInfo: GraphML::GraphInfo;
@@ -73,7 +74,7 @@ pub fn dumpSystem(mut inSystem: Arc<BackendDAE::EqSystem>, mut inShared: Arc<Bac
             let mut eqnsids: Arc<metamodelica::List<i32>> = metamodelica::nil();
             let mut neqns: i32 = 0;
             let mut mapIncRowEqn: metamodelica::Array<i32>;
-            let mut funcs; // TODO: local with unresolved type
+            let mut funcs: Arc<AvlTreePathFunction::Tree> = Arc::new(AvlTreePathFunction::Tree::EMPTY);
             vars = BackendVariable::daeVars(inSystem.clone());
             eqns = BackendEquation::getEqnsFromEqSystem(inSystem.clone());
             funcs = BackendDAEUtil::getFunctions(inShared.clone())?;
@@ -94,7 +95,7 @@ pub fn dumpSystem(mut inSystem: Arc<BackendDAE::EqSystem>, mut inShared: Arc<Bac
             ()
         },
         (Deref @ BackendDAE::EqSystem { matching: Deref @ BackendDAE::Matching::NO_MATCHING, mT: Some(_), m: Some(m), .. }, _, None, _, _) => {
-            let mut vars: BackendDAE::Variables;
+            let mut vars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
             let mut eqns: Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>;
             let mut graphInfo: GraphML::GraphInfo;
             let mut graph: i32 = 0;
@@ -119,7 +120,7 @@ pub fn dumpSystem(mut inSystem: Arc<BackendDAE::EqSystem>, mut inShared: Arc<Bac
             ()
         },
         (Deref @ BackendDAE::EqSystem { matching: Deref @ BackendDAE::Matching::MATCHING { comps: Deref @ metamodelica::List::Nil, ass2: vec2, ass1: vec1 }, .. }, _, None, _, _) => {
-            let mut vars: BackendDAE::Variables;
+            let mut vars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
             let mut eqns: Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>;
             let mut m: metamodelica::Array<Arc<metamodelica::List<i32>>>;
             let mut graphInfo: GraphML::GraphInfo;
@@ -128,7 +129,7 @@ pub fn dumpSystem(mut inSystem: Arc<BackendDAE::EqSystem>, mut inShared: Arc<Bac
             let mut neqns: i32 = 0;
             let mut mapIncRowEqn: metamodelica::Array<i32>;
             let mut eqnsflag: metamodelica::Array<bool>;
-            let mut funcs; // TODO: local with unresolved type
+            let mut funcs: Arc<AvlTreePathFunction::Tree> = Arc::new(AvlTreePathFunction::Tree::EMPTY);
             vars = BackendVariable::daeVars(inSystem.clone());
             eqns = BackendEquation::getEqnsFromEqSystem(inSystem.clone());
             funcs = BackendDAEUtil::getFunctions(inShared.clone())?;
@@ -149,7 +150,7 @@ pub fn dumpSystem(mut inSystem: Arc<BackendDAE::EqSystem>, mut inShared: Arc<Bac
             ()
         },
         (Deref @ BackendDAE::EqSystem { matching: Deref @ BackendDAE::Matching::MATCHING { comps: Deref @ metamodelica::List::Nil, ass2: vec2, .. }, .. }, _, Some(vec3), _, _) => {
-            let mut vars: BackendDAE::Variables;
+            let mut vars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
             let mut eqns: Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>;
             let mut m: metamodelica::Array<Arc<metamodelica::List<i32>>>;
             let mut graphInfo: GraphML::GraphInfo;
@@ -157,7 +158,7 @@ pub fn dumpSystem(mut inSystem: Arc<BackendDAE::EqSystem>, mut inShared: Arc<Bac
             let mut eqnsids: Arc<metamodelica::List<i32>> = metamodelica::nil();
             let mut neqns: i32 = 0;
             let mut mapIncRowEqn: metamodelica::Array<i32>;
-            let mut funcs; // TODO: local with unresolved type
+            let mut funcs: Arc<AvlTreePathFunction::Tree> = Arc::new(AvlTreePathFunction::Tree::EMPTY);
             vars = BackendVariable::daeVars(inSystem.clone());
             eqns = BackendEquation::getEqnsFromEqSystem(inSystem.clone());
             funcs = BackendDAEUtil::getFunctions(inShared.clone())?;
@@ -177,14 +178,14 @@ pub fn dumpSystem(mut inSystem: Arc<BackendDAE::EqSystem>, mut inShared: Arc<Bac
             ()
         },
         (Deref @ BackendDAE::EqSystem { matching: Deref @ BackendDAE::Matching::MATCHING { comps, .. }, .. }, _, None, _, _) => {
-            let mut vars: BackendDAE::Variables;
+            let mut vars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
             let mut m: metamodelica::Array<Arc<metamodelica::List<i32>>>;
             let mut mt: metamodelica::Array<Arc<metamodelica::List<i32>>>;
             let mut graphInfo: GraphML::GraphInfo;
             let mut graph: i32 = 0;
             let mut vec3: metamodelica::Array<i32>;
             let mut mapIncRowEqn: metamodelica::Array<i32>;
-            let mut funcs; // TODO: local with unresolved type
+            let mut funcs: Arc<AvlTreePathFunction::Tree> = Arc::new(AvlTreePathFunction::Tree::EMPTY);
             vars = BackendVariable::daeVars(inSystem.clone());
             let _ = BackendEquation::getEqnsFromEqSystem(inSystem.clone());
             funcs = BackendDAEUtil::getFunctions(inShared.clone())?;
@@ -206,7 +207,7 @@ pub fn dumpSystem(mut inSystem: Arc<BackendDAE::EqSystem>, mut inShared: Arc<Bac
 }
 
 fn addVarGraph(mut inVar: BackendDAE::Var, mut inTpl: (bool, i32, (GraphML::GraphInfo, i32))) -> Result<(BackendDAE::Var, (bool, i32, (GraphML::GraphInfo, i32)))> {
-    let mut outVar: BackendDAE::Var;
+    let mut outVar: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
     let mut outTpl: (bool, i32, (GraphML::GraphInfo, i32));
     (outVar, outTpl) = 'mc: {
         let __mc_input = (inVar.clone(), inTpl.clone());
@@ -270,7 +271,7 @@ fn addVarGraph(mut inVar: BackendDAE::Var, mut inTpl: (bool, i32, (GraphML::Grap
 }
 
 fn addVarGraphMatch(mut inVar: BackendDAE::Var, mut inTpl: (bool, i32, metamodelica::Array<i32>, (GraphML::GraphInfo, i32))) -> Result<(BackendDAE::Var, (bool, i32, metamodelica::Array<i32>, (GraphML::GraphInfo, i32)))> {
-    let mut outVar: BackendDAE::Var;
+    let mut outVar: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
     let mut outTpl: (bool, i32, metamodelica::Array<i32>, (GraphML::GraphInfo, i32));
     (outVar, outTpl) = 'mc: {
         let __mc_input = (inVar.clone(), inTpl.clone());

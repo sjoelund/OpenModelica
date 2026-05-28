@@ -1200,8 +1200,8 @@ pub fn crefToCStr(mut in_txt: Tpl::Text, mut in_a_cr: Arc<DAE::ComponentRef>, mu
             txt.clone()
         },
         (txt, i_cr, a_ix, a_isPre) => {
-            let mut ret_1: SimCodeVar::SimVar;
-            let mut ret_0: SimCode::SimCode;
+            let mut ret_1: SimCodeVar::SimVar = <SimCodeVar::SimVar as ::std::default::Default>::default();
+            let mut ret_0: SimCode::SimCode = <SimCode::SimCode as ::std::default::Default>::default();
             let mut txt = (*txt).clone();
             ret_0 = SimCodeUtil::getSimCode()?;
             ret_1 = SimCodeUtil::cref2simvar(i_cr.clone(), ret_0.clone())?;

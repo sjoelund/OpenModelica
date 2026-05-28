@@ -68,7 +68,7 @@ fn fun_46(mut in_txt: Tpl::Text, mut in_mArg: bool, mut in_a_outputs: Arc<metamo
     let mut out_txt: Tpl::Text;
     out_txt = (::match_deref::match_deref! { match &((in_txt.clone(), in_mArg.clone(), in_a_outputs.clone())) {
         (txt, false, a_outputs) => {
-            let mut ret_0: MidCode::Var;
+            let mut ret_0: MidCode::Var = <MidCode::Var as ::std::default::Default>::default();
             let mut txt = (*txt).clone();
             ret_0 = listHead(a_outputs.clone())?;
             txt = genVarType(txt.clone(), ret_0.clone())?;
@@ -314,7 +314,7 @@ fn fun_57(mut in_txt: Tpl::Text, mut in_mArg: bool, mut in_a_outputs: Arc<metamo
     let mut out_txt: Tpl::Text;
     out_txt = (::match_deref::match_deref! { match &((in_txt.clone(), in_mArg.clone(), in_a_outputs.clone())) {
         (txt, false, a_outputs) => {
-            let mut ret_0: MidCode::Var;
+            let mut ret_0: MidCode::Var = <MidCode::Var as ::std::default::Default>::default();
             let mut txt = (*txt).clone();
             ret_0 = listHead(a_outputs.clone())?;
             txt = genVarName(txt.clone(), ret_0.clone())?;
@@ -678,7 +678,7 @@ fn fun_75(mut in_txt: Tpl::Text, mut in_mArg: bool, mut in_a_outputs: Arc<metamo
     let mut out_txt: Tpl::Text;
     out_txt = (::match_deref::match_deref! { match &((in_txt.clone(), in_mArg.clone(), in_a_outputs.clone())) {
         (txt, false, a_outputs) => {
-            let mut ret_0: MidCode::Var;
+            let mut ret_0: MidCode::Var = <MidCode::Var as ::std::default::Default>::default();
             let mut txt = (*txt).clone();
             txt = Tpl::writeTok(txt.clone(), Arc::new(Tpl::StringToken::ST_STRING { value: (literal!("modelica_metatype out_")).clone() }))?;
             ret_0 = listHead(a_outputs.clone())?;
@@ -757,9 +757,9 @@ fn fun_79(mut in_txt: Tpl::Text, mut in_mArg: bool, mut in_a_outputs: Arc<metamo
     let mut out_txt: Tpl::Text;
     out_txt = (::match_deref::match_deref! { match &((in_txt.clone(), in_mArg.clone(), in_a_outputs.clone())) {
         (txt, false, a_outputs) => {
-            let mut ret_2: MidCode::Var;
+            let mut ret_2: MidCode::Var = <MidCode::Var as ::std::default::Default>::default();
             let mut txt_1: Tpl::Text;
-            let mut ret_0: MidCode::Var;
+            let mut ret_0: MidCode::Var = <MidCode::Var as ::std::default::Default>::default();
             let mut txt = (*txt).clone();
             ret_0 = listHead(a_outputs.clone())?;
             txt_1 = varBoxType(Tpl::emptyTxt.clone(), ret_0.clone())?;
@@ -902,8 +902,8 @@ fn fun_87(mut in_txt: Tpl::Text, mut in_mArg: Tpl::Text, mut in_a_outputs: Arc<m
             txt.clone()
         },
         (txt, _, a_outputs) => {
-            let mut ret_1: MidCode::Var;
-            let mut ret_0: MidCode::Var;
+            let mut ret_1: MidCode::Var = <MidCode::Var as ::std::default::Default>::default();
+            let mut ret_0: MidCode::Var = <MidCode::Var as ::std::default::Default>::default();
             let mut txt = (*txt).clone();
             txt = Tpl::writeTok(txt.clone(), Arc::new(Tpl::StringToken::ST_STRING { value: (literal!("out_")).clone() }))?;
             ret_0 = listHead(a_outputs.clone())?;
@@ -924,7 +924,7 @@ fn fun_88(mut in_txt: Tpl::Text, mut in_mArg: bool, mut in_a_outputs: Arc<metamo
     out_txt = (::match_deref::match_deref! { match &((in_txt.clone(), in_mArg.clone(), in_a_outputs.clone())) {
         (txt, false, a_outputs) => {
             let mut txt_1: Tpl::Text;
-            let mut ret_0: MidCode::Var;
+            let mut ret_0: MidCode::Var = <MidCode::Var as ::std::default::Default>::default();
             let mut txt = (*txt).clone();
             ret_0 = listHead(a_outputs.clone())?;
             txt_1 = varBoxType(Tpl::emptyTxt.clone(), ret_0.clone())?;
@@ -1010,7 +1010,7 @@ fn fun_93(mut in_txt: Tpl::Text, mut in_mArg: bool, mut in_a_outputs: Arc<metamo
     let mut out_txt: Tpl::Text;
     out_txt = (::match_deref::match_deref! { match &((in_txt.clone(), in_mArg.clone(), in_a_outputs.clone())) {
         (txt, false, a_outputs) => {
-            let mut ret_0: MidCode::Var;
+            let mut ret_0: MidCode::Var = <MidCode::Var as ::std::default::Default>::default();
             let mut txt = (*txt).clone();
             txt = Tpl::writeTok(txt.clone(), Arc::new(Tpl::StringToken::ST_STRING { value: (literal!("return out_")).clone() }))?;
             ret_0 = listHead(a_outputs.clone())?;
@@ -1278,7 +1278,7 @@ fn fun_104(mut in_txt: Tpl::Text, mut in_mArg: bool, mut in_a_outputs: Arc<metam
     let mut out_txt: Tpl::Text;
     out_txt = (::match_deref::match_deref! { match &((in_txt.clone(), in_mArg.clone(), in_a_outputs.clone())) {
         (txt, false, a_outputs) => {
-            let mut ret_0: MidCode::Var;
+            let mut ret_0: MidCode::Var = <MidCode::Var as ::std::default::Default>::default();
             let mut txt = (*txt).clone();
             ret_0 = listHead(a_outputs.clone())?;
             txt = genVarName(txt.clone(), ret_0.clone())?;

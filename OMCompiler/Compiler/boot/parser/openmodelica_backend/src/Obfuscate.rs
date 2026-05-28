@@ -85,6 +85,15 @@ pub struct Env {
     pub builtins: Builtins,
 }
 
+impl Default for Env {
+    fn default() -> Self {
+        Self {
+            mapping: Default::default(),
+            builtins: Default::default(),
+        }
+    }
+}
+
 pub type ENV = Env;
 
 
@@ -95,7 +104,7 @@ pub fn obfuscateProgram(mut program: Arc<metamodelica::List<Arc<SCode::Element>>
     let mut mapStr: ArcStr = arcstr::literal!("");
     let mut mapping: Mapping;
     let mut builtins: Builtins;
-    let mut env: Env;
+    let mut env: Env = <Env as ::std::default::Default>::default();
     mapping = UnorderedMap::new((std::sync::Arc::new(fnptr!(stringHashDjb2, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr) -> Result<i32> + 'static>), (std::sync::Arc::new(fnptr!(stringEqual, ArcStr, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>), 1);
     builtins = makeBuiltins()?;
     env = Env { mapping: mapping.clone(), builtins: builtins.clone() };
@@ -413,7 +422,7 @@ pub fn obfuscatePrefixes(mut prefixes: Arc<SCode::Prefixes>, mut env: Env) -> Re
 
 pub fn obfuscateReplaceable(mut repl: Arc<SCode::Replaceable>, mut env: Env) -> Result<Arc<SCode::Replaceable>> {
     let mut repl: Arc<SCode::Replaceable> = repl;
-    let mut cc: Arc<SCode::ConstrainClass>;
+    let mut cc: Arc<SCode::ConstrainClass> = Arc::new(<SCode::ConstrainClass as ::std::default::Default>::default());
     let () = (::match_deref::match_deref! { match &(repl.clone()) {
         Deref @ SCode::Replaceable::REPLACEABLE { cc: Some(cc) } => {
             let mut cc = (*cc).clone();

@@ -82,7 +82,7 @@ pub fn flattenClass(mut inClass: Arc<SCode::Element>, mut inEnv: Env) -> Result<
                 (Deref @ SCode::Element::CLASS { info, classDef: cdef, name, .. }, _) => {
                     let mut item: Item;
                     let mut env: Env = metamodelica::nil();
-                    let mut cls_env: Arc<NFSCodeEnv::Frame>;
+                    let mut cls_env: Arc<NFSCodeEnv::Frame> = Arc::new(<NFSCodeEnv::Frame as ::std::default::Default>::default());
                     let mut cls: Arc<SCode::Element>;
                     let mut cls_ty: NFSCodeEnv::ClassType = NFSCodeEnv::ClassType::BASIC_TYPE;
                     let mut cdef = (*cdef).clone();
@@ -173,7 +173,7 @@ fn flattenDerivedClassDef(mut inClassDef: Arc<SCode::ClassDef>, mut inEnv: Env, 
     let mut outClassDef: Arc<SCode::ClassDef>;
     let mut ty: Arc<Absyn::TypeSpec>;
     let mut mods: Arc<SCode::Mod> = Arc::new(SCode::Mod::NOMOD);
-    let mut attr: SCode::Attributes;
+    let mut attr: SCode::Attributes = <SCode::Attributes as ::std::default::Default>::default();
     let (__pa0, __pa1, __pa2) = ::match_deref::match_deref! { match &(inClassDef.clone()) {
         Deref @ SCode::ClassDef::DERIVED { typeSpec: __pa0, modifications: __pa1, attributes: __pa2 } => (__pa0.clone(), __pa1.clone(), __pa2.clone()),
         _ => bail!("pattern mismatch"),
@@ -231,8 +231,8 @@ fn flattenComponent(mut inComponent: Arc<SCode::Element>, mut inEnv: Env) -> Res
     let mut outComponent: Arc<SCode::Element>;
     let mut name: ArcStr = arcstr::literal!("");
     let mut io: Absyn::InnerOuter = Absyn::InnerOuter::INNER;
-    let mut prefixes: Arc<SCode::Prefixes>;
-    let mut attr: SCode::Attributes;
+    let mut prefixes: Arc<SCode::Prefixes> = Arc::new(<SCode::Prefixes as ::std::default::Default>::default());
+    let mut attr: SCode::Attributes = <SCode::Attributes as ::std::default::Default>::default();
     let mut type_spec: Arc<Absyn::TypeSpec>;
     let mut r#mod: Arc<SCode::Mod> = Arc::new(SCode::Mod::NOMOD);
     let mut cmt: Arc<SCode::Comment> = Arc::new(<SCode::Comment as ::std::default::Default>::default());
@@ -260,7 +260,7 @@ fn flattenComponent(mut inComponent: Arc<SCode::Element>, mut inEnv: Env) -> Res
 }
 
 fn flattenAttributes(mut inAttributes: SCode::Attributes, mut inEnv: Env, mut inInfo: SourceInfo) -> Result<SCode::Attributes> {
-    let mut outAttributes: SCode::Attributes;
+    let mut outAttributes: SCode::Attributes = <SCode::Attributes as ::std::default::Default>::default();
     let mut ad: Arc<metamodelica::List<Arc<Absyn::Subscript>>> = metamodelica::nil();
     let mut ct: SCode::ConnectorType = SCode::ConnectorType::FLOW;
     let mut prl: SCode::Parallelism = SCode::Parallelism::NON_PARALLEL;
@@ -365,7 +365,7 @@ fn traverseExp(mut inExp: Arc<Absyn::Exp>, mut inTuple: (Arc<metamodelica::List<
 }
 
 fn flattenConstraints(mut inConstraints: SCode::ConstraintSection, mut inEnv: Env, mut inInfo: SourceInfo) -> Result<SCode::ConstraintSection> {
-    let mut outConstraints: SCode::ConstraintSection;
+    let mut outConstraints: SCode::ConstraintSection = <SCode::ConstraintSection as ::std::default::Default>::default();
     let mut exps: Arc<metamodelica::List<Arc<Absyn::Exp>>> = metamodelica::nil();
     let SCode::CONSTRAINTS { constraints: __pa0 } = (inConstraints.clone()) else { bail!("pattern mismatch") };
     exps = __pa0.clone();
@@ -375,7 +375,7 @@ fn flattenConstraints(mut inConstraints: SCode::ConstraintSection, mut inEnv: En
 }
 
 fn flattenAlgorithm(mut inAlgorithm: Arc<SCode::AlgorithmSection>, mut inEnv: Env) -> Result<Arc<SCode::AlgorithmSection>> {
-    let mut outAlgorithm: Arc<SCode::AlgorithmSection>;
+    let mut outAlgorithm: Arc<SCode::AlgorithmSection> = Arc::new(<SCode::AlgorithmSection as ::std::default::Default>::default());
     let mut statements: Arc<metamodelica::List<Arc<SCode::Statement>>> = metamodelica::nil();
     let __pa0 = ::match_deref::match_deref! { match &(inAlgorithm.clone()) {
         Deref @ SCode::AlgorithmSection { statements: __pa0 } => __pa0.clone(),
@@ -458,7 +458,7 @@ fn flattenModOptExp(mut inOptExp: Option<Arc<Absyn::Exp>>, mut inEnv: Env, mut i
 }
 
 fn flattenSubMod(mut inSubMod: Arc<SCode::SubMod>, mut inEnv: Env, mut inInfo: SourceInfo) -> Result<Arc<SCode::SubMod>> {
-    let mut outSubMod: Arc<SCode::SubMod>;
+    let mut outSubMod: Arc<SCode::SubMod> = Arc::new(<SCode::SubMod as ::std::default::Default>::default());
     outSubMod = (::match_deref::match_deref! { match &((inSubMod.clone(), inEnv.clone(), inInfo.clone())) {
         (Deref @ SCode::SubMod { r#mod, ident }, _, _) => {
             let mut r#mod = (*r#mod).clone();

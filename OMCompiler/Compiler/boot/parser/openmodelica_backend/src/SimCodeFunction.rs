@@ -55,6 +55,7 @@ use openmodelica_ast_collections::HashTableStringToPath;
 use openmodelica_frontend::ComponentReference;
 use openmodelica_frontend::Types;
 use openmodelica_frontend_dump::AbsynUtil;
+use openmodelica_frontend_dump::AvlTreePathFunction;
 use openmodelica_frontend_dump::ComponentReferenceBasics;
 use openmodelica_frontend_dump::ExpressionBasics;
 use openmodelica_frontend_dump::TypesDump;
@@ -145,6 +146,17 @@ pub mod Function {
             visibility: SCode::Visibility,
             info: SourceInfo,
         },
+    }
+    impl Default for Function {
+        fn default() -> Self {
+            Self::RECORD_CONSTRUCTOR {
+                name: Default::default(),
+                funArgs: Default::default(),
+                locals: Default::default(),
+                visibility: Default::default(),
+                info: Default::default(),
+            }
+        }
     }
     pub use self::Function::{FUNCTION,PARALLEL_FUNCTION,KERNEL_FUNCTION,EXTERNAL_FUNCTION,RECORD_CONSTRUCTOR};
     pub fn toString(mut func: Arc<Function>) -> Result<ArcStr> {
@@ -259,6 +271,27 @@ pub struct MakefileParams {
     pub compileDir: ArcStr,
 }
 
+impl Default for MakefileParams {
+    fn default() -> Self {
+        Self {
+            ccompiler: Default::default(),
+            cxxcompiler: Default::default(),
+            linker: Default::default(),
+            exeext: Default::default(),
+            dllext: Default::default(),
+            omhome: Default::default(),
+            cflags: Default::default(),
+            ldflags: Default::default(),
+            runtimelibs: Default::default(),
+            includes: Default::default(),
+            libs: Default::default(),
+            libPaths: Default::default(),
+            platform: Default::default(),
+            compileDir: Default::default(),
+        }
+    }
+}
+
 pub type MAKEFILE_PARAMS = MakefileParams;
 
 
@@ -357,6 +390,16 @@ pub mod Variable {
             defaultValue: Option<Arc<DAE::Exp>>,
         },
     }
+    impl Default for Variable {
+        fn default() -> Self {
+            Self::FUNCTION_PTR {
+                name: Default::default(),
+                tys: Default::default(),
+                args: Default::default(),
+                defaultValue: Default::default(),
+            }
+        }
+    }
     pub use self::Variable::{VARIABLE,FUNCTION_PTR};
     pub fn toString(mut variable: Arc<Variable>) -> Result<ArcStr> {
         let mut r#str: ArcStr = literal!("");
@@ -419,13 +462,13 @@ impl PartialEq for Context {
             (Self::SIMULATION_CONTEXT { genDiscrete: __l_genDiscrete }, Self::SIMULATION_CONTEXT { genDiscrete: __r_genDiscrete }) => __l_genDiscrete == __r_genDiscrete,
             (Self::FUNCTION_CONTEXT { cref_prefix: __l_cref_prefix, is_parallel: __l_is_parallel }, Self::FUNCTION_CONTEXT { cref_prefix: __r_cref_prefix, is_parallel: __r_is_parallel }) => __l_cref_prefix == __r_cref_prefix && __l_is_parallel == __r_is_parallel,
             (Self::ALGLOOP_CONTEXT { genInitialisation: __l_genInitialisation, genJacobian: __l_genJacobian }, Self::ALGLOOP_CONTEXT { genInitialisation: __r_genInitialisation, genJacobian: __r_genJacobian }) => __l_genInitialisation == __r_genInitialisation && __l_genJacobian == __r_genJacobian,
-            (Self::JACOBIAN_CONTEXT { name: __l_name, jacHT: __l_jacHT }, Self::JACOBIAN_CONTEXT { name: __r_name, jacHT: __r_jacHT }) => __l_name == __r_name && std::sync::Arc::ptr_eq(__l_jacHT, __r_jacHT),
+            (Self::JACOBIAN_CONTEXT { name: __l_name, jacHT: __l_jacHT }, Self::JACOBIAN_CONTEXT { name: __r_name, jacHT: __r_jacHT }) => __l_name == __r_name && (match (__l_jacHT, __r_jacHT) { (Some(__lo), Some(__ro)) => (match (__lo, __ro) { ((__lt0, __lt1, __lt2, __lt3), (__rt0, __rt1, __rt2, __rt3)) => (__lt0 == __rt0) && (__lt1 == __rt1) && (__lt2 == __rt2) && (match (__lt3, __rt3) { ((__lt0, __lt1, __lt2, __lt3), (__rt0, __rt1, __rt2, __rt3)) => std::sync::Arc::ptr_eq(__lt0, __rt0) && std::sync::Arc::ptr_eq(__lt1, __rt1) && std::sync::Arc::ptr_eq(__lt2, __rt2) && std::sync::Arc::ptr_eq(__lt3, __rt3) }) }), (None, None) => true, _ => false }),
             (Self::OTHER_CONTEXT, Self::OTHER_CONTEXT) => true,
             (Self::ZEROCROSSINGS_CONTEXT, Self::ZEROCROSSINGS_CONTEXT) => true,
             (Self::OPTIMIZATION_CONTEXT, Self::OPTIMIZATION_CONTEXT) => true,
             (Self::FMI_CONTEXT, Self::FMI_CONTEXT) => true,
             (Self::DAE_MODE_CONTEXT, Self::DAE_MODE_CONTEXT) => true,
-            (Self::OMSI_CONTEXT { hashTable: __l_hashTable }, Self::OMSI_CONTEXT { hashTable: __r_hashTable }) => std::sync::Arc::ptr_eq(__l_hashTable, __r_hashTable),
+            (Self::OMSI_CONTEXT { hashTable: __l_hashTable }, Self::OMSI_CONTEXT { hashTable: __r_hashTable }) => (match (__l_hashTable, __r_hashTable) { (Some(__lo), Some(__ro)) => (match (__lo, __ro) { ((__lt0, __lt1, __lt2, __lt3), (__rt0, __rt1, __rt2, __rt3)) => (__lt0 == __rt0) && (__lt1 == __rt1) && (__lt2 == __rt2) && (match (__lt3, __rt3) { ((__lt0, __lt1, __lt2, __lt3), (__rt0, __rt1, __rt2, __rt3)) => std::sync::Arc::ptr_eq(__lt0, __rt0) && std::sync::Arc::ptr_eq(__lt1, __rt1) && std::sync::Arc::ptr_eq(__lt2, __rt2) && std::sync::Arc::ptr_eq(__lt3, __rt3) }) }), (None, None) => true, _ => false }),
             _ => false,
         }
     }
@@ -458,13 +501,13 @@ impl Ord for Context {
             (Self::SIMULATION_CONTEXT { genDiscrete: __l_genDiscrete }, Self::SIMULATION_CONTEXT { genDiscrete: __r_genDiscrete }) => __l_genDiscrete.cmp(__r_genDiscrete),
             (Self::FUNCTION_CONTEXT { cref_prefix: __l_cref_prefix, is_parallel: __l_is_parallel }, Self::FUNCTION_CONTEXT { cref_prefix: __r_cref_prefix, is_parallel: __r_is_parallel }) => __l_cref_prefix.cmp(__r_cref_prefix).then_with(|| __l_is_parallel.cmp(__r_is_parallel)),
             (Self::ALGLOOP_CONTEXT { genInitialisation: __l_genInitialisation, genJacobian: __l_genJacobian }, Self::ALGLOOP_CONTEXT { genInitialisation: __r_genInitialisation, genJacobian: __r_genJacobian }) => __l_genInitialisation.cmp(__r_genInitialisation).then_with(|| __l_genJacobian.cmp(__r_genJacobian)),
-            (Self::JACOBIAN_CONTEXT { name: __l_name, jacHT: __l_jacHT }, Self::JACOBIAN_CONTEXT { name: __r_name, jacHT: __r_jacHT }) => __l_name.cmp(__r_name).then_with(|| (std::sync::Arc::as_ptr(__l_jacHT) as *const ()).cmp(&(std::sync::Arc::as_ptr(__r_jacHT) as *const ()))),
+            (Self::JACOBIAN_CONTEXT { name: __l_name, jacHT: __l_jacHT }, Self::JACOBIAN_CONTEXT { name: __r_name, jacHT: __r_jacHT }) => __l_name.cmp(__r_name).then_with(|| (match (__l_jacHT, __r_jacHT) { (Some(__lo), Some(__ro)) => (match (__lo, __ro) { ((__lt0, __lt1, __lt2, __lt3), (__rt0, __rt1, __rt2, __rt3)) => __lt0.cmp(__rt0).then_with(|| __lt1.cmp(__rt1).then_with(|| __lt2.cmp(__rt2).then_with(|| (match (__lt3, __rt3) { ((__lt0, __lt1, __lt2, __lt3), (__rt0, __rt1, __rt2, __rt3)) => (std::sync::Arc::as_ptr(__lt0) as *const ()).cmp(&(std::sync::Arc::as_ptr(__rt0) as *const ())).then_with(|| (std::sync::Arc::as_ptr(__lt1) as *const ()).cmp(&(std::sync::Arc::as_ptr(__rt1) as *const ())).then_with(|| (std::sync::Arc::as_ptr(__lt2) as *const ()).cmp(&(std::sync::Arc::as_ptr(__rt2) as *const ())).then_with(|| (std::sync::Arc::as_ptr(__lt3) as *const ()).cmp(&(std::sync::Arc::as_ptr(__rt3) as *const ()))))) })))) }), (None, None) => std::cmp::Ordering::Equal, (None, Some(_)) => std::cmp::Ordering::Less, (Some(_), None) => std::cmp::Ordering::Greater })),
             (Self::OTHER_CONTEXT, Self::OTHER_CONTEXT) => std::cmp::Ordering::Equal,
             (Self::ZEROCROSSINGS_CONTEXT, Self::ZEROCROSSINGS_CONTEXT) => std::cmp::Ordering::Equal,
             (Self::OPTIMIZATION_CONTEXT, Self::OPTIMIZATION_CONTEXT) => std::cmp::Ordering::Equal,
             (Self::FMI_CONTEXT, Self::FMI_CONTEXT) => std::cmp::Ordering::Equal,
             (Self::DAE_MODE_CONTEXT, Self::DAE_MODE_CONTEXT) => std::cmp::Ordering::Equal,
-            (Self::OMSI_CONTEXT { hashTable: __l_hashTable }, Self::OMSI_CONTEXT { hashTable: __r_hashTable }) => (std::sync::Arc::as_ptr(__l_hashTable) as *const ()).cmp(&(std::sync::Arc::as_ptr(__r_hashTable) as *const ())),
+            (Self::OMSI_CONTEXT { hashTable: __l_hashTable }, Self::OMSI_CONTEXT { hashTable: __r_hashTable }) => (match (__l_hashTable, __r_hashTable) { (Some(__lo), Some(__ro)) => (match (__lo, __ro) { ((__lt0, __lt1, __lt2, __lt3), (__rt0, __rt1, __rt2, __rt3)) => __lt0.cmp(__rt0).then_with(|| __lt1.cmp(__rt1).then_with(|| __lt2.cmp(__rt2).then_with(|| (match (__lt3, __rt3) { ((__lt0, __lt1, __lt2, __lt3), (__rt0, __rt1, __rt2, __rt3)) => (std::sync::Arc::as_ptr(__lt0) as *const ()).cmp(&(std::sync::Arc::as_ptr(__rt0) as *const ())).then_with(|| (std::sync::Arc::as_ptr(__lt1) as *const ()).cmp(&(std::sync::Arc::as_ptr(__rt1) as *const ())).then_with(|| (std::sync::Arc::as_ptr(__lt2) as *const ()).cmp(&(std::sync::Arc::as_ptr(__rt2) as *const ())).then_with(|| (std::sync::Arc::as_ptr(__lt3) as *const ()).cmp(&(std::sync::Arc::as_ptr(__rt3) as *const ()))))) })))) }), (None, None) => std::cmp::Ordering::Equal, (None, Some(_)) => std::cmp::Ordering::Less, (Some(_), None) => std::cmp::Ordering::Greater }),
             _ => unreachable!("variant-index equality already implies same variant"),
         }
     }
@@ -492,7 +535,7 @@ impl std::fmt::Debug for Context {
             Self::JACOBIAN_CONTEXT { name: __d_name, jacHT: __d_jacHT } => {
                 let mut __ds = __f.debug_struct("JACOBIAN_CONTEXT");
                 __ds.field("name", __d_name);
-                __ds.field("jacHT", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(__d_jacHT)));
+                __ds.field("jacHT", &format_args!("<dyn-fn-container@{:p}>", __d_jacHT as *const _));
                 __ds.finish()
             }
             Self::OTHER_CONTEXT => __f.debug_struct("OTHER_CONTEXT").finish(),
@@ -502,13 +545,16 @@ impl std::fmt::Debug for Context {
             Self::DAE_MODE_CONTEXT => __f.debug_struct("DAE_MODE_CONTEXT").finish(),
             Self::OMSI_CONTEXT { hashTable: __d_hashTable } => {
                 let mut __ds = __f.debug_struct("OMSI_CONTEXT");
-                __ds.field("hashTable", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(__d_hashTable)));
+                __ds.field("hashTable", &format_args!("<dyn-fn-container@{:p}>", __d_hashTable as *const _));
                 __ds.finish()
             }
         }
     }
 }
 
+impl Default for Context {
+    fn default() -> Self { Self::OTHER_CONTEXT }
+}
 pub use self::Context::{SIMULATION_CONTEXT,FUNCTION_CONTEXT,ALGLOOP_CONTEXT,JACOBIAN_CONTEXT,OTHER_CONTEXT,ZEROCROSSINGS_CONTEXT,OPTIMIZATION_CONTEXT,FMI_CONTEXT,DAE_MODE_CONTEXT,OMSI_CONTEXT};
 
 pub const fn contextSimulationNonDiscrete() -> Context { Context::SIMULATION_CONTEXT { genDiscrete: false } }
@@ -554,7 +600,7 @@ pub fn translateFunctions(mut program: Absyn::Program, mut name: ArcStr, mut opt
             let mut libs: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
             let mut libPaths: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
             let mut includeDirs: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
-            let mut makefileParams: MakefileParams;
+            let mut makefileParams: MakefileParams = <MakefileParams as ::std::default::Default>::default();
             let mut fnCode: FunctionCode;
             let mut extraRecordDecls: Arc<metamodelica::List<RecordDeclaration>> = metamodelica::nil();
             let mut literals: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
@@ -592,7 +638,7 @@ pub fn translateFunctions(mut program: Absyn::Program, mut name: ArcStr, mut opt
             let mut libs: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
             let mut libPaths: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
             let mut includeDirs: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
-            let mut makefileParams: MakefileParams;
+            let mut makefileParams: MakefileParams = <MakefileParams as ::std::default::Default>::default();
             let mut fnCode: FunctionCode;
             let mut extraRecordDecls: Arc<metamodelica::List<RecordDeclaration>> = metamodelica::nil();
             let mut literals: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
@@ -670,5 +716,14 @@ fn removeThreadDataFunction(mut inFuncs: Arc<metamodelica::List<Arc<Function::Fu
         _ => bail!("match: no arm matched"),
     } });
     Ok(outFuncs)
+}
+
+pub fn getCalledFunctionsInFunction(mut path: Arc<Absyn::Path>, mut funcs: Arc<AvlTreePathFunction::Tree>) -> Result<Arc<metamodelica::List<Arc<Absyn::Path>>>> {
+    let mut outPaths: Arc<metamodelica::List<Arc<Absyn::Path>>> = metamodelica::nil();
+    let mut ht: (metamodelica::Array<Arc<metamodelica::List<(ArcStr, i32)>>>, (i32, i32, metamodelica::Array<Option<(ArcStr, Arc<Absyn::Path>)>>), i32, (HashTableStringToPath::FuncHashCref, HashTableStringToPath::FuncCrefEqual, HashTableStringToPath::FuncCrefStr, HashTableStringToPath::FuncExpStr));
+    ht = HashTableStringToPath::emptyHashTable();
+    ht = SimCodeFunctionUtil::getCalledFunctionsInFunction2(path.clone(), AbsynUtil::pathStringNoQual(path.clone(), (literal!(".")).clone(), true, false)?, ht.clone(), funcs.clone())?;
+    outPaths = BaseHashTable::hashTableValueList(ht.clone());
+    Ok(outPaths)
 }
 

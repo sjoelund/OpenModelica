@@ -65,6 +65,15 @@ pub struct SpecUnit {
     pub units: Arc<metamodelica::List<MMath::Rational>>,
 }
 
+impl Default for SpecUnit {
+    fn default() -> Self {
+        Self {
+            typeParameters: Default::default(),
+            units: Default::default(),
+        }
+    }
+}
+
 pub type SPECUNIT = SpecUnit;
 
 
@@ -74,6 +83,15 @@ pub struct TypeParameter {
     pub name: ArcStr,
     /// indx in Store
     pub indx: i32,
+}
+
+impl Default for TypeParameter {
+    fn default() -> Self {
+        Self {
+            name: Default::default(),
+            indx: Default::default(),
+        }
+    }
 }
 
 pub type TYPEPARAMETER = TypeParameter;
@@ -88,6 +106,9 @@ pub enum Unit {
     },
     /// Unpspecified unit means that the unit is unknown and should be inferred
     UNSPECIFIED,
+}
+impl Default for Unit {
+    fn default() -> Self { Self::UNSPECIFIED }
 }
 pub use self::Unit::{SPECIFIED,UNSPECIFIED};
 
@@ -168,6 +189,15 @@ pub struct Store {
     pub numElts: i32,
 }
 
+impl Default for Store {
+    fn default() -> Self {
+        Self {
+            storeVector: Default::default(),
+            numElts: Default::default(),
+        }
+    }
+}
+
 pub type STORE = Store;
 
 
@@ -187,7 +217,7 @@ pub enum InstStore {
 impl PartialEq for InstStore {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Self::INSTSTORE { store: __l_store, ht: __l_ht, checkResult: __l_checkResult }, Self::INSTSTORE { store: __r_store, ht: __r_ht, checkResult: __r_checkResult }) => __l_store == __r_store && std::sync::Arc::ptr_eq(__l_ht, __r_ht) && __l_checkResult == __r_checkResult,
+            (Self::INSTSTORE { store: __l_store, ht: __l_ht, checkResult: __l_checkResult }, Self::INSTSTORE { store: __r_store, ht: __r_ht, checkResult: __r_checkResult }) => __l_store == __r_store && (match (__l_ht, __r_ht) { ((__lt0, __lt1, __lt2, __lt3), (__rt0, __rt1, __rt2, __rt3)) => (__lt0 == __rt0) && (__lt1 == __rt1) && (__lt2 == __rt2) && (match (__lt3, __rt3) { ((__lt0, __lt1, __lt2, __lt3), (__rt0, __rt1, __rt2, __rt3)) => std::sync::Arc::ptr_eq(__lt0, __rt0) && std::sync::Arc::ptr_eq(__lt1, __rt1) && std::sync::Arc::ptr_eq(__lt2, __rt2) && std::sync::Arc::ptr_eq(__lt3, __rt3) }) }) && __l_checkResult == __r_checkResult,
             (Self::NOSTORE, Self::NOSTORE) => true,
             _ => false,
         }
@@ -210,7 +240,7 @@ impl Ord for InstStore {
             non_eq => return non_eq,
         }
         match (self, other) {
-            (Self::INSTSTORE { store: __l_store, ht: __l_ht, checkResult: __l_checkResult }, Self::INSTSTORE { store: __r_store, ht: __r_ht, checkResult: __r_checkResult }) => __l_store.cmp(__r_store).then_with(|| (std::sync::Arc::as_ptr(__l_ht) as *const ()).cmp(&(std::sync::Arc::as_ptr(__r_ht) as *const ())).then_with(|| __l_checkResult.cmp(__r_checkResult))),
+            (Self::INSTSTORE { store: __l_store, ht: __l_ht, checkResult: __l_checkResult }, Self::INSTSTORE { store: __r_store, ht: __r_ht, checkResult: __r_checkResult }) => __l_store.cmp(__r_store).then_with(|| (match (__l_ht, __r_ht) { ((__lt0, __lt1, __lt2, __lt3), (__rt0, __rt1, __rt2, __rt3)) => __lt0.cmp(__rt0).then_with(|| __lt1.cmp(__rt1).then_with(|| __lt2.cmp(__rt2).then_with(|| (match (__lt3, __rt3) { ((__lt0, __lt1, __lt2, __lt3), (__rt0, __rt1, __rt2, __rt3)) => (std::sync::Arc::as_ptr(__lt0) as *const ()).cmp(&(std::sync::Arc::as_ptr(__rt0) as *const ())).then_with(|| (std::sync::Arc::as_ptr(__lt1) as *const ()).cmp(&(std::sync::Arc::as_ptr(__rt1) as *const ())).then_with(|| (std::sync::Arc::as_ptr(__lt2) as *const ()).cmp(&(std::sync::Arc::as_ptr(__rt2) as *const ())).then_with(|| (std::sync::Arc::as_ptr(__lt3) as *const ()).cmp(&(std::sync::Arc::as_ptr(__rt3) as *const ()))))) })))) }).then_with(|| __l_checkResult.cmp(__r_checkResult))),
             (Self::NOSTORE, Self::NOSTORE) => std::cmp::Ordering::Equal,
             _ => unreachable!("variant-index equality already implies same variant"),
         }
@@ -222,7 +252,7 @@ impl std::fmt::Debug for InstStore {
             Self::INSTSTORE { store: __d_store, ht: __d_ht, checkResult: __d_checkResult } => {
                 let mut __ds = __f.debug_struct("INSTSTORE");
                 __ds.field("store", __d_store);
-                __ds.field("ht", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(__d_ht)));
+                __ds.field("ht", &format_args!("<dyn-fn-container@{:p}>", __d_ht as *const _));
                 __ds.field("checkResult", __d_checkResult);
                 __ds.finish()
             }
@@ -231,6 +261,9 @@ impl std::fmt::Debug for InstStore {
     }
 }
 
+impl Default for InstStore {
+    fn default() -> Self { Self::NOSTORE }
+}
 pub use self::InstStore::{INSTSTORE,NOSTORE};
 
 pub const fn noStore() -> InstStore { crate::UnitAbsyn::InstStore::NOSTORE }

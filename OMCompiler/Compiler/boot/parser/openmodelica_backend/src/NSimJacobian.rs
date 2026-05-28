@@ -548,8 +548,8 @@ pub mod SimJacobian {
     }
 
     pub fn convert(mut simJac: Arc<SimJacobian>) -> Result<Arc<OldSimCode::JacobianMatrix>> {
-        let mut oldJac: Arc<OldSimCode::JacobianMatrix>;
-        let mut oldJacCol: Arc<OldSimCode::JacobianColumn>;
+        let mut oldJac: Arc<OldSimCode::JacobianMatrix> = Arc::new(<OldSimCode::JacobianMatrix as ::std::default::Default>::default());
+        let mut oldJacCol: Arc<OldSimCode::JacobianColumn> = Arc::new(<OldSimCode::JacobianColumn as ::std::default::Default>::default());
         oldJac = (::match_deref::match_deref! { match &(simJac.clone()) {
         Deref @ SimJacobian { .. } => {
             oldJacCol = Arc::new(OldSimCode::JacobianColumn { constantEqns: {

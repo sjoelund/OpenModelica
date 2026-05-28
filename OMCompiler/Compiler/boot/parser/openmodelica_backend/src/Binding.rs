@@ -607,7 +607,7 @@ fn applyModifierPreferred(mut comps: Arc<metamodelica::List<Arc<Absyn::Component
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ metamodelica::List::Cons { head: Deref @ Absyn::ComponentItem { component: Absyn::Component { name, arrayDim, modification: _ }, condition, comment }, tail: _ } => {
-                    let mut cnew: Arc<Absyn::ComponentItem>;
+                    let mut cnew: Arc<Absyn::ComponentItem> = Arc::new(<Absyn::ComponentItem as ::std::default::Default>::default());
                     let true = (typeSp.clone() == name.clone()) else { bail!("pattern mismatch") };
                     cnew = Arc::new(Absyn::ComponentItem { component: Absyn::Component { name: (name.clone()).clone(), arrayDim: arrayDim.clone(), modification: Some(Arc::new(Absyn::Modification { elementArgLst: buildComponentModifiers(instance_name.clone(), exp.clone())?, eqMod: Arc::new(openmodelica_ast::Absyn::EqMod::NOMOD) })) }, condition: condition.clone(), comment: comment.clone() });
                     Ok(list![cnew.clone()])
@@ -684,7 +684,7 @@ fn applyModifier(mut comps: Arc<metamodelica::List<Arc<Absyn::ComponentItem>>>, 
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ metamodelica::List::Cons { head: Deref @ Absyn::ComponentItem { component: Absyn::Component { name, arrayDim, modification: _ }, condition, comment }, tail: _ } => {
-                    let mut cnew: Arc<Absyn::ComponentItem>;
+                    let mut cnew: Arc<Absyn::ComponentItem> = Arc::new(<Absyn::ComponentItem as ::std::default::Default>::default());
                     let mut new_name: ArcStr = arcstr::literal!("");
                     new_name = (if (newName.clone()) {{ let mut __mm_s = String::new(); __mm_s.push_str(&*name.clone()); __mm_s.push_str(&*literal!("_autogen_bind_")); __mm_s.push_str(&*intString(counter.clone())); ArcStr::from(__mm_s) }} else {name.clone()}).clone();
                     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("**** Applying modifier ")); __mm_s.push_str(&*new_name.clone()); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());

@@ -214,7 +214,7 @@ fn qualifyExtendsList(mut inExtends: Arc<metamodelica::List<Arc<NFSCodeEnv::Exte
 }
 
 fn qualifyExtends(mut inExtends: Extends, mut inEnv: Env, mut inExtendsTable: ExtendsTableArray) -> Result<Extends> {
-    let mut outExtends: Extends;
+    let mut outExtends: Extends = Arc::new(<NFSCodeEnv::Extends as ::std::default::Default>::default());
     outExtends = 'mc: {
         let __mc_input = (inExtends.clone(), inEnv.clone(), inExtendsTable.clone());
         if let Ok(__v) = (|| -> Result<_> {
@@ -229,7 +229,7 @@ fn qualifyExtends(mut inExtends: Extends, mut inEnv: Env, mut inExtendsTable: Ex
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (_, _, _) => {
-                    let mut ext: Extends;
+                    let mut ext: Extends = Arc::new(<NFSCodeEnv::Extends as ::std::default::Default>::default());
                     let __pa0 = ::match_deref::match_deref! { match &(qualifyExtends2(inExtends.clone(), inEnv.clone(), inExtendsTable.clone())?) {
                         Some(__pa0) => __pa0.clone(),
                         _ => bail!("pattern mismatch"),
@@ -270,7 +270,7 @@ fn qualifyExtends2(mut inExtends: Extends, mut inEnv: Env, mut inExtendsTable: E
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ NFSCodeEnv::Extends { baseClass: bc, redeclareModifiers: rl, index, info }, _, _) => {
-                    let mut ext: Extends;
+                    let mut ext: Extends = Arc::new(<NFSCodeEnv::Extends as ::std::default::Default>::default());
                     let mut env: Env = metamodelica::nil();
                     let mut bc = (*bc).clone();
                     addUnqualifiedToTable(inExtends.clone(), index.clone(), inExtendsTable.clone())?;
@@ -958,7 +958,7 @@ fn update2(mut inEnv: Env) -> Result<Env> {
     let mut tree: Arc<NFSCodeEnv::EnvTree::Tree> = Arc::new(NFSCodeEnv::EnvTree::Tree::EMPTY);
     let mut bcl: Arc<metamodelica::List<Arc<NFSCodeEnv::Extends>>> = metamodelica::nil();
     let mut re: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
-    let mut imps: NFSCodeEnv::ImportTable;
+    let mut imps: NFSCodeEnv::ImportTable = <NFSCodeEnv::ImportTable as ::std::default::Default>::default();
     let mut iu: Option<Mutable::Mutable<bool>> = None;
     let (__pa0, __pa1, __pa2, __pa3, __pa4, __pa5, __pa6, __pa7) = ::match_deref::match_deref! { match &(inEnv.clone()) {
         Deref @ metamodelica::List::Cons { head: Deref @ NFSCodeEnv::Frame { name: __pa0, frameType: __pa1, clsAndVars: __pa2, extendsTable: Deref @ NFSCodeEnv::ExtendsTable { baseClasses: __pa3, redeclaredElements: __pa4, classExtendsInfo: _ }, importTable: __pa5, isUsed: __pa6 }, tail: __pa7 } => (__pa0.clone(), __pa1.clone(), __pa2.clone(), __pa3.clone(), __pa4.clone(), __pa5.clone(), __pa6.clone(), __pa7.clone()),
@@ -1153,7 +1153,7 @@ fn addClassExtendsInfoToEnv(mut inClassExtends: Arc<SCode::Element>, mut inEnv: 
                 (_, _) => {
                     let mut bcl: Arc<metamodelica::List<Arc<NFSCodeEnv::Extends>>> = metamodelica::nil();
                     let mut re: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
-                    let mut ext: Arc<NFSCodeEnv::ExtendsTable>;
+                    let mut ext: Arc<NFSCodeEnv::ExtendsTable> = Arc::new(<NFSCodeEnv::ExtendsTable as ::std::default::Default>::default());
                     let (__pa0, __pa1) = ::match_deref::match_deref! { match &(NFSCodeEnv::getEnvExtendsTable(inEnv.clone())?) {
                         Deref @ NFSCodeEnv::ExtendsTable { baseClasses: __pa0, redeclaredElements: __pa1, classExtendsInfo: None } => (__pa0.clone(), __pa1.clone()),
                         _ => bail!("pattern mismatch"),

@@ -151,7 +151,7 @@ pub fn modelDescriptionXml(mut in_txt: Tpl::Text, mut in_a_simCode: SimCode::Sim
             let mut l_numberOfEventIndicators: Tpl::Text;
             let mut l_numberOfContinuousStates: Tpl::Text;
             let mut l_variableNamingConvention: Tpl::Text;
-            let mut ret_8: Util::DateTime;
+            let mut ret_8: Util::DateTime = <Util::DateTime as ::std::default::Default>::default();
             let mut l_generationDateAndTime: Tpl::Text;
             let mut l_version: Tpl::Text;
             let mut l_author: Tpl::Text;

@@ -99,7 +99,7 @@ use openmodelica_util_datatypes_basic::Pointer;
 // =========================================================================
 //                      MAIN ROUTINE, PLEASE DO NOT CHANGE
 // =========================================================================
-pub fn getModule() -> Result<Module::eventsInterface> {
+pub fn getModule() -> Result<Arc<dyn ::std::ops::Fn(Arc<VarData::VarData>, Arc<EqData::EqData>, Arc<EventInfo::EventInfo>, Arc<UnorderedMap::UnorderedMap<Arc<Path>, Arc<Function::Function>>>) -> Result<(Arc<VarData::VarData>, Arc<EqData::EqData>, Arc<EventInfo::EventInfo>)> + 'static>> {
     let mut func: Module::eventsInterface;
     let mut flag: ArcStr = literal!("default");
     func = (::match_deref::match_deref! { match &(flag.clone()) {
@@ -125,6 +125,17 @@ pub mod EventInfo {
         pub state_map: Arc<UnorderedMap::UnorderedMap<Arc<Condition::Condition>, Arc<StateEvent::StateEvent>>>,
         /// stores the number of math function that trigger events e.g. floor, ceil, integer, ...
         pub numberMathEvents: i32,
+    }
+
+    impl Default for EventInfo {
+        fn default() -> Self {
+            Self {
+                time_set: Default::default(),
+                time_map: Default::default(),
+                state_map: Default::default(),
+                numberMathEvents: Default::default(),
+            }
+        }
     }
 
     pub type EVENT_INFO = EventInfo;
@@ -168,7 +179,7 @@ pub mod EventInfo {
     }
 
     pub fn create(mut bucket: Arc<Bucket>, mut variables: Arc<VariablePointers::VariablePointers>, mut idx: Pointer::Pointer<i32>) -> Result<(Arc<EventInfo>, Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>>, Arc<metamodelica::List<Pointer::Pointer<Arc<Equation::Equation>>>>)> {
-        let mut eventInfo: Arc<EventInfo>;
+        let mut eventInfo: Arc<EventInfo> = Arc::new(<EventInfo as ::std::default::Default>::default());
         let mut auxiliary_vars: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = metamodelica::nil();
         let mut auxiliary_eqns: Arc<metamodelica::List<Pointer::Pointer<Arc<Equation::Equation>>>> = metamodelica::nil();
         let mut cond: Arc<Condition::Condition> = Arc::new(<Condition::Condition as ::std::default::Default>::default());
@@ -229,7 +240,7 @@ pub mod EventInfo {
     }
 
     pub fn empty() -> Arc<EventInfo> {
-        let mut eventInfo: Arc<EventInfo>;
+        let mut eventInfo: Arc<EventInfo> = Arc::new(<EventInfo as ::std::default::Default>::default());
         eventInfo = Arc::new(EventInfo { numberMathEvents: 0, state_map: UnorderedMap::new((std::sync::Arc::new(fnptr!(Condition::hash, Arc<Condition::Condition>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Condition::Condition>) -> Result<i32> + 'static>), (std::sync::Arc::new(fnptr!(Condition::isEqual, Arc<Condition::Condition>, Arc<Condition::Condition>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Condition::Condition>, Arc<Condition::Condition>) -> Result<bool> + 'static>), 1), time_map: UnorderedMap::new((std::sync::Arc::new(fnptr!(Condition::hash, Arc<Condition::Condition>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Condition::Condition>) -> Result<i32> + 'static>), (std::sync::Arc::new(fnptr!(Condition::isEqual, Arc<Condition::Condition>, Arc<Condition::Condition>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Condition::Condition>, Arc<Condition::Condition>) -> Result<bool> + 'static>), 1), time_set: UnorderedSet::new((std::sync::Arc::new(fnptr!(TimeEvent::hash, Arc<TimeEvent::TimeEvent>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<TimeEvent::TimeEvent>) -> Result<i32> + 'static>), (std::sync::Arc::new(TimeEvent::isEqual) as std::sync::Arc<dyn ::std::ops::Fn(Arc<TimeEvent::TimeEvent>, Arc<TimeEvent::TimeEvent>) -> Result<bool> + 'static>), 13) });
         eventInfo
     }
@@ -290,6 +301,14 @@ pub mod TimeEvent {
             /// equidistant intervals
             interval: Arc<Expression::NFExpression>,
         },
+    }
+    impl Default for TimeEvent {
+        fn default() -> Self {
+            Self::SINGLE {
+                index: Default::default(),
+                trigger: Default::default(),
+            }
+        }
     }
     pub use self::TimeEvent::{SINGLE,SAMPLE};
     pub fn toString(mut timeEvent: Arc<TimeEvent>, mut printIndex: bool) -> Result<ArcStr> {
@@ -677,7 +696,7 @@ pub mod StateEvent {
     }
 
     pub fn convert(mut sev_tpl: (Arc<Condition::Condition>, Arc<StateEvent>), mut equation_map: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<Block::Block>>>) -> Result<OldBackendDAE::ZeroCrossing> {
-        let mut oldZc: OldBackendDAE::ZeroCrossing;
+        let mut oldZc: OldBackendDAE::ZeroCrossing = <OldBackendDAE::ZeroCrossing as ::std::default::Default>::default();
         let mut cond: Arc<Condition::Condition> = Arc::new(<Condition::Condition as ::std::default::Default>::default());
         let mut sev: Arc<StateEvent> = Arc::new(<StateEvent as ::std::default::Default>::default());
         let mut iter: Option<Arc<metamodelica::List<OldSimIterator>>> = None;
@@ -950,6 +969,18 @@ pub struct Bucket {
     pub stmt_index: i32,
 }
 
+impl Default for Bucket {
+    fn default() -> Self {
+        Self {
+            time_set: Default::default(),
+            time_map: Default::default(),
+            state_map: Default::default(),
+            aux_stmts: Default::default(),
+            stmt_index: Default::default(),
+        }
+    }
+}
+
 pub type BUCKET = Bucket;
 
 
@@ -960,7 +991,7 @@ fn collectEvents(mut eqn_ptr: Pointer::Pointer<Arc<Equation::Equation>>, mut buc
     let mut iter: Arc<Iterator::Iterator> = Arc::new(Iterator::EMPTY);
     let mut createEqn: bool = !(BEquation::Equation::isAlgorithm(eqn_ptr.clone()));
     let mut collector: BEquation::MapFuncExp;
-    let mut alg: Arc<Algorithm::NFAlgorithm>;
+    let mut alg: Arc<Algorithm::NFAlgorithm> = Arc::new(<Algorithm::NFAlgorithm as ::std::default::Default>::default());
     let mut new_stmts: Arc<metamodelica::List<Arc<Statement::NFStatement>>> = metamodelica::nil();
     iter = BEquation::Equation::getForIterator(eqn.clone());
     collector = Arc::new({ let __pe_b1 = bucket_ptr.clone(); let __pe_b2 = iter.clone(); let __pe_b3 = eqn_ptr.clone(); let __pe_b4 = funcMap.clone(); let __pe_b5 = createEqn.clone(); move |__pe_a0| collectEventsTraverse(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_b3.clone(), __pe_b4.clone(), __pe_b5.clone()) });
@@ -989,12 +1020,12 @@ fn collectEvents(mut eqn_ptr: Pointer::Pointer<Arc<Equation::Equation>>, mut buc
             eqn.clone()
         },
         Deref @ BEquation::Equation::WHEN_EQUATION { .. } => {
-            assign_variant_field!(eqn => Equation::Equation::WHEN_EQUATION; body = BEquation::WhenEquationBody::mapCondition(var_field!((*eqn).body, Equation::Equation::WHEN_EQUATION).clone(), collector.clone(), None, (std::sync::Arc::new(fnptr!(Expression::fakeMap, Arc<Expression::NFExpression>, fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>>) -> Result<Arc<Expression::NFExpression>> + 'static>)));
+            assign_variant_field!(eqn => Equation::Equation::WHEN_EQUATION; body = BEquation::WhenEquationBody::mapCondition(var_field!((*eqn).body, Equation::Equation::WHEN_EQUATION).clone(), collector.clone(), None, (std::sync::Arc::new(fnptr!(Expression::fakeMap, Arc<Expression::NFExpression>, Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Result<Arc<Expression::NFExpression>> + 'static>)));
             eqn.clone()
         },
         Deref @ BEquation::Equation::FOR_EQUATION { body: Deref @ metamodelica::List::Cons { head: body_eqn @ Deref @ BEquation::Equation::WHEN_EQUATION { .. }, tail: Deref @ metamodelica::List::Nil }, .. } => {
             let mut body_eqn = (*body_eqn).clone();
-            todo!("unhandled field-assign shape: body_eqn.body");
+            assign_variant_field!(body_eqn => Equation::Equation::WHEN_EQUATION; body = BEquation::WhenEquationBody::mapCondition(var_field!((*body_eqn).body, Equation::Equation::WHEN_EQUATION).clone(), collector.clone(), None, (std::sync::Arc::new(fnptr!(Expression::fakeMap, Arc<Expression::NFExpression>, Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Result<Arc<Expression::NFExpression>> + 'static>)));
             assign_variant_field!(eqn => Equation::Equation::FOR_EQUATION; body = list![body_eqn.clone()]);
             eqn.clone()
         },
@@ -1002,7 +1033,7 @@ fn collectEvents(mut eqn_ptr: Pointer::Pointer<Arc<Equation::Equation>>, mut buc
             assign_variant_field!(eqn => Equation::Equation::IF_EQUATION; body = BEquation::IfEquationBody::mapEqnExpCref(var_field!((*eqn).body, Equation::Equation::IF_EQUATION).clone(), Arc::new({ let __pe_b1 = bucket_ptr.clone(); let __pe_b2 = variables.clone(); let __pe_b3 = funcMap.clone(); move |__pe_a0| collectEvents(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_b3.clone()) }), collector.clone(), None, (std::sync::Arc::new(Expression::mapReverse) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>>) -> Result<Arc<Expression::NFExpression>> + 'static>))?);
             eqn.clone()
         },
-        _ => BEquation::Equation::map(eqn.clone(), collector.clone(), None, (std::sync::Arc::new(fnptr!(Expression::fakeMap, Arc<Expression::NFExpression>, fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>>) -> Result<Arc<Expression::NFExpression>> + 'static>))?,
+        _ => BEquation::Equation::map(eqn.clone(), collector.clone(), None, (std::sync::Arc::new(fnptr!(Expression::fakeMap, Arc<Expression::NFExpression>, Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Result<Arc<Expression::NFExpression>> + 'static>))?,
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } });
     if !(referenceEq(&eqn.clone(),&Pointer::access(eqn_ptr.clone()))) {
@@ -1015,25 +1046,25 @@ fn collectEventsTraverse(mut exp: Arc<Expression::NFExpression>, mut bucket_ptr:
     let mut exp: Arc<Expression::NFExpression> = exp;
     exp = (::match_deref::match_deref! { match &(exp.clone()) {
         Deref @ Expression::LUNARY { .. } => {
-            let mut bucket: Arc<Bucket>;
+            let mut bucket: Arc<Bucket> = Arc::new(<Bucket as ::std::default::Default>::default());
             (exp, bucket) = collectEventsCondition(exp.clone(), Pointer::access(bucket_ptr.clone()), iter.clone(), eqn.clone(), funcMap.clone(), createEqn.clone())?;
             Pointer::update(bucket_ptr.clone(), bucket.clone());
             exp.clone()
         },
         Deref @ Expression::LBINARY { .. } => {
-            let mut bucket: Arc<Bucket>;
+            let mut bucket: Arc<Bucket> = Arc::new(<Bucket as ::std::default::Default>::default());
             (exp, bucket) = collectEventsCondition(exp.clone(), Pointer::access(bucket_ptr.clone()), iter.clone(), eqn.clone(), funcMap.clone(), createEqn.clone())?;
             Pointer::update(bucket_ptr.clone(), bucket.clone());
             exp.clone()
         },
         Deref @ Expression::RELATION { .. } => {
-            let mut bucket: Arc<Bucket>;
+            let mut bucket: Arc<Bucket> = Arc::new(<Bucket as ::std::default::Default>::default());
             (exp, bucket) = collectEventsCondition(exp.clone(), Pointer::access(bucket_ptr.clone()), iter.clone(), eqn.clone(), funcMap.clone(), createEqn.clone())?;
             Pointer::update(bucket_ptr.clone(), bucket.clone());
             exp.clone()
         },
         Deref @ Expression::CALL { .. } if (Call::isNamed(var_field!((*exp).call, Expression::NFExpression::CALL).clone(), (literal!("sample")).clone())?) => {
-            let mut bucket: Arc<Bucket>;
+            let mut bucket: Arc<Bucket> = Arc::new(<Bucket as ::std::default::Default>::default());
             (exp, bucket) = collectEventsCondition(exp.clone(), Pointer::access(bucket_ptr.clone()), iter.clone(), eqn.clone(), funcMap.clone(), createEqn.clone())?;
             Pointer::update(bucket_ptr.clone(), bucket.clone());
             exp.clone()
@@ -1045,13 +1076,13 @@ fn collectEventsTraverse(mut exp: Arc<Expression::NFExpression>, mut bucket_ptr:
             exp.clone()
         },
         Deref @ Expression::CALL { call: Deref @ Call::TYPED_CALL { arguments: Deref @ metamodelica::List::Cons { head: Deref @ Expression::CREF { .. }, tail: Deref @ metamodelica::List::Nil }, .. } } if (Call::isNamed(var_field!((*exp).call, Expression::NFExpression::CALL).clone(), (literal!("pre")).clone())?) => {
-            let mut bucket: Arc<Bucket>;
+            let mut bucket: Arc<Bucket> = Arc::new(<Bucket as ::std::default::Default>::default());
             (exp, bucket) = CompositeEvent::add(exp.clone(), iter.clone(), Pointer::access(bucket_ptr.clone()), createEqn.clone())?;
             Pointer::update(bucket_ptr.clone(), bucket.clone());
             exp.clone()
         },
         Deref @ Expression::CREF { .. } if (BVariable::isPrevious(BVariable::getVarPointer(var_field!((*exp).cref, Expression::NFExpression::CREF).clone(), metamodelica::sourceInfo!())?)) => {
-            let mut bucket: Arc<Bucket>;
+            let mut bucket: Arc<Bucket> = Arc::new(<Bucket as ::std::default::Default>::default());
             (exp, bucket) = CompositeEvent::add(exp.clone(), iter.clone(), Pointer::access(bucket_ptr.clone()), createEqn.clone())?;
             Pointer::update(bucket_ptr.clone(), bucket.clone());
             exp.clone()

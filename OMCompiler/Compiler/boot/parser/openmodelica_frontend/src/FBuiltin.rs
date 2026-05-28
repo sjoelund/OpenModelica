@@ -150,10 +150,10 @@ pub static uncertaintyType: std::sync::LazyLock<Arc<SCode::Element>> = std::sync
 pub static ExternalObjectType: std::sync::LazyLock<Arc<SCode::Element>> = std::sync::LazyLock::new(|| { Arc::new(SCode::Element::CLASS { name: (literal!("ExternalObject")).clone(), prefixes: commonPrefixes.clone(), encapsulatedPrefix: openmodelica_frontend_types::SCode::Encapsulated::NOT_ENCAPSULATED, partialPrefix: openmodelica_frontend_types::SCode::Partial::NOT_PARTIAL, restriction: openmodelica_frontend_types::SCode::Restriction::R_CLASS, classDef: Arc::new(SCode::ClassDef::PARTS { elementLst: metamodelica::nil(), normalEquationLst: metamodelica::nil(), initialEquationLst: metamodelica::nil(), normalAlgorithmLst: metamodelica::nil(), initialAlgorithmLst: metamodelica::nil(), constraintLst: metamodelica::nil(), clsattrs: metamodelica::nil(), externalDecl: None }), cmt: SCode::noComment.clone(), info: Absyn::dummyInfo.clone() }) });
 
 // The Real type
-pub static realType: std::sync::LazyLock<Arc<SCode::Element>> = std::sync::LazyLock::new(|| { Arc::new(SCode::Element::CLASS { name: (literal!("Real")).clone(), prefixes: commonPrefixes.clone(), encapsulatedPrefix: openmodelica_frontend_types::SCode::Encapsulated::NOT_ENCAPSULATED, partialPrefix: openmodelica_frontend_types::SCode::Partial::NOT_PARTIAL, restriction: openmodelica_frontend_types::SCode::Restriction::R_PREDEFINED_REAL, classDef: Arc::new(SCode::ClassDef::PARTS { elementLst: list![unit.clone(), quantity.clone(), displayUnit.clone(), (std::sync::Arc::new(min) as std::sync::Arc<dyn ::std::ops::Fn() -> Result<()> + 'static>), (std::sync::Arc::new(max) as std::sync::Arc<dyn ::std::ops::Fn() -> Result<()> + 'static>), realStart.clone(), fixed.clone(), nominal.clone(), stateSelect.clone(), uncertainty.clone(), distribution.clone(), startOrigin.clone()], normalEquationLst: metamodelica::nil(), initialEquationLst: metamodelica::nil(), normalAlgorithmLst: metamodelica::nil(), initialAlgorithmLst: metamodelica::nil(), constraintLst: metamodelica::nil(), clsattrs: metamodelica::nil(), externalDecl: None }), cmt: SCode::noComment.clone(), info: Absyn::dummyInfo.clone() }) });
+pub static realType: std::sync::LazyLock<Arc<SCode::Element>> = std::sync::LazyLock::new(|| { Arc::new(SCode::Element::CLASS { name: (literal!("Real")).clone(), prefixes: commonPrefixes.clone(), encapsulatedPrefix: openmodelica_frontend_types::SCode::Encapsulated::NOT_ENCAPSULATED, partialPrefix: openmodelica_frontend_types::SCode::Partial::NOT_PARTIAL, restriction: openmodelica_frontend_types::SCode::Restriction::R_PREDEFINED_REAL, classDef: Arc::new(SCode::ClassDef::PARTS { elementLst: list![unit.clone(), quantity.clone(), displayUnit.clone(), (std::sync::Arc::new(fnptr!(min)) as std::sync::Arc<dyn ::std::ops::Fn() -> Result<()> + 'static>), (std::sync::Arc::new(fnptr!(max)) as std::sync::Arc<dyn ::std::ops::Fn() -> Result<()> + 'static>), realStart.clone(), fixed.clone(), nominal.clone(), stateSelect.clone(), uncertainty.clone(), distribution.clone(), startOrigin.clone()], normalEquationLst: metamodelica::nil(), initialEquationLst: metamodelica::nil(), normalAlgorithmLst: metamodelica::nil(), initialAlgorithmLst: metamodelica::nil(), constraintLst: metamodelica::nil(), clsattrs: metamodelica::nil(), externalDecl: None }), cmt: SCode::noComment.clone(), info: Absyn::dummyInfo.clone() }) });
 
 // The Integer type
-pub static integerType: std::sync::LazyLock<Arc<SCode::Element>> = std::sync::LazyLock::new(|| { Arc::new(SCode::Element::CLASS { name: (literal!("Integer")).clone(), prefixes: commonPrefixes.clone(), encapsulatedPrefix: openmodelica_frontend_types::SCode::Encapsulated::NOT_ENCAPSULATED, partialPrefix: openmodelica_frontend_types::SCode::Partial::NOT_PARTIAL, restriction: openmodelica_frontend_types::SCode::Restriction::R_PREDEFINED_INTEGER, classDef: Arc::new(SCode::ClassDef::PARTS { elementLst: list![quantity.clone(), (std::sync::Arc::new(min) as std::sync::Arc<dyn ::std::ops::Fn() -> Result<()> + 'static>), (std::sync::Arc::new(max) as std::sync::Arc<dyn ::std::ops::Fn() -> Result<()> + 'static>), integerStart.clone(), fixed.clone(), uncertainty.clone(), distribution.clone(), startOrigin.clone()], normalEquationLst: metamodelica::nil(), initialEquationLst: metamodelica::nil(), normalAlgorithmLst: metamodelica::nil(), initialAlgorithmLst: metamodelica::nil(), constraintLst: metamodelica::nil(), clsattrs: metamodelica::nil(), externalDecl: None }), cmt: SCode::noComment.clone(), info: Absyn::dummyInfo.clone() }) });
+pub static integerType: std::sync::LazyLock<Arc<SCode::Element>> = std::sync::LazyLock::new(|| { Arc::new(SCode::Element::CLASS { name: (literal!("Integer")).clone(), prefixes: commonPrefixes.clone(), encapsulatedPrefix: openmodelica_frontend_types::SCode::Encapsulated::NOT_ENCAPSULATED, partialPrefix: openmodelica_frontend_types::SCode::Partial::NOT_PARTIAL, restriction: openmodelica_frontend_types::SCode::Restriction::R_PREDEFINED_INTEGER, classDef: Arc::new(SCode::ClassDef::PARTS { elementLst: list![quantity.clone(), (std::sync::Arc::new(fnptr!(min)) as std::sync::Arc<dyn ::std::ops::Fn() -> Result<()> + 'static>), (std::sync::Arc::new(fnptr!(max)) as std::sync::Arc<dyn ::std::ops::Fn() -> Result<()> + 'static>), integerStart.clone(), fixed.clone(), uncertainty.clone(), distribution.clone(), startOrigin.clone()], normalEquationLst: metamodelica::nil(), initialEquationLst: metamodelica::nil(), normalAlgorithmLst: metamodelica::nil(), initialAlgorithmLst: metamodelica::nil(), constraintLst: metamodelica::nil(), clsattrs: metamodelica::nil(), externalDecl: None }), cmt: SCode::noComment.clone(), info: Absyn::dummyInfo.clone() }) });
 
 // The String type
 pub static stringType: std::sync::LazyLock<Arc<SCode::Element>> = std::sync::LazyLock::new(|| { Arc::new(SCode::Element::CLASS { name: (literal!("String")).clone(), prefixes: commonPrefixes.clone(), encapsulatedPrefix: openmodelica_frontend_types::SCode::Encapsulated::NOT_ENCAPSULATED, partialPrefix: openmodelica_frontend_types::SCode::Partial::NOT_PARTIAL, restriction: openmodelica_frontend_types::SCode::Restriction::R_PREDEFINED_STRING, classDef: Arc::new(SCode::ClassDef::PARTS { elementLst: list![quantity.clone(), stringStart.clone(), startOrigin.clone()], normalEquationLst: metamodelica::nil(), initialEquationLst: metamodelica::nil(), normalAlgorithmLst: metamodelica::nil(), initialAlgorithmLst: metamodelica::nil(), constraintLst: metamodelica::nil(), clsattrs: metamodelica::nil(), externalDecl: None }), cmt: SCode::noComment.clone(), info: Absyn::dummyInfo.clone() }) });
@@ -292,23 +292,23 @@ pub fn getInitialFunctions() -> Result<(Absyn::Program, Arc<metamodelica::List<A
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             let () = __mc_input.clone() else { bail!("nomatch") };
+            let mut sp: Arc<metamodelica::List<Arc<SCode::Element>>> = sp.clone();
             let mut p: Absyn::Program = p.clone();
             let mut assocLst: Arc<metamodelica::List<((i32, bool), (Absyn::Program, Arc<metamodelica::List<Arc<SCode::Element>>>))>> = assocLst.clone();
-            let mut sp: Arc<metamodelica::List<Arc<SCode::Element>>> = sp.clone();
             assocLst = crate::Globals::builtinIndex.with(|__root| __root.borrow().clone());
             (p, sp) = Util::assoc(Util::makeTuple(Flags::getConfigEnum(Flags::GRAMMAR.clone())?, Flags::isSet(Flags::SCODE_INST.clone())?), assocLst.clone())?;
             Ok((p.clone(), sp.clone()))
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             let () = __mc_input.clone() else { bail!("nomatch") };
-            let mut pNF: Absyn::Program = pNF.clone();
-            let mut pMM: Absyn::Program = pMM.clone();
             let mut spNF: Arc<metamodelica::List<Arc<SCode::Element>>> = spNF.clone();
-            let mut sp: Arc<metamodelica::List<Arc<SCode::Element>>> = sp.clone();
-            let mut spCF: Arc<metamodelica::List<Arc<SCode::Element>>> = spCF.clone();
             let mut assocLst: Arc<metamodelica::List<((i32, bool), (Absyn::Program, Arc<metamodelica::List<Arc<SCode::Element>>>))>> = assocLst.clone();
-            let mut pCF: Absyn::Program = pCF.clone();
+            let mut spCF: Arc<metamodelica::List<Arc<SCode::Element>>> = spCF.clone();
+            let mut pNF: Absyn::Program = pNF.clone();
+            let mut sp: Arc<metamodelica::List<Arc<SCode::Element>>> = sp.clone();
             let mut p: Absyn::Program = p.clone();
+            let mut pCF: Absyn::Program = pCF.clone();
+            let mut pMM: Absyn::Program = pMM.clone();
             let true = (intEq(Flags::getConfigEnum(Flags::GRAMMAR.clone())?, Flags::METAMODELICA.clone())) else { bail!("pattern mismatch") };
             Error::assertionOrAddSourceMessage(System::regularFileExists((fileModelicaNF.clone()).clone()), Error::FILE_NOT_FOUND_ERROR.clone(), list![(fileModelicaNF.clone()).clone()], Absyn::dummyInfo.clone())?;
             Error::assertionOrAddSourceMessage(System::regularFileExists((fileModelicaCF.clone()).clone()), Error::FILE_NOT_FOUND_ERROR.clone(), list![(fileModelicaCF.clone()).clone()], Absyn::dummyInfo.clone())?;
@@ -343,14 +343,14 @@ pub fn getInitialFunctions() -> Result<(Absyn::Program, Arc<metamodelica::List<A
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             let () = __mc_input.clone() else { bail!("nomatch") };
-            let mut pNF: Absyn::Program = pNF.clone();
+            let mut spNF: Arc<metamodelica::List<Arc<SCode::Element>>> = spNF.clone();
             let mut pMM: Absyn::Program = pMM.clone();
-            let mut assocLst: Arc<metamodelica::List<((i32, bool), (Absyn::Program, Arc<metamodelica::List<Arc<SCode::Element>>>))>> = assocLst.clone();
+            let mut sp: Arc<metamodelica::List<Arc<SCode::Element>>> = sp.clone();
             let mut p: Absyn::Program = p.clone();
             let mut spCF: Arc<metamodelica::List<Arc<SCode::Element>>> = spCF.clone();
-            let mut sp: Arc<metamodelica::List<Arc<SCode::Element>>> = sp.clone();
+            let mut pNF: Absyn::Program = pNF.clone();
             let mut pCF: Absyn::Program = pCF.clone();
-            let mut spNF: Arc<metamodelica::List<Arc<SCode::Element>>> = spNF.clone();
+            let mut assocLst: Arc<metamodelica::List<((i32, bool), (Absyn::Program, Arc<metamodelica::List<Arc<SCode::Element>>>))>> = assocLst.clone();
             let true = (intEq(Flags::getConfigEnum(Flags::GRAMMAR.clone())?, Flags::PARMODELICA.clone())) else { bail!("pattern mismatch") };
             Error::assertionOrAddSourceMessage(System::regularFileExists((fileModelicaNF.clone()).clone()), Error::FILE_NOT_FOUND_ERROR.clone(), list![(fileModelicaNF.clone()).clone()], Absyn::dummyInfo.clone())?;
             Error::assertionOrAddSourceMessage(System::regularFileExists((fileModelicaCF.clone()).clone()), Error::FILE_NOT_FOUND_ERROR.clone(), list![(fileModelicaCF.clone()).clone()], Absyn::dummyInfo.clone())?;
@@ -383,12 +383,12 @@ pub fn getInitialFunctions() -> Result<(Absyn::Program, Arc<metamodelica::List<A
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             let () = __mc_input.clone() else { bail!("nomatch") };
-            let mut spCF: Arc<metamodelica::List<Arc<SCode::Element>>> = spCF.clone();
-            let mut assocLst: Arc<metamodelica::List<((i32, bool), (Absyn::Program, Arc<metamodelica::List<Arc<SCode::Element>>>))>> = assocLst.clone();
-            let mut spNF: Arc<metamodelica::List<Arc<SCode::Element>>> = spNF.clone();
-            let mut pCF: Absyn::Program = pCF.clone();
-            let mut p: Absyn::Program = p.clone();
             let mut pNF: Absyn::Program = pNF.clone();
+            let mut pCF: Absyn::Program = pCF.clone();
+            let mut spCF: Arc<metamodelica::List<Arc<SCode::Element>>> = spCF.clone();
+            let mut spNF: Arc<metamodelica::List<Arc<SCode::Element>>> = spNF.clone();
+            let mut assocLst: Arc<metamodelica::List<((i32, bool), (Absyn::Program, Arc<metamodelica::List<Arc<SCode::Element>>>))>> = assocLst.clone();
+            let mut p: Absyn::Program = p.clone();
             let mut sp: Arc<metamodelica::List<Arc<SCode::Element>>> = sp.clone();
             let true = (intEq(Flags::getConfigEnum(Flags::GRAMMAR.clone())?, Flags::MODELICA.clone()) || intEq(Flags::getConfigEnum(Flags::GRAMMAR.clone())?, Flags::OPTIMICA.clone())) else { bail!("pattern mismatch") };
             Error::assertionOrAddSourceMessage(System::regularFileExists((fileModelicaNF.clone()).clone()), Error::FILE_NOT_FOUND_ERROR.clone(), list![(fileModelicaNF.clone()).clone()], Absyn::dummyInfo.clone())?;
@@ -418,13 +418,13 @@ pub fn getInitialFunctions() -> Result<(Absyn::Program, Arc<metamodelica::List<A
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             let () = __mc_input.clone() else { bail!("nomatch") };
+            let mut spNF: Arc<metamodelica::List<Arc<SCode::Element>>> = spNF.clone();
             let mut assocLst: Arc<metamodelica::List<((i32, bool), (Absyn::Program, Arc<metamodelica::List<Arc<SCode::Element>>>))>> = assocLst.clone();
-            let mut spCF: Arc<metamodelica::List<Arc<SCode::Element>>> = spCF.clone();
+            let mut p: Absyn::Program = p.clone();
+            let mut sp: Arc<metamodelica::List<Arc<SCode::Element>>> = sp.clone();
             let mut pNF: Absyn::Program = pNF.clone();
             let mut pCF: Absyn::Program = pCF.clone();
-            let mut sp: Arc<metamodelica::List<Arc<SCode::Element>>> = sp.clone();
-            let mut p: Absyn::Program = p.clone();
-            let mut spNF: Arc<metamodelica::List<Arc<SCode::Element>>> = spNF.clone();
+            let mut spCF: Arc<metamodelica::List<Arc<SCode::Element>>> = spCF.clone();
             let mut pMM: Absyn::Program = pMM.clone();
             let true = (intEq(Flags::getConfigEnum(Flags::GRAMMAR.clone())?, Flags::PDEMODELICA.clone())) else { bail!("pattern mismatch") };
             Error::assertionOrAddSourceMessage(System::regularFileExists((fileModelicaNF.clone()).clone()), Error::FILE_NOT_FOUND_ERROR.clone(), list![(fileModelicaNF.clone()).clone()], Absyn::dummyInfo.clone())?;

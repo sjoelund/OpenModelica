@@ -64,6 +64,19 @@ pub struct NFAlgorithm {
     pub source: Arc<DAE::ElementSource>,
 }
 
+impl Default for NFAlgorithm {
+    fn default() -> Self {
+        Self {
+            statements: Default::default(),
+            inputs: Default::default(),
+            outputs: Default::default(),
+            stmtDiffInfo: Default::default(),
+            scope: Default::default(),
+            source: Default::default(),
+        }
+    }
+}
+
 pub type ALGORITHM = NFAlgorithm;
 
 pub type ApplyFn = std::sync::Arc<dyn ::std::ops::Fn(Arc<Statement::NFStatement>) -> Result<()> + 'static>;

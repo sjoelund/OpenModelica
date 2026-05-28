@@ -269,9 +269,11 @@ pub fn makeCatExp(mut n: i32, mut args: Arc<metamodelica::List<Arc<Expression::N
         }
         __acc.reverse()
     }, (literal!(", ")).clone()), (literal!("cat")).clone()], info.clone())?;
+        unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
     }
     if n.clone() < 1 || n.clone() > maxn.clone() {
         Error::addSourceMessageAndFail(Error::NF_CAT_WRONG_DIMENSION.clone(), list![ArcStr::from(::std::format!("{}", maxn.clone())), ArcStr::from(::std::format!("{}", n.clone()))], info.clone())?;
+        unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
     }
     tys2 = tys.clone();
     tys3 = metamodelica::nil();
@@ -290,6 +292,7 @@ pub fn makeCatExp(mut n: i32, mut args: Arc<metamodelica::List<Arc<Expression::N
         (arg2, ty1, mk) = TypeCheck::matchTypes(ty.clone(), ty2.clone(), arg.clone(), TypeCheck::ALLOW_UNKNOWN.clone())?;
         if TypeCheck::isIncompatibleMatch(mk.clone()) {
             Error::addSourceMessageAndFail(Error::ARG_TYPE_MISMATCH.clone(), list![ArcStr::from(::std::format!("{}", pos.clone())), (literal!("cat")).clone(), (literal!("arg")).clone(), (Expression::toString(arg.clone())?).clone(), (Type::toString(ty.clone())?).clone(), (Type::toString(ty2.clone())?).clone()], info.clone())?;
+            unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
         }
         args2 = cons(arg2.clone(), args2.clone());
         tys3 = cons(ty1.clone(), tys3.clone());
@@ -345,6 +348,7 @@ pub fn makeCatExp(mut n: i32, mut args: Arc<metamodelica::List<Arc<Expression::N
         (arg2, ty1, mk) = TypeCheck::matchTypes(ty.clone(), resTyToMatch.clone(), arg.clone(), TypeCheck::ALLOW_UNKNOWN.clone())?;
         if TypeCheck::isIncompatibleMatch(mk.clone()) {
             Error::addSourceMessageAndFail(Error::ARG_TYPE_MISMATCH.clone(), list![ArcStr::from(::std::format!("{}", pos.clone())), (literal!("cat")).clone(), (literal!("arg")).clone(), (Expression::toString(arg.clone())?).clone(), (Type::toString(ty.clone())?).clone(), (Type::toString(resTyToMatch.clone())?).clone()], info.clone())?;
+            unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
         }
         res = cons(arg2.clone(), res.clone());
         tys3 = cons(ty1.clone(), tys3.clone());
@@ -411,7 +415,7 @@ fn typeOverloadedStringCall(mut overloadedType: Arc<Type::NFType>, mut args: Arc
     let mut fn_ref: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
     let mut candidates: Arc<metamodelica::List<Arc<Function::Function>>> = metamodelica::nil();
     let mut recopnode: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
-    let mut matchedFunc: Arc<MatchedFunction::MatchedFunction>;
+    let mut matchedFunc: Arc<MatchedFunction::MatchedFunction> = Arc::new(<MatchedFunction::MatchedFunction as ::std::default::Default>::default());
     let mut matchedFunctions: Arc<metamodelica::List<Arc<MatchedFunction::MatchedFunction>>> = metamodelica::nil();
     let mut exactMatches: Arc<metamodelica::List<Arc<MatchedFunction::MatchedFunction>>> = metamodelica::nil();
     let __pa0 = ::match_deref::match_deref! { match &(overloadedType.clone()) {
@@ -549,9 +553,11 @@ fn typePreChangeCall(mut name: ArcStr, mut call: Arc<Call::NFCall>, mut context:
     assertNoNamedParams((name.clone()).clone(), named_args.clone(), info.clone())?;
     if (args.clone().len() as i32) != 1 {
         Error::addSourceMessageAndFail(Error::NO_MATCHING_FUNCTION_FOUND_NFINST.clone(), list![(Call::toString(call.clone())?).clone(), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*ComponentRef::toString(fn_ref.clone())?); __mm_s.push_str(&*literal!("(Any) => Any")); ArcStr::from(__mm_s) }).clone()], info.clone())?;
+        unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
     }
     if InstContext::inFunction(context.clone()) {
         Error::addSourceMessageAndFail(Error::EXP_INVALID_IN_FUNCTION.clone(), list![(ComponentRef::toString(fn_ref.clone())?).clone()], info.clone())?;
+        unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
     }
     (arg, ty, var, purity) = Typing::typeExp(listHead(args.clone())?, context.clone(), info.clone(), false)?;
     if !(Expression::isCref(arg.clone())) {
@@ -560,6 +566,7 @@ fn typePreChangeCall(mut name: ArcStr, mut call: Arc<Call::NFCall>, mut context:
     }
     if var.clone() == Variability::CONTINUOUS.clone() {
         Error::addSourceMessageAndFail(Error::INVALID_ARGUMENT_VARIABILITY.clone(), list![(literal!("1")).clone(), (ComponentRef::toString(fn_ref.clone())?).clone(), (Prefixes::variabilityString(Variability::DISCRETE.clone())?).clone(), (Expression::toString(arg.clone())?).clone(), (Prefixes::variabilityString(var.clone())?).clone()], info.clone())?;
+        unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
     }
     let __pa3 = ::match_deref::match_deref! { match &(Function::typeRefCache(fn_ref.clone(), InstContext::FUNCTION.clone())?) {
         Deref @ metamodelica::List::Cons { head: __pa3, tail: Deref @ metamodelica::List::Nil } => __pa3.clone(),
@@ -595,6 +602,7 @@ fn typeDerCall(mut call: Arc<Call::NFCall>, mut context: i32, mut info: SourceIn
     assertNoNamedParams((literal!("der")).clone(), named_args.clone(), info.clone())?;
     if (args.clone().len() as i32) != 1 {
         Error::addSourceMessageAndFail(Error::NO_MATCHING_FUNCTION_FOUND_NFINST.clone(), list![(Call::toString(call.clone())?).clone(), (literal!("der(Real) => Real")).clone()], info.clone())?;
+        unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
     }
     let __pa3 = ::match_deref::match_deref! { match &(args.clone()) {
         Deref @ metamodelica::List::Cons { head: __pa3, tail: Deref @ metamodelica::List::Nil } => __pa3.clone(),
@@ -609,12 +617,15 @@ fn typeDerCall(mut call: Arc<Call::NFCall>, mut context: i32, mut info: SourceIn
             arg = Expression::typeCast(arg.clone(), Arc::new(crate::NFType::REAL))?;
         } else {
             Error::addSourceMessageAndFail(Error::DER_OF_NONDIFFERENTIABLE_EXP.clone(), list![(Expression::toString(arg.clone())?).clone()], info.clone())?;
+            unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
         }
     } else if !(Type::isReal(ety.clone())) {
         Error::addSourceMessageAndFail(Error::ARG_TYPE_MISMATCH.clone(), list![(literal!("1")).clone(), (ComponentRef::toString(fn_ref.clone())?).clone(), (literal!("")).clone(), (Expression::toString(arg.clone())?).clone(), (Type::toString(ty.clone())?).clone(), (literal!("Real")).clone()], info.clone())?;
+        unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
     }
     if variability.clone() == Variability::DISCRETE.clone() && !(InstContext::inDiscreteScope(context.clone())) {
         Error::addSourceMessageAndFail(Error::DER_OF_NONDIFFERENTIABLE_EXP.clone(), list![(Expression::toString(arg.clone())?).clone()], info.clone())?;
+        unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
     }
     let __pa5 = ::match_deref::match_deref! { match &(Function::typeRefCache(fn_ref.clone(), InstContext::FUNCTION.clone())?) {
         Deref @ metamodelica::List::Cons { head: __pa5, tail: Deref @ metamodelica::List::Nil } => __pa5.clone(),
@@ -635,7 +646,7 @@ fn typeEdgeCall(mut call: Arc<Call::NFCall>, mut context: i32, mut info: SourceI
     let mut args: Arc<metamodelica::List<Arc<TypedArg>>> = metamodelica::nil();
     let mut arg: Arc<TypedArg> = Arc::new(<TypedArg as ::std::default::Default>::default());
     let mut fn_node: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
-    let mut ca: Arc<NFCallAttributes::NFCallAttributes>;
+    let mut ca: Arc<NFCallAttributes::NFCallAttributes> = Arc::new(<NFCallAttributes::NFCallAttributes as ::std::default::Default>::default());
     if InstContext::inFunction(context.clone()) {
         Error::addSourceMessage(Error::EXP_INVALID_IN_FUNCTION.clone(), list![(literal!("edge")).clone()], info.clone())?;
         bail!("fail");
@@ -679,6 +690,7 @@ fn typeMinMaxCall(mut name: ArcStr, mut call: Arc<Call::NFCall>, mut context: i3
 
     fn invalid_args_error(mut call: Arc<Call::NFCall>, mut name: ArcStr, mut info: SourceInfo) -> Result<()> {
         Error::addSourceMessageAndFail(Error::NO_MATCHING_FUNCTION_FOUND_NFINST.clone(), list![(Call::toString(call.clone())?).clone(), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*name.clone()); __mm_s.push_str(&*literal!("(Real, Real) => Real\n  ")); __mm_s.push_str(&*name.clone()); __mm_s.push_str(&*literal!("(Integer, Integer) => Integer\n  ")); __mm_s.push_str(&*name.clone()); __mm_s.push_str(&*literal!("(Boolean, Boolean) => Boolean\n  ")); __mm_s.push_str(&*name.clone()); __mm_s.push_str(&*literal!("(enumeration(:), enumeration(:)) => enumeration(:)\n  ")); __mm_s.push_str(&*name.clone()); __mm_s.push_str(&*literal!("(Real[:, ...]) => Real\n  ")); __mm_s.push_str(&*name.clone()); __mm_s.push_str(&*literal!("(Integer[:, ...]) => Integer\n  ")); __mm_s.push_str(&*name.clone()); __mm_s.push_str(&*literal!("(Boolean[:, ...]) => Boolean\n  ")); __mm_s.push_str(&*name.clone()); __mm_s.push_str(&*literal!("(enumeration(:)[:, ...]) => enumeration(:)")); ArcStr::from(__mm_s) }).clone()], info.clone())?;
+        unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
         Ok(())
     }
 
@@ -764,6 +776,7 @@ fn typePromoteCall(mut call: Arc<Call::NFCall>, mut context: i32, mut info: Sour
     let mut n: i32 = 0;
     if !(Config::languageStandardAtLeast(Config::LanguageStandard::experimental.clone())?) {
         Error::addSourceMessageAndFail(Error::EXPERIMENTAL_REQUIRED.clone(), list![(literal!("promote")).clone()], info.clone())?;
+        unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
     }
     let (__pa0, __pa1, __pa2) = ::match_deref::match_deref! { match &(call.clone()) {
         Deref @ Call::UNTYPED_CALL { named_args: __pa0, arguments: __pa1, r#ref: __pa2, .. } => (__pa0.clone(), __pa1.clone(), __pa2.clone()),
@@ -775,6 +788,7 @@ fn typePromoteCall(mut call: Arc<Call::NFCall>, mut context: i32, mut info: Sour
     assertNoNamedParams((literal!("promote")).clone(), named_args.clone(), info.clone())?;
     if (args.clone().len() as i32) != 2 {
         Error::addSourceMessageAndFail(Error::NO_MATCHING_FUNCTION_FOUND_NFINST.clone(), list![(Call::toString(call.clone())?).clone(), (literal!("promote(Any[...], Integer) => Any[...]")).clone()], info.clone())?;
+        unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
     }
     let (__pa3, __pa4) = ::match_deref::match_deref! { match &(args.clone()) {
         Deref @ metamodelica::List::Cons { head: __pa3, tail: Deref @ metamodelica::List::Cons { head: __pa4, tail: Deref @ metamodelica::List::Nil } } => (__pa3.clone(), __pa4.clone()),
@@ -786,14 +800,17 @@ fn typePromoteCall(mut call: Arc<Call::NFCall>, mut context: i32, mut info: Sour
     (n_arg, n_ty, n_var, _) = Typing::typeExp(n_arg.clone(), context.clone(), info.clone(), false)?;
     if !(Type::isInteger(n_ty.clone())) {
         Error::addSourceMessageAndFail(Error::ARG_TYPE_MISMATCH.clone(), list![(literal!("2")).clone(), (literal!("promote")).clone(), (literal!("")).clone(), (Expression::toString(n_arg.clone())?).clone(), (Type::toString(n_ty.clone())?).clone(), (literal!("Integer")).clone()], info.clone())?;
+        unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
     }
     if n_var.clone() > Variability::CONSTANT.clone() {
         Error::addSourceMessageAndFail(Error::INVALID_ARGUMENT_VARIABILITY.clone(), list![(literal!("2")).clone(), (literal!("promote")).clone(), (Prefixes::variabilityString(Variability::CONSTANT.clone())?).clone(), (Expression::toString(n_arg.clone())?).clone(), (Prefixes::variabilityString(n_var.clone())?).clone()], info.clone())?;
+        unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
     }
     n_arg = Ceval::evalExp(n_arg.clone(), Ceval::EvalTarget::new(info.clone(), context.clone(), None))?;
     n = Expression::integerValue(n_arg.clone())?;
     if n.clone() < Type::dimensionCount(exp_ty.clone()) {
         Error::addSourceMessageAndFail(Error::INVALID_NUMBER_OF_DIMENSIONS_FOR_PROMOTE.clone(), list![ArcStr::from(::std::format!("{}", n.clone())), ArcStr::from(::std::format!("{}", Type::dimensionCount(exp_ty.clone())))], info.clone())?;
+        unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
     }
     (callExp, ty) = Expression::promote(exp_arg.clone(), Expression::typeOf(exp_arg.clone()), Expression::integerValue(n_arg.clone())?)?;
     Ok((callExp, ty, variability, purity))
@@ -824,6 +841,7 @@ fn typeSmoothCall(mut call: Arc<Call::NFCall>, mut context: i32, mut info: Sourc
     assertNoNamedParams((literal!("smooth")).clone(), named_args.clone(), info.clone())?;
     if (args.clone().len() as i32) != 2 {
         Error::addSourceMessageAndFail(Error::NO_MATCHING_FUNCTION_FOUND_NFINST.clone(), list![(Call::toString(call.clone())?).clone(), (literal!("smooth(Integer, Any) => Any")).clone()], info.clone())?;
+        unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
     }
     let (__pa3, __pa4) = ::match_deref::match_deref! { match &(args.clone()) {
         Deref @ metamodelica::List::Cons { head: __pa3, tail: Deref @ metamodelica::List::Cons { head: __pa4, tail: Deref @ metamodelica::List::Nil } } => (__pa3.clone(), __pa4.clone()),
@@ -835,13 +853,16 @@ fn typeSmoothCall(mut call: Arc<Call::NFCall>, mut context: i32, mut info: Sourc
     (arg2, ty2, variability, purity) = Typing::typeExp(arg2.clone(), context.clone(), info.clone(), false)?;
     if !(Type::isInteger(ty1.clone())) {
         Error::addSourceMessageAndFail(Error::ARG_TYPE_MISMATCH.clone(), list![(literal!("1")).clone(), (ComponentRef::toString(fn_ref.clone())?).clone(), (literal!("")).clone(), (Expression::toString(arg1.clone())?).clone(), (Type::toString(ty1.clone())?).clone(), (literal!("Integer")).clone()], info.clone())?;
+        unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
     }
     if var.clone() > Variability::PARAMETER.clone() {
         Error::addSourceMessageAndFail(Error::INVALID_ARGUMENT_VARIABILITY.clone(), list![(literal!("1")).clone(), (ComponentRef::toString(fn_ref.clone())?).clone(), (Prefixes::variabilityString(Variability::PARAMETER.clone())?).clone(), (Expression::toString(arg1.clone())?).clone(), (Prefixes::variabilityString(variability.clone())?).clone()], info.clone())?;
+        unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
     }
     (arg2, ty, mk) = TypeCheck::matchTypes(ty2.clone(), Type::setArrayElementType(ty2.clone(), Arc::new(crate::NFType::REAL)), arg2.clone(), TypeCheck::ALLOW_UNKNOWN.clone())?;
     if !(TypeCheck::isValidArgumentMatch(mk.clone())) {
         Error::addSourceMessageAndFail(Error::ARG_TYPE_MISMATCH.clone(), list![(literal!("2")).clone(), (ComponentRef::toString(fn_ref.clone())?).clone(), (literal!("")).clone(), (Expression::toString(arg2.clone())?).clone(), (Type::toString(ty2.clone())?).clone(), (literal!("Real\n  Real[:, ...]\n  Real record\n  Real record[:, ...]")).clone()], info.clone())?;
+        unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
     }
     let __pa6 = ::match_deref::match_deref! { match &(Function::typeRefCache(fn_ref.clone(), InstContext::FUNCTION.clone())?) {
         Deref @ metamodelica::List::Cons { head: __pa6, tail: Deref @ metamodelica::List::Nil } => __pa6.clone(),
@@ -871,6 +892,7 @@ fn typeFillCall(mut call: Arc<Call::NFCall>, mut context: i32, mut info: SourceI
     assertNoNamedParams((literal!("fill")).clone(), named_args.clone(), info.clone())?;
     if (args.clone().len() as i32) < 2 {
         Error::addSourceMessageAndFail(Error::NO_MATCHING_FUNCTION_FOUND_NFINST.clone(), list![(Call::toString(call.clone())?).clone(), (literal!("fill(Any, Integer, ...) => Any[:, ...]")).clone()], info.clone())?;
+        unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
     }
     let (__pa3, __pa4) = ::match_deref::match_deref! { match &(args.clone()) {
         Deref @ metamodelica::List::Cons { head: __pa3, tail: __pa4 } => (__pa3.clone(), __pa4.clone()),
@@ -904,6 +926,7 @@ fn typeFillCall2(mut fnRef: Arc<ComponentRef::NFComponentRef>, mut fillType: Arc
         if !(InstContext::inAlgorithm(context.clone()) || InstContext::inFunction(context.clone())) {
             if arg_var.clone() > Variability::PARAMETER.clone() && !(InstContext::inInstanceAPI(context.clone()) || Expression::contains(arg.clone(), (std::sync::Arc::new(Expression::isResizableCref) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<bool> + 'static>))?) {
                 Error::addSourceMessageAndFail(Error::NON_PARAMETER_EXPRESSION_DIMENSION.clone(), list![(Expression::toString(arg.clone())?).clone(), ArcStr::from(::std::format!("{}", index.clone())), (List::toString(cons(fillArg.clone(), dimensionArgs.clone()), (std::sync::Arc::new(Expression::toString) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<ArcStr> + 'static>), (ComponentRef::toString(fnRef.clone())?).clone(), (literal!("(")).clone(), (literal!(", ")).clone(), (literal!(")")).clone(), true, 0)?).clone()], info.clone())?;
+                unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
             }
             if arg_pur.clone() == Purity::PURE.clone() && !(Structural::isExpressionNotFixed(arg.clone(), false, 4)?) {
                 Structural::markExp(arg.clone())?;
@@ -913,6 +936,7 @@ fn typeFillCall2(mut fnRef: Arc<ComponentRef::NFComponentRef>, mut fillType: Arc
         }
         if !(Type::isInteger(arg_ty.clone())) {
             Error::addSourceMessageAndFail(Error::ARG_TYPE_MISMATCH.clone(), list![(intString((ty_args.clone().len() as i32) + 1)).clone(), (ComponentRef::toString(fnRef.clone())?).clone(), (literal!("")).clone(), (Expression::toString(arg.clone())?).clone(), (Type::toString(arg_ty.clone())?).clone(), (literal!("Integer")).clone()], info.clone())?;
+            unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
         }
         variability = Prefixes::variabilityMax(variability.clone(), arg_var.clone());
         purity = Prefixes::purityMin(purity.clone(), arg_pur.clone());
@@ -951,6 +975,7 @@ fn typeZerosOnesCall(mut name: ArcStr, mut call: Arc<Call::NFCall>, mut context:
     assertNoNamedParams((name.clone()).clone(), named_args.clone(), info.clone())?;
     if args.clone().is_empty() {
         Error::addSourceMessageAndFail(Error::NO_MATCHING_FUNCTION_FOUND_NFINST.clone(), list![(Call::toString(call.clone())?).clone(), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*ComponentRef::toString(fn_ref.clone())?); __mm_s.push_str(&*literal!("(Integer, ...) => Integer[:, ...]")); ArcStr::from(__mm_s) }).clone()], info.clone())?;
+        unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
     }
     fill_arg = Arc::new(Expression::NFExpression::INTEGER { value: if (name.clone() == literal!("ones")) {1} else {0} });
     (callExp, ty, variability, purity) = typeFillCall2(fn_ref.clone(), Arc::new(crate::NFType::INTEGER), fill_arg.clone(), Variability::CONSTANT.clone(), Purity::PURE.clone(), args.clone(), context.clone(), info.clone())?;
@@ -978,12 +1003,14 @@ fn typeScalarCall(mut call: Arc<Call::NFCall>, mut context: i32, mut info: Sourc
     assertNoNamedParams((literal!("scalar")).clone(), named_args.clone(), info.clone())?;
     if (args.clone().len() as i32) != 1 {
         Error::addSourceMessageAndFail(Error::NO_MATCHING_FUNCTION_FOUND_NFINST.clone(), list![(Call::toString(call.clone())?).clone(), (literal!("scalar(Any[1, ...]) => Any")).clone()], info.clone())?;
+        unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
     }
     (arg, ty, variability, purity) = Typing::typeExp(listHead(args.clone())?, context.clone(), info.clone(), false)?;
     for mut dim in &*Type::arrayDims(ty.clone()) {
         let mut dim = dim.clone();
         if Dimension::isKnown(dim.clone(), false) && !(Dimension::size(dim.clone(), false)? == 1) {
             Error::addSourceMessageAndFail(Error::INVALID_ARRAY_DIM_IN_SCALAR_OP.clone(), list![(Type::toString(ty.clone())?).clone()], info.clone())?;
+            unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
         }
     }
     (arg, expanded) = ExpandExp::expand(arg.clone(), false, false)?;
@@ -1028,6 +1055,7 @@ fn typeVectorCall(mut call: Arc<Call::NFCall>, mut context: i32, mut info: Sourc
     assertNoNamedParams((literal!("vector")).clone(), named_args.clone(), info.clone())?;
     if (args.clone().len() as i32) != 1 {
         Error::addSourceMessageAndFail(Error::NO_MATCHING_FUNCTION_FOUND_NFINST.clone(), list![(Call::toString(call.clone())?).clone(), (literal!("vector(Any) => Any[:]\n  vector(Any[:, ...]) => Any[:]")).clone()], info.clone())?;
+        unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
     }
     (arg, ty, variability, purity) = Typing::typeExp(listHead(args.clone())?, context.clone(), info.clone(), false)?;
     for mut dim in &*Type::arrayDims(ty.clone()) {
@@ -1035,6 +1063,7 @@ fn typeVectorCall(mut call: Arc<Call::NFCall>, mut context: i32, mut info: Sourc
         if !(Dimension::isKnown(dim.clone(), false)) || Dimension::size(dim.clone(), false)? > 1 {
             if dim_found.clone() {
                 Error::addSourceMessageAndFail(Error::NF_VECTOR_INVALID_DIMENSIONS.clone(), list![(Type::toString(ty.clone())?).clone(), (Call::toString(call.clone())?).clone()], info.clone())?;
+                unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
             } else {
                 vector_dim = dim.clone();
                 dim_found = true;
@@ -1080,6 +1109,7 @@ fn typeMatrixCall(mut call: Arc<Call::NFCall>, mut context: i32, mut info: Sourc
     assertNoNamedParams((literal!("matrix")).clone(), named_args.clone(), info.clone())?;
     if (args.clone().len() as i32) != 1 {
         Error::addSourceMessageAndFail(Error::NO_MATCHING_FUNCTION_FOUND_NFINST.clone(), list![(Call::toString(call.clone())?).clone(), (literal!("matrix(Any) => Any[:]\n  matrix(Any[:, ...]) => Any[:]")).clone()], info.clone())?;
+        unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
     }
     (arg, ty, variability, purity) = Typing::typeExp(listHead(args.clone())?, context.clone(), info.clone(), false)?;
     dims = Type::arrayDims(ty.clone());
@@ -1101,6 +1131,7 @@ fn typeMatrixCall(mut call: Arc<Call::NFCall>, mut context: i32, mut info: Sourc
             let mut dim = dim.clone();
             if Dimension::isKnown(dim.clone(), false) && Dimension::size(dim.clone(), false)? > 1 {
                 Error::addSourceMessageAndFail(Error::INVALID_ARRAY_DIM_IN_CONVERSION_OP.clone(), list![ArcStr::from(::std::format!("{}", i.clone())), (literal!("matrix")).clone(), (literal!("1")).clone(), (Dimension::toString(dim.clone())?).clone()], info.clone())?;
+                unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
             }
             i = i.clone() + 1;
         }
@@ -1141,6 +1172,7 @@ fn typeCatCall(mut call: Arc<Call::NFCall>, mut context: i32, mut info: SourceIn
     assertNoNamedParams((literal!("cat")).clone(), named_args.clone(), info.clone())?;
     if (args.clone().len() as i32) < 2 {
         Error::addSourceMessageAndFail(Error::NO_MATCHING_FUNCTION_FOUND_NFINST.clone(), list![(Call::toString(call.clone())?).clone(), (literal!("cat(Integer, Any[:,:], ...) => Any[:]")).clone()], info.clone())?;
+        unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
     }
     let (__pa3, __pa4) = ::match_deref::match_deref! { match &(args.clone()) {
         Deref @ metamodelica::List::Cons { head: __pa3, tail: __pa4 } => (__pa3.clone(), __pa4.clone()),
@@ -1152,6 +1184,7 @@ fn typeCatCall(mut call: Arc<Call::NFCall>, mut context: i32, mut info: SourceIn
     (arg, ty, mk) = TypeCheck::matchTypes(ty.clone(), Arc::new(crate::NFType::INTEGER), arg.clone(), TypeCheck::DEFAULT_OPTIONS.clone())?;
     if variability.clone() > Variability::PARAMETER.clone() || purity.clone() != Purity::PURE.clone() {
         Error::addSourceMessageAndFail(Error::NF_CAT_FIRST_ARG_EVAL.clone(), list![(Expression::toString(arg.clone())?).clone(), (Prefixes::variabilityString(variability.clone())?).clone()], info.clone())?;
+        unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
     }
     let __pa5 = ::match_deref::match_deref! { match &(Ceval::evalExp(arg.clone(), Ceval::EvalTarget::new(info.clone(), context.clone(), None))?) {
         Deref @ Expression::INTEGER { value: __pa5 } => __pa5.clone(),
@@ -1192,10 +1225,12 @@ fn typeSymmetricCall(mut call: Arc<Call::NFCall>, mut context: i32, mut info: So
     assertNoNamedParams((literal!("symmetric")).clone(), named_args.clone(), info.clone())?;
     if (args.clone().len() as i32) != 1 {
         Error::addSourceMessageAndFail(Error::NO_MATCHING_FUNCTION_FOUND_NFINST.clone(), list![(Call::toString(call.clone())?).clone(), (literal!("symmetric(Any[n, n]) => Any[n, n]")).clone()], info.clone())?;
+        unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
     }
     (arg, ty, variability, purity) = Typing::typeExp(listHead(args.clone())?, context.clone(), info.clone(), false)?;
     if !(Type::isSquareMatrix(ty.clone())?) {
         Error::addSourceMessageAndFail(Error::ARG_TYPE_MISMATCH.clone(), list![(literal!("1")).clone(), (ComponentRef::toString(fn_ref.clone())?).clone(), (literal!("")).clone(), (Expression::toString(arg.clone())?).clone(), (Type::toString(ty.clone())?).clone(), (literal!("Any[n, n]")).clone()], info.clone())?;
+        unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
     }
     let __pa3 = ::match_deref::match_deref! { match &(Function::typeRefCache(fn_ref.clone(), InstContext::FUNCTION.clone())?) {
         Deref @ metamodelica::List::Cons { head: __pa3, tail: Deref @ metamodelica::List::Nil } => __pa3.clone(),
@@ -1229,6 +1264,7 @@ fn typeTransposeCall(mut call: Arc<Call::NFCall>, mut context: i32, mut info: So
     assertNoNamedParams((literal!("transpose")).clone(), named_args.clone(), info.clone())?;
     if (args.clone().len() as i32) != 1 {
         Error::addSourceMessageAndFail(Error::NO_MATCHING_FUNCTION_FOUND_NFINST.clone(), list![(Call::toString(call.clone())?).clone(), (literal!("transpose(Any[n, m, ...]) => Any[m, n, ...]")).clone()], info.clone())?;
+        unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
     }
     (arg, ty, variability, purity) = Typing::typeExp(listHead(args.clone())?, context.clone(), info.clone(), false)?;
     ty = (::match_deref::match_deref! { match &(ty.clone()) {
@@ -1261,9 +1297,11 @@ fn typeCardinalityCall(mut call: Arc<Call::NFCall>, mut context: i32, mut info: 
     let mut node: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
     if !(InstContext::inCondition(context.clone()) && (InstContext::inIf(context.clone()) || InstContext::inAssert(context.clone()))) {
         Error::addSourceMessageAndFail(Error::INVALID_CARDINALITY_CONTEXT.clone(), metamodelica::nil(), info.clone())?;
+        unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
     }
     if InstContext::inFunction(context.clone()) {
         Error::addSourceMessageAndFail(Error::EXP_INVALID_IN_FUNCTION.clone(), list![(AbsynUtil::pathString(Call::functionName(call.clone())?, (literal!(".")).clone(), true, false)?).clone()], info.clone())?;
+        unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
     }
     (callExp, ty, _, _) = typeBuiltinCallExp(call.clone(), context.clone(), info.clone(), false)?;
     System::setUsesCardinality(true);
@@ -1309,9 +1347,11 @@ fn typeBranchCall(mut call: Arc<Call::NFCall>, mut context: i32, mut info: Sourc
     assertNoNamedParams((literal!("Connections.branch")).clone(), named_args.clone(), info.clone())?;
     if (args.clone().len() as i32) != 2 {
         Error::addSourceMessageAndFail(Error::NO_MATCHING_FUNCTION_FOUND_NFINST.clone(), list![(Call::toString(call.clone())?).clone(), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*ComponentRef::toString(fn_ref.clone())?); __mm_s.push_str(&*literal!("(Connector, Connector)")); ArcStr::from(__mm_s) }).clone()], info.clone())?;
+        unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
     }
     if InstContext::inFunction(context.clone()) {
         Error::addSourceMessageAndFail(Error::EXP_INVALID_IN_FUNCTION.clone(), list![(ComponentRef::toString(fn_ref.clone())?).clone()], info.clone())?;
+        unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
     }
     args = typeConnectionsArgs(args.clone(), context.clone(), info.clone(), fn_ref.clone())?;
     let __pa3 = ::match_deref::match_deref! { match &(Function::typeRefCache(fn_ref.clone(), InstContext::FUNCTION.clone())?) {
@@ -1343,9 +1383,11 @@ fn typeIsRootCall(mut call: Arc<Call::NFCall>, mut context: i32, mut info: Sourc
     assertNoNamedParams((literal!("Connections.isRoot")).clone(), named_args.clone(), info.clone())?;
     if (args.clone().len() as i32) != 1 {
         Error::addSourceMessageAndFail(Error::NO_MATCHING_FUNCTION_FOUND_NFINST.clone(), list![(Call::toString(call.clone())?).clone(), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*ComponentRef::toString(fn_ref.clone())?); __mm_s.push_str(&*literal!("(Connector)")); ArcStr::from(__mm_s) }).clone()], info.clone())?;
+        unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
     }
     if InstContext::inFunction(context.clone()) {
         Error::addSourceMessageAndFail(Error::EXP_INVALID_IN_FUNCTION.clone(), list![(ComponentRef::toString(fn_ref.clone())?).clone()], info.clone())?;
+        unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
     }
     args = typeConnectionsArgs(args.clone(), context.clone(), info.clone(), fn_ref.clone())?;
     let __pa3 = ::match_deref::match_deref! { match &(Function::typeRefCache(fn_ref.clone(), InstContext::FUNCTION.clone())?) {
@@ -1386,14 +1428,17 @@ fn typePotentialRootCall(mut call: Arc<Call::NFCall>, mut context: i32, mut info
             args = List::appendElt(arg2.clone(), args.clone());
         } else {
             Error::addSourceMessageAndFail(Error::NO_SUCH_INPUT_PARAMETER.clone(), list![(ComponentRef::toString(fn_ref.clone())?).clone(), (name.clone()).clone()], info.clone())?;
+            unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
         }
     }
     args_len = (args.clone().len() as i32);
     if args_len.clone() < 1 || args_len.clone() > 2 {
         Error::addSourceMessageAndFail(Error::NO_MATCHING_FUNCTION_FOUND_NFINST.clone(), list![(Call::toString(call.clone())?).clone(), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*ComponentRef::toString(fn_ref.clone())?); __mm_s.push_str(&*literal!("(Connector, Integer = 0)")); ArcStr::from(__mm_s) }).clone()], info.clone())?;
+        unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
     }
     if InstContext::inFunction(context.clone()) {
         Error::addSourceMessageAndFail(Error::EXP_INVALID_IN_FUNCTION.clone(), list![(ComponentRef::toString(fn_ref.clone())?).clone()], info.clone())?;
+        unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
     }
     let (__pa3, __pa4) = ::match_deref::match_deref! { match &(args.clone()) {
         Deref @ metamodelica::List::Cons { head: __pa3, tail: __pa4 } => (__pa3.clone(), __pa4.clone()),
@@ -1407,9 +1452,11 @@ fn typePotentialRootCall(mut call: Arc<Call::NFCall>, mut context: i32, mut info
         (arg2, ty, arg_var, _) = Typing::typeExp(arg2.clone(), context.clone(), info.clone(), false)?;
         if !(Type::isInteger(ty.clone())) {
             Error::addSourceMessageAndFail(Error::ARG_TYPE_MISMATCH.clone(), list![(literal!("2")).clone(), (ComponentRef::toString(fn_ref.clone())?).clone(), (literal!("")).clone(), (Expression::toString(arg2.clone())?).clone(), (Type::toString(ty.clone())?).clone(), (literal!("Integer")).clone()], info.clone())?;
+            unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
         }
         if arg_var.clone() > Variability::PARAMETER.clone() {
             Error::addSourceMessageAndFail(Error::INVALID_ARGUMENT_VARIABILITY.clone(), list![(literal!("2")).clone(), (ComponentRef::toString(fn_ref.clone())?).clone(), (Prefixes::variabilityString(Variability::PARAMETER.clone())?).clone(), (Expression::toString(arg2.clone())?).clone(), (Prefixes::variabilityString(arg_var.clone())?).clone()], info.clone())?;
+            unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
         }
         Structural::markExp(arg2.clone())?;
     } else {
@@ -1444,9 +1491,11 @@ fn typeRootCall(mut call: Arc<Call::NFCall>, mut context: i32, mut info: SourceI
     assertNoNamedParams((literal!("Connections.root")).clone(), named_args.clone(), info.clone())?;
     if (args.clone().len() as i32) != 1 {
         Error::addSourceMessageAndFail(Error::NO_MATCHING_FUNCTION_FOUND_NFINST.clone(), list![(Call::toString(call.clone())?).clone(), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*ComponentRef::toString(fn_ref.clone())?); __mm_s.push_str(&*literal!("(Connector)")); ArcStr::from(__mm_s) }).clone()], info.clone())?;
+        unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
     }
     if InstContext::inFunction(context.clone()) {
         Error::addSourceMessageAndFail(Error::EXP_INVALID_IN_FUNCTION.clone(), list![(ComponentRef::toString(fn_ref.clone())?).clone()], info.clone())?;
+        unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
     }
     args = typeConnectionsArgs(args.clone(), context.clone(), info.clone(), fn_ref.clone())?;
     let __pa3 = ::match_deref::match_deref! { match &(Function::typeRefCache(fn_ref.clone(), InstContext::FUNCTION.clone())?) {
@@ -1478,9 +1527,11 @@ fn typeRootedCall(mut call: Arc<Call::NFCall>, mut context: i32, mut info: Sourc
     assertNoNamedParams((literal!("Connections.rooted")).clone(), named_args.clone(), info.clone())?;
     if (args.clone().len() as i32) != 1 {
         Error::addSourceMessageAndFail(Error::NO_MATCHING_FUNCTION_FOUND_NFINST.clone(), list![(Call::toString(call.clone())?).clone(), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*ComponentRef::toString(fn_ref.clone())?); __mm_s.push_str(&*literal!("(Connector)")); ArcStr::from(__mm_s) }).clone()], info.clone())?;
+        unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
     }
     if InstContext::inFunction(context.clone()) {
         Error::addSourceMessageAndFail(Error::EXP_INVALID_IN_FUNCTION.clone(), list![(ComponentRef::toString(fn_ref.clone())?).clone()], info.clone())?;
+        unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
     }
     args = typeConnectionsArgs(args.clone(), context.clone(), info.clone(), fn_ref.clone())?;
     if ComponentRef::isSimple(fn_ref.clone()) {
@@ -1524,14 +1575,17 @@ fn typeUniqueRootCall(mut call: Arc<Call::NFCall>, mut context: i32, mut info: S
             args = List::appendElt(arg2.clone(), args.clone());
         } else {
             Error::addSourceMessageAndFail(Error::NO_SUCH_INPUT_PARAMETER.clone(), list![(ComponentRef::toString(fn_ref.clone())?).clone(), (name.clone()).clone()], info.clone())?;
+            unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
         }
     }
     args_len = (args.clone().len() as i32);
     if args_len.clone() < 1 || args_len.clone() > 2 {
         Error::addSourceMessageAndFail(Error::NO_MATCHING_FUNCTION_FOUND_NFINST.clone(), list![(Call::toString(call.clone())?).clone(), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*ComponentRef::toString(fn_ref.clone())?); __mm_s.push_str(&*literal!("(Connector, String = \"\")")); ArcStr::from(__mm_s) }).clone()], info.clone())?;
+        unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
     }
     if InstContext::inFunction(context.clone()) {
         Error::addSourceMessageAndFail(Error::EXP_INVALID_IN_FUNCTION.clone(), list![(ComponentRef::toString(fn_ref.clone())?).clone()], info.clone())?;
+        unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
     }
     let (__pa3, __pa4) = ::match_deref::match_deref! { match &(args.clone()) {
         Deref @ metamodelica::List::Cons { head: __pa3, tail: __pa4 } => (__pa3.clone(), __pa4.clone()),
@@ -1545,6 +1599,7 @@ fn typeUniqueRootCall(mut call: Arc<Call::NFCall>, mut context: i32, mut info: S
         (arg2, ty, _, _) = Typing::typeExp(arg2.clone(), context.clone(), info.clone(), false)?;
         if !(Type::isString(ty.clone())) {
             Error::addSourceMessageAndFail(Error::ARG_TYPE_MISMATCH.clone(), list![(literal!("2")).clone(), (ComponentRef::toString(fn_ref.clone())?).clone(), (literal!("")).clone(), (Expression::toString(arg2.clone())?).clone(), (Type::toString(ty.clone())?).clone(), (literal!("String")).clone()], info.clone())?;
+            unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
         }
     } else {
         arg2 = Arc::new(Expression::NFExpression::STRING { value: (literal!("")).clone() });
@@ -1591,14 +1646,17 @@ fn typeUniqueRootIndicesCall(mut call: Arc<Call::NFCall>, mut context: i32, mut 
             args = List::appendElt(arg3.clone(), args.clone());
         } else {
             Error::addSourceMessageAndFail(Error::NO_SUCH_INPUT_PARAMETER.clone(), list![(ComponentRef::toString(fn_ref.clone())?).clone(), (name.clone()).clone()], info.clone())?;
+            unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
         }
     }
     args_len = (args.clone().len() as i32);
     if args_len.clone() < 2 || args_len.clone() > 3 {
         Error::addSourceMessageAndFail(Error::NO_MATCHING_FUNCTION_FOUND_NFINST.clone(), list![(Call::toString(call.clone())?).clone(), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*ComponentRef::toString(fn_ref.clone())?); __mm_s.push_str(&*literal!("(Connector, Connector, String = \"\")")); ArcStr::from(__mm_s) }).clone()], info.clone())?;
+        unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
     }
     if InstContext::inFunction(context.clone()) {
         Error::addSourceMessageAndFail(Error::EXP_INVALID_IN_FUNCTION.clone(), list![(ComponentRef::toString(fn_ref.clone())?).clone()], info.clone())?;
+        unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
     }
     let (__pa3, __pa4, __pa5) = ::match_deref::match_deref! { match &(args.clone()) {
         Deref @ metamodelica::List::Cons { head: __pa3, tail: Deref @ metamodelica::List::Cons { head: __pa4, tail: __pa5 } } => (__pa3.clone(), __pa4.clone(), __pa5.clone()),
@@ -1610,16 +1668,19 @@ fn typeUniqueRootIndicesCall(mut call: Arc<Call::NFCall>, mut context: i32, mut 
     (arg1, ty1) = typeConnectionsArg(arg1.clone(), context.clone(), info.clone(), fn_ref.clone(), 1)?;
     if !(Type::isArray(ty1.clone())) {
         Error::addSourceMessageAndFail(Error::ARG_TYPE_MISMATCH.clone(), list![(literal!("1")).clone(), (ComponentRef::toString(fn_ref.clone())?).clone(), (literal!("")).clone(), (Expression::toString(arg1.clone())?).clone(), (Type::toString(ty1.clone())?).clone(), (literal!("Connector[:]")).clone()], info.clone())?;
+        unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
     }
     (arg2, ty2) = typeConnectionsArg(arg2.clone(), context.clone(), info.clone(), fn_ref.clone(), 2)?;
     if !(Type::isArray(ty2.clone())) {
         Error::addSourceMessageAndFail(Error::ARG_TYPE_MISMATCH.clone(), list![(literal!("2")).clone(), (ComponentRef::toString(fn_ref.clone())?).clone(), (literal!("")).clone(), (Expression::toString(arg2.clone())?).clone(), (Type::toString(ty2.clone())?).clone(), (literal!("Connector[:]")).clone()], info.clone())?;
+        unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
     }
     if args_len.clone() == 3 {
         arg3 = listHead(args.clone())?;
         (arg3, ty3, _, _) = Typing::typeExp(arg3.clone(), context.clone(), info.clone(), false)?;
         if !(Type::isString(ty3.clone())) {
             Error::addSourceMessageAndFail(Error::ARG_TYPE_MISMATCH.clone(), list![(literal!("3")).clone(), (ComponentRef::toString(fn_ref.clone())?).clone(), (literal!("")).clone(), (Expression::toString(arg2.clone())?).clone(), (Type::toString(ty3.clone())?).clone(), (literal!("String")).clone()], info.clone())?;
+            unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
         }
     } else {
         arg3 = Arc::new(Expression::NFExpression::STRING { value: (literal!("")).clone() });
@@ -1669,6 +1730,7 @@ fn checkConnectionsArgument(mut arg: Arc<Expression::NFExpression>, mut ty: Arc<
                     Error::addSourceMessage(if (argIndex.clone() == 1) {Error::W_INVALID_ARGUMENT_TYPE_BRANCH_FIRST.clone()} else {Error::W_INVALID_ARGUMENT_TYPE_BRANCH_SECOND.clone()}, list![(ComponentRef::toString(var_field!((*arg).cref, Expression::NFExpression::CREF).clone())?).clone(), (ComponentRef::toString(fnRef.clone())?).clone()], info.clone())?;
                 } else {
                     Error::addSourceMessageAndFail(if (argIndex.clone() == 1) {Error::INVALID_ARGUMENT_TYPE_BRANCH_FIRST.clone()} else {Error::INVALID_ARGUMENT_TYPE_BRANCH_SECOND.clone()}, list![(ComponentRef::toString(var_field!((*arg).cref, Expression::NFExpression::CREF).clone())?).clone(), (ComponentRef::toString(fnRef.clone())?).clone()], info.clone())?;
+                    unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
                 }
             }
             ()
@@ -1702,6 +1764,7 @@ fn typeNoEventCall(mut call: Arc<Call::NFCall>, mut context: i32, mut info: Sour
     assertNoNamedParams((literal!("noEvent")).clone(), named_args.clone(), info.clone())?;
     if (args.clone().len() as i32) != 1 {
         Error::addSourceMessageAndFail(Error::NO_MATCHING_FUNCTION_FOUND_NFINST.clone(), list![(Call::toString(call.clone())?).clone(), (literal!("noEvent(Any) => Any")).clone()], info.clone())?;
+        unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
     }
     let __pa3 = ::match_deref::match_deref! { match &(args.clone()) {
         Deref @ metamodelica::List::Cons { head: __pa3, tail: Deref @ metamodelica::List::Nil } => __pa3.clone(),
@@ -1875,6 +1938,7 @@ fn typeActualInStreamCall(mut name: ArcStr, mut call: Arc<Call::NFCall>, mut con
     assertNoNamedParams((name.clone()).clone(), named_args.clone(), info.clone())?;
     if (args.clone().len() as i32) != 1 {
         Error::addSourceMessageAndFail(Error::NO_MATCHING_FUNCTION_FOUND_NFINST.clone(), list![(Call::toString(call.clone())?).clone(), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*ComponentRef::toString(fn_ref.clone())?); __mm_s.push_str(&*literal!("(stream variable) => Real")); ArcStr::from(__mm_s) }).clone()], info.clone())?;
+        unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
     }
     (arg, ty, var, _) = Typing::typeExp(listHead(args.clone())?, context.clone(), info.clone(), false)?;
     (arg, _) = ExpandExp::expand(arg.clone(), false, false)?;
@@ -1895,11 +1959,13 @@ fn typeActualInStreamCall2(mut name: ArcStr, mut r#fn: Arc<Function::Function>, 
             arg_node = ComponentRef::node(var_field!((*arg).cref, Expression::NFExpression::CREF).clone())?;
             if !(InstNode::isComponent(arg_node.clone())) || !(Prefixes::ConnectorType::isStream(Component::connectorType(InstNode::component(arg_node.clone())?))) {
                 Error::addSourceMessageAndFail(Error::NON_STREAM_OPERAND_IN_STREAM_OPERATOR.clone(), list![(ComponentRef::toString(var_field!((*arg).cref, Expression::NFExpression::CREF).clone())?).clone(), (name.clone()).clone()], info.clone())?;
+                unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
             }
             for mut sub in &*ComponentRef::subscriptsAllFlat(var_field!((*arg).cref, Expression::NFExpression::CREF).clone()) {
                 let mut sub = sub.clone();
                 if Subscript::variability(sub.clone())? > Variability::PARAMETER.clone() {
                     Error::addSourceMessageAndFail(Error::CONNECTOR_NON_PARAMETER_SUBSCRIPT.clone(), list![(ComponentRef::toString(var_field!((*arg).cref, Expression::NFExpression::CREF).clone())?).clone(), (Subscript::toString(sub.clone())?).clone()], info.clone())?;
+                    unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
                 }
             }
             Arc::new(Expression::NFExpression::CALL { call: Call::makeTypedCall(r#fn.clone(), list![arg.clone()], var.clone(), Purity::IMPURE.clone(), var_field!((*arg).ty, Expression::NFExpression::CREF).clone()) })
@@ -1946,6 +2012,7 @@ fn typeDynamicSelectCall(mut name: ArcStr, mut call: Arc<Call::NFCall>, mut cont
     assertNoNamedParams((name.clone()).clone(), named_args.clone(), info.clone())?;
     if (args.clone().len() as i32) != 2 {
         Error::addSourceMessageAndFail(Error::NO_MATCHING_FUNCTION_FOUND_NFINST.clone(), list![(Call::toString(call.clone())?).clone(), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*ComponentRef::toString(fn_ref.clone())?); __mm_s.push_str(&*literal!("(static expression, dynamic expression)")); ArcStr::from(__mm_s) }).clone()], info.clone())?;
+        unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
     }
     let (__pa3, __pa4) = ::match_deref::match_deref! { match &({
         let mut __acc: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();

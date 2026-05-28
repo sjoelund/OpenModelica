@@ -79,8 +79,8 @@ pub fn simulationInitFile(mut simCode: SIMCODE, mut guid: ArcStr) -> Result<()> 
 
 pub fn simulationInitFileReturnBool(mut simCode: SIMCODE, mut guid: ArcStr) -> bool {
     let mut success: bool = false;
-    let mut vi: VarInfo;
-    let mut s: SimulationSettings;
+    let mut vi: VarInfo = <VarInfo as ::std::default::Default>::default();
+    let mut s: SimulationSettings = <SimulationSettings as ::std::default::Default>::default();
     let mut file: File::File = File::File(File::noReference()).unwrap();
     let mut fileName: ArcStr = arcstr::literal!("");
     let mut FMUType: ArcStr = arcstr::literal!("");

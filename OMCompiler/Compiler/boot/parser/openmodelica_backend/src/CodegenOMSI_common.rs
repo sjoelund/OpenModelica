@@ -144,9 +144,9 @@ pub fn generateOmsiFunctionCode(mut txt: Tpl::Text, mut a_omsiFunction: Arc<SimC
     let mut l_headerFileName: Tpl::Text;
     let mut l_0__: Tpl::Text;
     let mut l_initializationCode: Tpl::Text;
-    let mut ret_7: SimCode::SimCode;
+    let mut ret_7: SimCode::SimCode = <SimCode::SimCode as ::std::default::Default>::default();
     let mut l_fullPathPrefix: Tpl::Text;
-    let mut ret_5: SimCode::SimCode;
+    let mut ret_5: SimCode::SimCode = <SimCode::SimCode as ::std::default::Default>::default();
     let mut l_fileNamePrefix: Tpl::Text;
     let mut l_functionPrototypes: Tpl::Text;
     let mut l_functionCall: Tpl::Text;
@@ -361,9 +361,9 @@ pub fn generateOmsiFunctionCode_inner(mut txt: Tpl::Text, mut a_omsiFunction: Ar
     let mut out_a_functionCall: Tpl::Text;
     let mut out_a_residualCall: Tpl::Text;
     let mut out_a_functionPrototypes: Tpl::Text;
-    let mut ret_3: SimCode::SimCode;
+    let mut ret_3: SimCode::SimCode = <SimCode::SimCode as ::std::default::Default>::default();
     let mut l_fullPathPrefix: Tpl::Text;
-    let mut ret_1: SimCode::SimCode;
+    let mut ret_1: SimCode::SimCode = <SimCode::SimCode as ::std::default::Default>::default();
     let mut l_fileNamePrefix: Tpl::Text;
     ret_1 = SimCodeUtil::getSimCode()?;
     l_fileNamePrefix = CodegenUtilSimulation::fileNamePrefix(Tpl::emptyTxt.clone(), ret_1.clone())?;
@@ -700,9 +700,9 @@ fn fun_68(mut in_txt: Tpl::Text, mut in_a_equationSystem: Arc<SimCode::SimEqSyst
 
 pub fn generateOmsiAlgSystemCode(mut txt: Tpl::Text, mut a_equationSystem: Arc<SimCode::SimEqSystem>, mut a_FileNamePrefix: ArcStr, mut a_omsiName: ArcStr) -> Result<Tpl::Text> {
     let mut out_txt: Tpl::Text;
-    let mut ret_9: SimCode::SimCode;
+    let mut ret_9: SimCode::SimCode = <SimCode::SimCode as ::std::default::Default>::default();
     let mut l_fullPathPrefix: Tpl::Text;
-    let mut ret_7: SimCode::SimCode;
+    let mut ret_7: SimCode::SimCode = <SimCode::SimCode as ::std::default::Default>::default();
     let mut l_fileNamePrefix: Tpl::Text;
     let mut l_functionPrototypes: Tpl::Text;
     let mut l_derivativeMatrix: Tpl::Text;
@@ -806,11 +806,11 @@ pub fn generateDerivativeFile(mut txt: Tpl::Text, mut a_matrix: Option<Arc<SimCo
     let mut l_headerFileContent: Tpl::Text;
     let mut txt_12: Tpl::Text;
     let mut l_content: Tpl::Text;
-    let mut ret_10: SimCode::SimCode;
+    let mut ret_10: SimCode::SimCode = <SimCode::SimCode as ::std::default::Default>::default();
     let mut l_fullPathPrefix: Tpl::Text;
-    let mut ret_8: SimCode::SimCode;
+    let mut ret_8: SimCode::SimCode = <SimCode::SimCode as ::std::default::Default>::default();
     let mut l_fileNamePrefix: Tpl::Text;
-    let mut ret_6: SimCode::SimCode;
+    let mut ret_6: SimCode::SimCode = <SimCode::SimCode as ::std::default::Default>::default();
     let mut l_headerFileName: Tpl::Text;
     let mut l_body: Tpl::Text;
     let mut l_initalizationCode: Tpl::Text;
@@ -1094,7 +1094,7 @@ fn fun_81(mut in_txt: Tpl::Text, mut in_a_variable: SimCodeVar::SimVar, mut in_a
         },
         (mut txt, mut i_var @ SimCodeVar::SimVar { name: _, .. }, mut a_stringIndex, mut a_stringName) => {
             let mut ret_1: ArcStr = arcstr::literal!("");
-            let mut ret_0: SimCode::SimCode;
+            let mut ret_0: SimCode::SimCode = <SimCode::SimCode as ::std::default::Default>::default();
             a_stringName = CodegenUtil::crefCCommentWithVariability(a_stringName.clone(), i_var.clone())?;
             ret_0 = SimCodeUtil::getSimCode()?;
             ret_1 = (SimCodeUtil::getValueReference(i_var.clone(), ret_0.clone(), false)?).clone();

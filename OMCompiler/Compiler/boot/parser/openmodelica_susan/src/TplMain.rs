@@ -85,8 +85,8 @@ pub fn translateFile(mut inFile: ArcStr) -> Result<()> {
             let mut destFile: ArcStr = arcstr::literal!("");
             let mut res: ArcStr = arcstr::literal!("");
             let mut txt: Tpl::Text;
-            let mut tplPackage: TplAbsyn::TemplPackage;
-            let mut mmPckg: TplAbsyn::MMPackage;
+            let mut tplPackage: TplAbsyn::TemplPackage = <TplAbsyn::TemplPackage as ::std::default::Default>::default();
+            let mut mmPckg: TplAbsyn::MMPackage = <TplAbsyn::MMPackage as ::std::default::Default>::default();
             let mut nErrors: i32 = 0;
             let mut wasError: bool = false;
             println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\nProcessing file '")); __mm_s.push_str(&*file.clone()); __mm_s.push_str(&*literal!("'\n")); ArcStr::from(__mm_s) }).clone());
@@ -208,8 +208,8 @@ pub fn tplMainTest(mut inFile: ArcStr) -> Result<()> {
                     let mut chars: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
                     let mut txt: Tpl::Text;
                     let mut tequal: bool = false;
-                    let mut tplPackage: TplAbsyn::TemplPackage;
-                    let mut mmPckg: TplAbsyn::MMPackage;
+                    let mut tplPackage: TplAbsyn::TemplPackage = <TplAbsyn::TemplPackage as ::std::default::Default>::default();
+                    let mut mmPckg: TplAbsyn::MMPackage = <TplAbsyn::MMPackage as ::std::default::Default>::default();
                     let mut pid: Arc<TplAbsyn::PathIdent>;
                     let mut ts: Arc<TplAbsyn::TypeSignature> = Arc::new(TplAbsyn::TypeSignature::BOOLEAN_TYPE);
                     let mut astDefs: Arc<metamodelica::List<TplAbsyn::ASTDef>> = metamodelica::nil();

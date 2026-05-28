@@ -3,7 +3,18 @@
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::fmt::Write;
 use std::sync::Arc;
+use std::sync::OnceLock;
 use rayon::prelude::*;
+
+/// Cached value of the `MMTORUST_TRACE_ALIAS_SHADOW` env var.  `std::env::var`
+/// acquires a process-global lock on each call (glibc serialises `getenv`/
+/// `setenv` to avoid TOCTOU on the environment block), so calling it inside a
+/// per-name hot path (see `shorten`) effectively serialises every codegen
+/// thread on that lock.  Caching the boolean once removes the contention.
+fn trace_alias_shadow() -> bool {
+    static FLAG: OnceLock<bool> = OnceLock::new();
+    *FLAG.get_or_init(|| std::env::var("MMTORUST_TRACE_ALIAS_SHADOW").is_ok())
+}
 use openmodelica_ast::Absyn;
 use crate::MM;
 use std::collections::HashMap;
@@ -661,7 +672,7 @@ impl GenCtx {
             let shadowed_by_self = self.self_members.contains(top);
             if !shadowed_by_alias && !shadowed_by_wildcard && !shadowed_by_self {
                 self.implicit_modules.insert(top.to_owned());
-            } else if std::env::var("MMTORUST_TRACE_ALIAS_SHADOW").is_ok() {
+            } else if trace_alias_shadow() {
                 eprintln!(
                     "[mmtorust] shorten: skipping implicit_modules insert of '{top}' \
                      (shadowed by local alias) for dotted='{dotted}' in {}::{}",

@@ -58,6 +58,15 @@ pub struct Attribute {
     pub value: ArcStr,
 }
 
+impl Default for Attribute {
+    fn default() -> Self {
+        Self {
+            name: Default::default(),
+            value: Default::default(),
+        }
+    }
+}
+
 pub type ATTR = Attribute;
 
 

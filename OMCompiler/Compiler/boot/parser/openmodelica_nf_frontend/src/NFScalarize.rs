@@ -71,6 +71,47 @@ use openmodelica_util::ExecStat::execStat;
 use openmodelica_util::Flags;
 use openmodelica_util::UnorderedMap;
 use openmodelica_util_datatypes_basic::List;
+use openmodelica_util_datatypes_basic::Mutable;
+
+pub mod AttributeIterator {
+    use super::*;
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+    pub struct AttributeIterator {
+        pub name: ArcStr,
+        pub iterator: Mutable::Mutable<Arc<ExpressionIterator::NFExpressionIterator>>,
+    }
+
+    impl Default for AttributeIterator {
+        fn default() -> Self {
+            Self {
+                name: Default::default(),
+                iterator: Default::default(),
+            }
+        }
+    }
+
+    pub type ATTRIBUTE_ITERATOR = AttributeIterator;
+
+    pub fn create(mut attribute: (ArcStr, Arc<Binding::NFBinding>)) -> Result<Arc<AttributeIterator>> {
+        let mut iter: Arc<AttributeIterator> = Arc::new(<AttributeIterator as ::std::default::Default>::default());
+        let mut name: ArcStr = arcstr::literal!("");
+        let mut binding: Arc<Binding::NFBinding> = Arc::new(Binding::UNBOUND);
+        (name, binding) = attribute.clone();
+        iter = Arc::new(AttributeIterator { name: (name.clone()).clone(), iterator: Mutable::create(ExpressionIterator::fromBinding(binding.clone())?) });
+        Ok(iter)
+    }
+
+    pub fn nextBinding(mut iter: Arc<AttributeIterator>) -> Result<(ArcStr, Arc<Binding::NFBinding>)> {
+        let mut binding: (ArcStr, Arc<Binding::NFBinding>);
+        let mut it: Arc<ExpressionIterator::NFExpressionIterator> = Arc::new(ExpressionIterator::NONE_ITERATOR);
+        let mut exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
+        (it, exp) = ExpressionIterator::next(Mutable::access(iter.iterator.clone()))?;
+        Mutable::update(iter.iterator.clone(), it.clone());
+        binding = (iter.name.clone(), Binding::makeFlat(exp.clone(), Variability::PARAMETER.clone(), Binding::Source::BINDING.clone()));
+        Ok(binding)
+    }
+
+}
 
 pub fn scalarize(mut flatModel: Arc<FlatModel::NFFlatModel>) -> Result<Arc<FlatModel::NFFlatModel>> {
     let mut flatModel: Arc<FlatModel::NFFlatModel> = flatModel;
@@ -125,8 +166,7 @@ pub fn scalarizeVariable(mut var: Arc<Variable::NFVariable>, mut vars: Arc<metam
     let mut binding_iter: Arc<ExpressionIterator::NFExpressionIterator> = Arc::new(ExpressionIterator::NONE_ITERATOR);
     let mut crefs: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
     let mut exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-    let mut ty_attr_names: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
-    let mut ty_attr_iters: metamodelica::Array<Arc<ExpressionIterator::NFExpressionIterator>>;
+    let mut ty_attr_iters: Arc<metamodelica::List<Arc<AttributeIterator::AttributeIterator>>> = metamodelica::nil();
     let mut backend_attributes: Arc<metamodelica::List<Arc<BackendInfo::BackendInfo>>> = metamodelica::nil();
     let mut bind_var: Variability = Variability::CONSTANT;
     let mut binfo: Arc<BackendInfo::BackendInfo> = Arc::new(<BackendInfo::BackendInfo as ::std::default::Default>::default());
@@ -165,7 +205,14 @@ pub fn scalarizeVariable(mut var: Arc<Variable::NFVariable>, mut vars: Arc<metam
                 bind_var = Variability::CONSTANT.clone();
             }
             elem_ty = Type::arrayElementType(ty.clone());
-            (ty_attr_names, ty_attr_iters) = unwrap_break_err!(scalarizeTypeAttributes(ty_attr.clone()), '__try0);
+            ty_attr_iters = {
+        let mut __acc: Arc<metamodelica::List<Arc<AttributeIterator::AttributeIterator>>> = metamodelica::nil();
+        for mut a in (ty_attr.clone()).into_iter().cloned() {
+            let __x = unwrap_break_err!(AttributeIterator::create(a.clone()), '__try0);
+            __acc = cons(__x, __acc);
+        }
+        __acc.reverse()
+    };
             backend_attributes = unwrap_break_err!(BackendInfo::scalarize(binfo.clone(), (crefs.clone().len() as i32)), '__try0);
             for mut cr in &*crefs.clone() {
                 let mut cr = cr.clone();
@@ -173,7 +220,14 @@ pub fn scalarizeVariable(mut var: Arc<Variable::NFVariable>, mut vars: Arc<metam
                     (binding_iter, exp) = unwrap_break_err!(ExpressionIterator::next(binding_iter.clone()), '__try0);
                     binding = Binding::makeFlat(exp.clone(), bind_var.clone(), bind_src.clone());
                 }
-                ty_attr = unwrap_break_err!(nextTypeAttributes(ty_attr_names.clone(), ty_attr_iters.clone()), '__try0);
+                ty_attr = {
+        let mut __acc: Arc<metamodelica::List<(ArcStr, Arc<Binding::NFBinding>)>> = metamodelica::nil();
+        for mut i in (ty_attr_iters.clone()).into_iter().cloned() {
+            let __x = unwrap_break_err!(AttributeIterator::nextBinding(i.clone()), '__try0);
+            __acc = cons(__x, __acc);
+        }
+        __acc.reverse()
+    };
                 let (__pa10, __pa11) = ::match_deref::match_deref! { match &(backend_attributes.clone()) {
                     Deref @ metamodelica::List::Cons { head: __pa10, tail: __pa11 } => (__pa10.clone(), __pa11.clone()),
                     _ => break '__try0 Err::<_, _>(anyhow::anyhow!("pattern mismatch")),
@@ -290,41 +344,6 @@ pub fn scalarizeComplexVariable(mut var: Arc<Variable::NFVariable>, mut vars: Ar
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } });
     Ok(vars)
-}
-
-pub fn scalarizeTypeAttributes(mut attrs: Arc<metamodelica::List<(ArcStr, Arc<Binding::NFBinding>)>>) -> Result<(Arc<metamodelica::List<ArcStr>>, metamodelica::Array<Arc<ExpressionIterator::NFExpressionIterator>>)> {
-    let mut names: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
-    let mut iters: metamodelica::Array<Arc<ExpressionIterator::NFExpressionIterator>>;
-    let mut len: i32 = 0;
-    let mut i: i32 = 0;
-    let mut name: ArcStr = arcstr::literal!("");
-    let mut binding: Arc<Binding::NFBinding> = Arc::new(Binding::UNBOUND);
-    len = (attrs.clone().len() as i32);
-    iters = metamodelica::arrayCreate(len.clone(), Arc::new(crate::NFExpressionIterator::NONE_ITERATOR));
-    i = len.clone();
-    for mut attr in &*attrs.clone() {
-        let mut attr = attr.clone();
-        (name, binding) = attr.clone();
-        names = cons((name.clone()).clone(), names.clone());
-        unsafe { metamodelica::Dangerous::arrayInitSlot(iters.clone(), i.clone(), ExpressionIterator::fromBinding(binding.clone())?) };
-        i = i.clone() - 1;
-    }
-    Ok((names, iters))
-}
-
-pub fn nextTypeAttributes(mut names: Arc<metamodelica::List<ArcStr>>, mut iters: metamodelica::Array<Arc<ExpressionIterator::NFExpressionIterator>>) -> Result<Arc<metamodelica::List<(ArcStr, Arc<Binding::NFBinding>)>>> {
-    let mut attrs: Arc<metamodelica::List<(ArcStr, Arc<Binding::NFBinding>)>> = metamodelica::nil();
-    let mut i: i32 = 1;
-    let mut iter: Arc<ExpressionIterator::NFExpressionIterator> = Arc::new(ExpressionIterator::NONE_ITERATOR);
-    let mut exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-    for mut name in &*names.clone() {
-        let mut name = name.clone();
-        (iter, exp) = ExpressionIterator::next(iters.borrow()[(i.clone()-1) as usize].clone())?;
-        {let _arr = iters.clone(); _arr.borrow_mut()[(i.clone()-1) as usize] = iter.clone(); _arr};
-        i = i.clone() + 1;
-        attrs = cons((name.clone(), Binding::makeFlat(exp.clone(), Variability::PARAMETER.clone(), Binding::Source::BINDING.clone())), attrs.clone());
-    }
-    Ok(attrs)
 }
 
 pub fn expandComplexCref(mut exp: Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> {

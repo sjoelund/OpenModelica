@@ -89,7 +89,7 @@ pub fn instantiateExternalObject(mut inCache: FCore::Cache, mut inEnv: FCore::Gr
     let mut outCache: FCore::Cache = FCore::Cache::NO_CACHE;
     let mut outEnv: FCore::Graph;
     let mut outIH: Arc<metamodelica::List<InnerOuter::TopInstance>> = metamodelica::nil();
-    let mut dae: DAE::DAElist;
+    let mut dae: DAE::DAElist = <DAE::DAElist as ::std::default::Default>::default();
     let mut ciState: ClassInf::State;
     (outCache, outEnv, outIH, dae, ciState) = 'mc: {
         let __mc_input = (inCache.clone(), inEnv.clone(), inIH.clone(), els.clone(), inMod.clone(), r#impl.clone(), comment.clone(), info.clone());
@@ -377,7 +377,7 @@ fn implicitFunctionInstantiation2(mut inCache: FCore::Cache, mut inEnv: FCore::G
                     let mut cenv: FCore::Graph;
                     let mut fpath: Arc<Absyn::Path>;
                     let mut vis: SCode::Visibility = SCode::Visibility::PROTECTED;
-                    let mut extdecl: DAE::ExternalDecl;
+                    let mut extdecl: DAE::ExternalDecl = <DAE::ExternalDecl as ::std::default::Default>::default();
                     let mut source: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
                     let mut daeElts: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
                     let mut derFuncs: Arc<metamodelica::List<DAE::FunctionDefinition>> = metamodelica::nil();
@@ -488,8 +488,8 @@ fn instantiateDerivativeFuncs2(mut inCache: FCore::Cache, mut inEnv: FCore::Grap
         if let Ok(__v) = (|| -> Result<_> {
                     let _ = __mc_input.clone() else { bail!("nomatch") };
                     let mut ih: Arc<metamodelica::List<InnerOuter::TopInstance>>;
-                    let mut funcs: Arc<metamodelica::List<DAE::Function>>;
                     let mut cache: FCore::Cache = cache.clone();
+                    let mut funcs: Arc<metamodelica::List<DAE::Function>>;
                     cache = FCore::addCachedInstFuncGuard(cache.clone(), p.clone())?;
                     (cache, _, ih, funcs) = implicitFunctionInstantiation2(cache.clone(), cenv.clone(), ih.clone(), Arc::new(openmodelica_frontend_types::DAE::Mod::NOMOD), openmodelica_frontend_types::DAE::Prefix::NOPRE, cdef.clone(), metamodelica::nil(), false)?;
                     funcs = InstUtil::addNameToDerivativeMapping(funcs.clone(), path.clone());
@@ -680,7 +680,7 @@ fn instOverloadedFunctions(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, m
 fn instExtDecl(mut cache: FCore::Cache, mut env: FCore::Graph, mut iH: Arc<metamodelica::List<InnerOuter::TopInstance>>, mut name: ArcStr, mut inScExtDecl: Arc<SCode::ExternalDecl>, mut inElements: Arc<metamodelica::List<Arc<DAE::Element>>>, mut funcType: Arc<DAE::Type>, mut r#impl: bool, mut pre: DAE::Prefix, mut info: SourceInfo) -> Result<(FCore::Cache, Arc<metamodelica::List<InnerOuter::TopInstance>>, DAE::ExternalDecl)> {
     let mut cache: FCore::Cache = cache;
     let mut iH: Arc<metamodelica::List<InnerOuter::TopInstance>> = iH;
-    let mut daeextdecl: DAE::ExternalDecl;
+    let mut daeextdecl: DAE::ExternalDecl = <DAE::ExternalDecl as ::std::default::Default>::default();
     let mut fname: ArcStr = arcstr::literal!("");
     let mut lang: ArcStr = arcstr::literal!("");
     let mut fargs: Arc<metamodelica::List<DAE::ExtArg>> = metamodelica::nil();

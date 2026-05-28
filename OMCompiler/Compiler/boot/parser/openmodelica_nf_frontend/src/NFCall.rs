@@ -276,7 +276,7 @@ pub fn typeNormalCall(mut call: Arc<NFCall>, mut context: i32, mut info: SourceI
 
 pub fn makeTypedCall(mut r#fn: Arc<Function::Function>, mut args: Arc<metamodelica::List<Arc<Expression::NFExpression>>>, mut variability: Variability, mut purity: Purity, mut returnType: Arc<Type::NFType>) -> Arc<NFCall> {
     let mut call: Arc<NFCall>;
-    let mut ca: Arc<NFCallAttributes::NFCallAttributes>;
+    let mut ca: Arc<NFCallAttributes::NFCallAttributes> = Arc::new(<NFCallAttributes::NFCallAttributes as ::std::default::Default>::default());
     ca = Arc::new(NFCallAttributes::NFCallAttributes { tuple_: Type::isTuple(returnType.clone()), builtin: Function::isBuiltin(r#fn.clone()), isImpure: Function::isImpure(r#fn.clone()), isFunctionPointerCall: Function::isFunctionPointer(r#fn.clone()), inlineType: Function::inlineBuiltin(r#fn.clone()), tailCall: openmodelica_frontend_types::DAE::TailCall::NO_TAIL });
     call = Arc::new(NFCall::TYPED_CALL { r#fn: r#fn.clone(), ty: returnType.clone(), var: variability.clone(), purity: purity.clone(), arguments: args.clone(), attributes: ca.clone() });
     call
@@ -320,7 +320,7 @@ pub fn matchTypedNormalCall(mut call: Arc<NFCall>, mut context: i32, mut info: S
     let mut func: Arc<Function::Function> = Arc::new(<Function::Function as ::std::default::Default>::default());
     let mut args: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
     let mut typed_args: Arc<metamodelica::List<Arc<TypedArg>>> = metamodelica::nil();
-    let mut matchedFunc: Arc<MatchedFunction::MatchedFunction>;
+    let mut matchedFunc: Arc<MatchedFunction::MatchedFunction> = Arc::new(<MatchedFunction::MatchedFunction as ::std::default::Default>::default());
     let mut scope: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
     let mut var: Variability = Variability::CONSTANT;
     let mut arg_var: Variability = Variability::CONSTANT;
@@ -2659,7 +2659,7 @@ fn typeArgs(mut call: Arc<NFCall>, mut context: i32, mut info: SourceInfo) -> Re
 }
 
 fn checkMatchingFunctions(mut call: Arc<NFCall>, mut context: i32, mut info: SourceInfo, mut vectorize: bool) -> Result<Arc<MatchedFunction::MatchedFunction>> {
-    let mut matchedFunc: Arc<MatchedFunction::MatchedFunction>;
+    let mut matchedFunc: Arc<MatchedFunction::MatchedFunction> = Arc::new(<MatchedFunction::MatchedFunction as ::std::default::Default>::default());
     let mut matchedFunctions: Arc<metamodelica::List<Arc<MatchedFunction::MatchedFunction>>> = metamodelica::nil();
     let mut exactMatches: Arc<metamodelica::List<Arc<MatchedFunction::MatchedFunction>>> = metamodelica::nil();
     let mut func: Arc<Function::Function> = Arc::new(<Function::Function as ::std::default::Default>::default());
@@ -2728,7 +2728,7 @@ fn checkMatchingFunctions(mut call: Arc<NFCall>, mut context: i32, mut info: Sou
 }
 
 fn iteratorToDAE(mut iter: (Arc<InstNode::InstNode>, Arc<Expression::NFExpression>)) -> Result<Arc<DAE::ReductionIterator>> {
-    let mut diter: Arc<DAE::ReductionIterator>;
+    let mut diter: Arc<DAE::ReductionIterator> = Arc::new(<DAE::ReductionIterator as ::std::default::Default>::default());
     let mut iter_node: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
     let mut iter_range: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut c: Arc<Component::NFComponent> = Arc::new(Component::WILD);

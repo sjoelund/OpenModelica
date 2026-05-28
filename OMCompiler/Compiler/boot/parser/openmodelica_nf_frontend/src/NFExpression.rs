@@ -869,7 +869,7 @@ pub fn compare(mut exp1: Arc<NFExpression>, mut exp2: Arc<NFExpression>) -> Resu
         Deref @ MULTARY { .. } => {
             let mut expl: Arc<metamodelica::List<Arc<NFExpression>>> = metamodelica::nil();
             let mut inv_expl: Arc<metamodelica::List<Arc<NFExpression>>> = metamodelica::nil();
-            let mut op: Arc<Operator::NFOperator>;
+            let mut op: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
             let (__pa0, __pa1, __pa2) = ::match_deref::match_deref! { match &(exp2.clone()) {
                 Deref @ MULTARY { operator: __pa0, inv_arguments: __pa1, arguments: __pa2 } => (__pa0.clone(), __pa1.clone(), __pa2.clone()),
                 _ => bail!("pattern mismatch"),
@@ -889,7 +889,7 @@ pub fn compare(mut exp1: Arc<NFExpression>, mut exp2: Arc<NFExpression>) -> Resu
         Deref @ BINARY { .. } => {
             let mut e1: Arc<NFExpression> = Arc::new(NFExpression::END);
             let mut e2: Arc<NFExpression> = Arc::new(NFExpression::END);
-            let mut op: Arc<Operator::NFOperator>;
+            let mut op: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
             let (__pa0, __pa1, __pa2) = ::match_deref::match_deref! { match &(exp2.clone()) {
                 Deref @ BINARY { exp2: __pa0, operator: __pa1, exp1: __pa2 } => (__pa0.clone(), __pa1.clone(), __pa2.clone()),
                 _ => bail!("pattern mismatch"),
@@ -908,7 +908,7 @@ pub fn compare(mut exp1: Arc<NFExpression>, mut exp2: Arc<NFExpression>) -> Resu
         },
         Deref @ UNARY { .. } => {
             let mut e1: Arc<NFExpression> = Arc::new(NFExpression::END);
-            let mut op: Arc<Operator::NFOperator>;
+            let mut op: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
             let (__pa0, __pa1) = ::match_deref::match_deref! { match &(exp2.clone()) {
                 Deref @ UNARY { exp: __pa0, operator: __pa1 } => (__pa0.clone(), __pa1.clone()),
                 _ => bail!("pattern mismatch"),
@@ -921,7 +921,7 @@ pub fn compare(mut exp1: Arc<NFExpression>, mut exp2: Arc<NFExpression>) -> Resu
         Deref @ LBINARY { .. } => {
             let mut e1: Arc<NFExpression> = Arc::new(NFExpression::END);
             let mut e2: Arc<NFExpression> = Arc::new(NFExpression::END);
-            let mut op: Arc<Operator::NFOperator>;
+            let mut op: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
             let (__pa0, __pa1, __pa2) = ::match_deref::match_deref! { match &(exp2.clone()) {
                 Deref @ LBINARY { exp2: __pa0, operator: __pa1, exp1: __pa2 } => (__pa0.clone(), __pa1.clone(), __pa2.clone()),
                 _ => bail!("pattern mismatch"),
@@ -940,7 +940,7 @@ pub fn compare(mut exp1: Arc<NFExpression>, mut exp2: Arc<NFExpression>) -> Resu
         },
         Deref @ LUNARY { .. } => {
             let mut e1: Arc<NFExpression> = Arc::new(NFExpression::END);
-            let mut op: Arc<Operator::NFOperator>;
+            let mut op: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
             let (__pa0, __pa1) = ::match_deref::match_deref! { match &(exp2.clone()) {
                 Deref @ LUNARY { exp: __pa0, operator: __pa1 } => (__pa0.clone(), __pa1.clone()),
                 _ => bail!("pattern mismatch"),
@@ -953,7 +953,7 @@ pub fn compare(mut exp1: Arc<NFExpression>, mut exp2: Arc<NFExpression>) -> Resu
         Deref @ RELATION { .. } => {
             let mut e1: Arc<NFExpression> = Arc::new(NFExpression::END);
             let mut e2: Arc<NFExpression> = Arc::new(NFExpression::END);
-            let mut op: Arc<Operator::NFOperator>;
+            let mut op: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
             let (__pa0, __pa1, __pa2) = ::match_deref::match_deref! { match &(exp2.clone()) {
                 Deref @ RELATION { exp2: __pa0, operator: __pa1, exp1: __pa2, .. } => (__pa0.clone(), __pa1.clone(), __pa2.clone()),
                 _ => bail!("pattern mismatch"),
@@ -7243,7 +7243,7 @@ pub fn mmul(mut lhs: Arc<NFExpression>, mut rhs: Arc<NFExpression>, mut baseOp: 
     let mut rArr: bool = Type::isArray(tr.clone());
     let mut sizeClass: Operator::SizeClassification = Operator::SizeClassification::SCALAR;
     let mut resTy: Arc<Type::NFType> = Arc::new(Type::ANY);
-    let mut op: Arc<Operator::NFOperator>;
+    let mut op: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
     if !(lArr.clone()) && !(rArr.clone()) {
         sizeClass = Operator::SizeClassification::SCALAR.clone();
     } else if !(lArr.clone()) && rArr.clone() {

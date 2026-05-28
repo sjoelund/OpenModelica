@@ -92,6 +92,9 @@ pub enum ConnectorType {
     },
     NON_CONNECTOR,
 }
+impl Default for ConnectorType {
+    fn default() -> Self { Self::POTENTIAL }
+}
 pub use self::ConnectorType::{POTENTIAL,FLOW,STREAM,NON_CONNECTOR};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -103,6 +106,9 @@ pub enum VarDirection {
     /// neither input or output
     BIDIR,
 }
+impl Default for VarDirection {
+    fn default() -> Self { Self::INPUT }
+}
 pub use self::VarDirection::{INPUT,OUTPUT,BIDIR};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -113,6 +119,9 @@ pub enum VarParallelism {
     PARLOCAL,
     /// Non parallel/Normal variables
     NON_PARALLEL,
+}
+impl Default for VarParallelism {
+    fn default() -> Self { Self::PARGLOBAL }
 }
 pub use self::VarParallelism::{PARGLOBAL,PARLOCAL,NON_PARALLEL};
 
@@ -135,6 +144,9 @@ pub enum VarInnerOuter {
     INNER_OUTER,
     /// no inner outer prefix
     NOT_INNER_OUTER,
+}
+impl Default for VarInnerOuter {
+    fn default() -> Self { Self::INNER }
 }
 pub use self::VarInnerOuter::{INNER,OUTER,INNER_OUTER,NOT_INNER_OUTER};
 
@@ -595,6 +607,15 @@ pub enum Function {
         source: Arc<ElementSource>,
     },
 }
+impl Default for Function {
+    fn default() -> Self {
+        Self::RECORD_CONSTRUCTOR {
+            path: Default::default(),
+            type_: Default::default(),
+            source: Default::default(),
+        }
+    }
+}
 pub use self::Function::{FUNCTION,RECORD_CONSTRUCTOR};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -754,6 +775,14 @@ pub enum VariableAttributes {
         startOrigin: Option<Arc<Exp>>,
     },
 }
+impl Default for VariableAttributes {
+    fn default() -> Self {
+        Self::VAR_ATTR_CLOCK {
+            isProtected: Default::default(),
+            finalPrefix: Default::default(),
+        }
+    }
+}
 pub use self::VariableAttributes::{VAR_ATTR_REAL,VAR_ATTR_INT,VAR_ATTR_BOOL,VAR_ATTR_CLOCK,VAR_ATTR_STRING,VAR_ATTR_ENUMERATION};
 
 thread_local! { static __emptyVarAttrReal_TLS: Arc<VariableAttributes> = Arc::new(VariableAttributes::VAR_ATTR_REAL { quantity: None, unit: None, displayUnit: None, min: None, max: None, start: None, fixed: None, nominal: None, stateSelectOption: None, uncertainOption: None, distributionOption: None, equationBound: None, isProtected: None, finalPrefix: None, startOrigin: None }); }
@@ -801,6 +830,16 @@ pub struct Distribution {
     pub paramNames: Arc<Exp>,
 }
 
+impl Default for Distribution {
+    fn default() -> Self {
+        Self {
+            name: Default::default(),
+            params: Default::default(),
+            paramNames: Default::default(),
+        }
+    }
+}
+
 pub type DISTRIBUTION = Distribution;
 
 
@@ -822,6 +861,9 @@ pub enum ExtArg {
     },
     NOEXTARG,
 }
+impl Default for ExtArg {
+    fn default() -> Self { Self::NOEXTARG }
+}
 pub use self::ExtArg::{EXTARG,EXTARGEXP,EXTARGSIZE,NOEXTARG};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -831,6 +873,18 @@ pub struct ExternalDecl {
     pub returnArg: ExtArg,
     pub language: ArcStr,
     pub ann: Option<Arc<SCode::Annotation>>,
+}
+
+impl Default for ExternalDecl {
+    fn default() -> Self {
+        Self {
+            name: Default::default(),
+            args: Default::default(),
+            returnArg: Default::default(),
+            language: Default::default(),
+            ann: Default::default(),
+        }
+    }
 }
 
 pub type EXTERNALDECL = ExternalDecl;
@@ -843,6 +897,14 @@ pub struct DAElist {
     pub elementLst: Arc<metamodelica::List<Arc<Element>>>,
 }
 
+impl Default for DAElist {
+    fn default() -> Self {
+        Self {
+            elementLst: Default::default(),
+        }
+    }
+}
+
 pub type DAE = DAElist;
 
 
@@ -852,6 +914,14 @@ pub type DAE = DAElist;
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Algorithm {
     pub statementLst: Arc<metamodelica::List<Arc<Statement>>>,
+}
+
+impl Default for Algorithm {
+    fn default() -> Self {
+        Self {
+            statementLst: Default::default(),
+        }
+    }
 }
 
 pub type ALGORITHM_STMTS = Algorithm;
@@ -870,6 +940,13 @@ pub enum Constraint {
         /// local or global constraint; local constraints depend on variables that are computed within the algebraic loop itself
         localCon: bool,
     },
+}
+impl Default for Constraint {
+    fn default() -> Self {
+        Self::CONSTRAINT_EXPS {
+            constraintLst: Default::default(),
+        }
+    }
 }
 pub use self::Constraint::{CONSTRAINT_EXPS,CONSTRAINT_DT};
 
@@ -1029,6 +1106,13 @@ pub enum Statement {
         source: Arc<ElementSource>,
     },
 }
+impl Default for Statement {
+    fn default() -> Self {
+        Self::STMT_RETURN {
+            source: Default::default(),
+        }
+    }
+}
 pub use self::Statement::{STMT_ASSIGN,STMT_TUPLE_ASSIGN,STMT_ASSIGN_ARR,STMT_IF,STMT_FOR,STMT_PARFOR,STMT_WHILE,STMT_WHEN,STMT_ASSERT,STMT_TERMINATE,STMT_REINIT,STMT_NORETCALL,STMT_RETURN,STMT_BREAK,STMT_CONTINUE,STMT_ARRAY_INIT,STMT_FAILURE};
 
 /// An if statements can one or more `elseif\' branches and an
@@ -1069,6 +1153,19 @@ pub struct Var {
     pub constOfForIteratorRange: Option<Const>,
 }
 
+impl Default for Var {
+    fn default() -> Self {
+        Self {
+            name: Default::default(),
+            attributes: Default::default(),
+            ty: Default::default(),
+            binding: Default::default(),
+            bind_from_outside: Default::default(),
+            constOfForIteratorRange: Default::default(),
+        }
+    }
+}
+
 pub type TYPES_VAR = Var;
 
 
@@ -1087,6 +1184,19 @@ pub struct Attributes {
     pub innerOuter: Absyn::InnerOuter,
     /// public, protected
     pub visibility: SCode::Visibility,
+}
+
+impl Default for Attributes {
+    fn default() -> Self {
+        Self {
+            connectorType: Default::default(),
+            parallelism: Default::default(),
+            variability: Default::default(),
+            direction: Default::default(),
+            innerOuter: Default::default(),
+            visibility: Default::default(),
+        }
+    }
 }
 
 pub type ATTR = Attributes;
@@ -1131,6 +1241,9 @@ pub enum Binding {
         valBound: Arc<Values::Value>,
         source: BindingSource,
     },
+}
+impl Default for Binding {
+    fn default() -> Self { Self::UNBOUND }
 }
 pub use self::Binding::{UNBOUND,EQBOUND,VALBOUND};
 
@@ -1573,6 +1686,9 @@ pub enum Dimension {
     /// Dimension with unknown size.
     DIM_UNKNOWN,
 }
+impl Default for Dimension {
+    fn default() -> Self { Self::DIM_BOOLEAN }
+}
 pub use self::Dimension::{DIM_INTEGER,DIM_BOOLEAN,DIM_ENUM,DIM_EXP,DIM_UNKNOWN};
 
 // adrpo: this is used to bind unknown dimensions to an expression
@@ -1602,6 +1718,18 @@ pub struct FuncArg {
     pub defaultBinding: Option<Arc<Exp>>,
 }
 
+impl Default for FuncArg {
+    fn default() -> Self {
+        Self {
+            name: Default::default(),
+            ty: Default::default(),
+            r#const: Default::default(),
+            par: Default::default(),
+            defaultBinding: Default::default(),
+        }
+    }
+}
+
 pub type FUNCARG = FuncArg;
 
 
@@ -1620,6 +1748,9 @@ pub enum Const {
     /// continuous
     C_VAR,
     C_UNKNOWN,
+}
+impl Default for Const {
+    fn default() -> Self { Self::C_CONST }
 }
 pub use self::Const::{C_CONST,C_PARAM,C_VAR,C_UNKNOWN};
 
@@ -1701,6 +1832,15 @@ pub struct SubMod {
     pub r#mod: Arc<Mod>,
 }
 
+impl Default for SubMod {
+    fn default() -> Self {
+        Self {
+            ident: Default::default(),
+            r#mod: Default::default(),
+        }
+    }
+}
+
 pub type NAMEMOD = SubMod;
 
 
@@ -1725,6 +1865,9 @@ pub enum Mod {
         r#mod: Arc<Mod>,
     },
     NOMOD,
+}
+impl Default for Mod {
+    fn default() -> Self { Self::NOMOD }
 }
 pub use self::Mod::{MOD,REDECL,NOMOD};
 
@@ -1752,6 +1895,9 @@ pub enum ClockKind {
         /// string type
         solverMethod: Arc<Exp>,
     },
+}
+impl Default for ClockKind {
+    fn default() -> Self { Self::INFERRED_CLOCK }
 }
 pub use self::ClockKind::{INFERRED_CLOCK,RATIONAL_CLOCK,REAL_CLOCK,EVENT_CLOCK,SOLVER_CLOCK};
 
@@ -2020,6 +2166,9 @@ pub enum TailCall {
         outVars: Arc<metamodelica::List<ArcStr>>,
     },
 }
+impl Default for TailCall {
+    fn default() -> Self { Self::NO_TAIL }
+}
 pub use self::TailCall::{NO_TAIL,TAIL};
 
 thread_local! { static __callAttrBuiltinBool_TLS: Arc<CallAttributes> = Arc::new(CallAttributes { ty: T_BOOL_DEFAULT().clone(), tuple_: false, builtin: true, isImpure: false, isFunctionPointerCall: false, inlineType: crate::DAE::InlineType::NO_INLINE, tailCall: crate::DAE::TailCall::NO_TAIL }); }
@@ -2068,6 +2217,20 @@ pub struct CallAttributes {
     pub tailCall: TailCall,
 }
 
+impl Default for CallAttributes {
+    fn default() -> Self {
+        Self {
+            ty: Default::default(),
+            tuple_: Default::default(),
+            builtin: Default::default(),
+            isImpure: Default::default(),
+            isFunctionPointerCall: Default::default(),
+            inlineType: Default::default(),
+            tailCall: Default::default(),
+        }
+    }
+}
+
 pub type CALL_ATTR = CallAttributes;
 
 
@@ -2098,6 +2261,17 @@ pub struct ReductionIterator {
     pub ty: Arc<Type>,
 }
 
+impl Default for ReductionIterator {
+    fn default() -> Self {
+        Self {
+            id: Default::default(),
+            exp: Default::default(),
+            guardExp: Default::default(),
+            ty: Default::default(),
+        }
+    }
+}
+
 pub type REDUCTIONITER = ReductionIterator;
 
 
@@ -2118,6 +2292,21 @@ pub struct MatchCase {
     /// the number of iterations we should skip if we succeed with pattern-matching, but don't succeed
     pub jump: i32,
     pub info: SourceInfo,
+}
+
+impl Default for MatchCase {
+    fn default() -> Self {
+        Self {
+            patterns: Default::default(),
+            patternGuard: Default::default(),
+            localDecls: Default::default(),
+            body: Default::default(),
+            result: Default::default(),
+            resultInfo: Default::default(),
+            jump: Default::default(),
+            info: Default::default(),
+        }
+    }
 }
 
 pub type CASE = MatchCase;
@@ -2191,6 +2380,9 @@ pub enum Pattern {
     PAT_SOME {
         pat: Arc<Pattern>,
     },
+}
+impl Default for Pattern {
+    fn default() -> Self { Self::PAT_WILD }
 }
 pub use self::Pattern::{PAT_WILD,PAT_CONSTANT,PAT_AS,PAT_AS_FUNC_PTR,PAT_META_TUPLE,PAT_CALL_TUPLE,PAT_CONS,PAT_CALL,PAT_CALL_NAMED,PAT_SOME};
 
@@ -2411,6 +2603,9 @@ pub enum Prefix {
         classPre: ClassPrefix,
     },
 }
+impl Default for Prefix {
+    fn default() -> Self { Self::NOPRE }
+}
 pub use self::Prefix::{NOPRE,PREFIX};
 
 /// a type alias for an optional component prefix
@@ -2468,6 +2663,9 @@ pub mod Connect {
         OUTSIDE,
         NO_FACE,
     }
+    impl Default for Face {
+        fn default() -> Self { Self::INSIDE }
+    }
     pub use self::Face::{INSIDE,OUTSIDE,NO_FACE};
 
     /// The type of a connector element.
@@ -2480,6 +2678,9 @@ pub mod Connect {
         },
         NO_TYPE,
     }
+    impl Default for ConnectorType {
+        fn default() -> Self { Self::EQU }
+    }
     pub use self::ConnectorType::{EQU,FLOW,STREAM,NO_TYPE};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -2490,6 +2691,18 @@ pub mod Connect {
         pub source: Arc<ElementSource>,
         /// Which set this element belongs to.
         pub set: i32,
+    }
+
+    impl Default for ConnectorElement {
+        fn default() -> Self {
+            Self {
+                name: Default::default(),
+                face: Default::default(),
+                ty: Default::default(),
+                source: Default::default(),
+                set: Default::default(),
+            }
+        }
     }
 
     pub type CONNECTOR_ELEMENT = ConnectorElement;
@@ -2520,6 +2733,16 @@ pub mod Connect {
             connectCount: i32,
         },
     }
+    impl Default for SetTrieNode {
+        fn default() -> Self {
+            Self::SET_TRIE_NODE {
+                name: Default::default(),
+                cref: Default::default(),
+                nodes: Default::default(),
+                connectCount: Default::default(),
+            }
+        }
+    }
     pub use self::SetTrieNode::{SET_TRIE_NODE,SET_TRIE_LEAF};
 
     /// A trie, a.k.a. prefix tree, that maps crefs to sets.
@@ -2548,6 +2771,21 @@ pub mod Connect {
         pub source: Arc<ElementSource>,
     }
 
+    impl Default for OuterConnect {
+        fn default() -> Self {
+            Self {
+                scope: Default::default(),
+                cr1: Default::default(),
+                io1: Default::default(),
+                f1: Default::default(),
+                cr2: Default::default(),
+                io2: Default::default(),
+                f2: Default::default(),
+                source: Default::default(),
+            }
+        }
+    }
+
     pub type OUTERCONNECT = OuterConnect;
 
 
@@ -2559,6 +2797,17 @@ pub mod Connect {
         pub connections: Arc<metamodelica::List<(i32, i32)>>,
         /// Connect statements to propagate upwards.
         pub outerConnects: Arc<metamodelica::List<OuterConnect>>,
+    }
+
+    impl Default for Sets {
+        fn default() -> Self {
+            Self {
+                sets: Default::default(),
+                setCount: Default::default(),
+                connections: Default::default(),
+                outerConnects: Default::default(),
+            }
+        }
     }
 
     pub type SETS = Sets;

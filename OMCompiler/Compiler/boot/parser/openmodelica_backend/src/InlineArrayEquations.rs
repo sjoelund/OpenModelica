@@ -64,13 +64,13 @@ use openmodelica_util_datatypes_basic::List;
 //   - getScalarArrayEqns
 // =============================================================================
 pub fn inlineArrayEqn(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<Arc<BackendDAE::BackendDAE>> {
-    let mut outDAE: Arc<BackendDAE::BackendDAE>;
+    let mut outDAE: Arc<BackendDAE::BackendDAE> = Arc::new(<BackendDAE::BackendDAE as ::std::default::Default>::default());
     (outDAE, _) = BackendDAEUtil::mapEqSystemAndFold(inDAE.clone(), (std::sync::Arc::new(inlineArrayEqn1) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::EqSystem>, Arc<BackendDAE::Shared>, bool) -> Result<(Arc<BackendDAE::EqSystem>, Arc<BackendDAE::Shared>, bool)> + 'static>), false)?;
     Ok(outDAE)
 }
 
 fn inlineArrayEqn1(mut inEqSystem: Arc<BackendDAE::EqSystem>, mut inShared: Arc<BackendDAE::Shared>, mut inOptimized: bool) -> Result<(Arc<BackendDAE::EqSystem>, Arc<BackendDAE::Shared>, bool)> {
-    let mut outEqSystem: Arc<BackendDAE::EqSystem>;
+    let mut outEqSystem: Arc<BackendDAE::EqSystem> = Arc::new(<BackendDAE::EqSystem as ::std::default::Default>::default());
     let mut outShared: Arc<BackendDAE::Shared> = inShared.clone();
     let mut outOptimized: bool = false;
     (outEqSystem, outOptimized) = 'mc: {

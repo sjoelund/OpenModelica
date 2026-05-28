@@ -67,6 +67,7 @@ use openmodelica_frontend::Expression;
 use openmodelica_frontend::ExpressionSimplify;
 use openmodelica_frontend::HashSet;
 use openmodelica_frontend::Types;
+use openmodelica_frontend_dump::AvlTreePathFunction;
 use openmodelica_frontend_dump::ComponentReferenceBasics;
 use openmodelica_frontend_dump::ElementSource;
 use openmodelica_frontend_dump::ExpressionBasics;
@@ -92,25 +93,25 @@ use openmodelica_util_datatypes_basic::List;
 // These are functions that can be used to access the initialization.
 // =============================================================================
 pub fn solveInitialSystem(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<(Arc<BackendDAE::BackendDAE>, Option<Arc<BackendDAE::BackendDAE>>, Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, BackendDAE::Variables, Arc<BackendDAE::BackendDAE>)> {
-    let mut outInitDAE: Arc<BackendDAE::BackendDAE>;
+    let mut outInitDAE: Arc<BackendDAE::BackendDAE> = Arc::new(<BackendDAE::BackendDAE as ::std::default::Default>::default());
     let mut outInitDAE_lambda0: Option<Arc<BackendDAE::BackendDAE>> = None;
     let mut outRemovedInitialEquations: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
-    let mut outGlobalKnownVars: BackendDAE::Variables;
+    let mut outGlobalKnownVars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
     let mut outSimDAE: Arc<BackendDAE::BackendDAE> = inDAE.clone();
-    let mut dae: Arc<BackendDAE::BackendDAE>;
-    let mut initdae: Arc<BackendDAE::BackendDAE>;
-    let mut initdae0: Arc<BackendDAE::BackendDAE>;
-    let mut initsyst: Arc<BackendDAE::EqSystem>;
-    let mut initsyst0: Arc<BackendDAE::EqSystem>;
+    let mut dae: Arc<BackendDAE::BackendDAE> = Arc::new(<BackendDAE::BackendDAE as ::std::default::Default>::default());
+    let mut initdae: Arc<BackendDAE::BackendDAE> = Arc::new(<BackendDAE::BackendDAE as ::std::default::Default>::default());
+    let mut initdae0: Arc<BackendDAE::BackendDAE> = Arc::new(<BackendDAE::BackendDAE as ::std::default::Default>::default());
+    let mut initsyst: Arc<BackendDAE::EqSystem> = Arc::new(<BackendDAE::EqSystem as ::std::default::Default>::default());
+    let mut initsyst0: Arc<BackendDAE::EqSystem> = Arc::new(<BackendDAE::EqSystem as ::std::default::Default>::default());
     let mut systs: Arc<metamodelica::List<Arc<BackendDAE::EqSystem>>> = metamodelica::nil();
     let mut eqns: Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>;
     let mut reeqns: Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>;
     let mut eqnsLst: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
     let mut reeqnsLst: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
-    let mut shared: Arc<BackendDAE::Shared>;
-    let mut initVars: BackendDAE::Variables;
-    let mut vars: BackendDAE::Variables;
-    let mut fixvars: BackendDAE::Variables;
+    let mut shared: Arc<BackendDAE::Shared> = Arc::new(<BackendDAE::Shared as ::std::default::Default>::default());
+    let mut initVars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
+    let mut vars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
+    let mut fixvars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
     let mut useHomotopy: bool = false;
     let mut datarecon: bool = false;
     let mut msg: ArcStr = arcstr::literal!("");
@@ -242,12 +243,12 @@ pub fn solveInitialSystem(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result<(Arc
 }
 
 pub fn createInitialDAEFromSystem(mut inInitsyst: Arc<BackendDAE::EqSystem>, mut inShared: Arc<BackendDAE::Shared>, mut initVars: BackendDAE::Variables, mut enabledModules: Arc<metamodelica::List<ArcStr>>, mut disabledModules: Arc<metamodelica::List<ArcStr>>, mut globalKnownVars: BackendDAE::Variables, mut isLambda0: bool) -> Result<(Arc<BackendDAE::BackendDAE>, Arc<metamodelica::List<BackendDAE::Var>>, Arc<metamodelica::List<Arc<BackendDAE::Equation>>>)> {
-    let mut initdae: Arc<BackendDAE::BackendDAE>;
+    let mut initdae: Arc<BackendDAE::BackendDAE> = Arc::new(<BackendDAE::BackendDAE as ::std::default::Default>::default());
     let mut dumpVars: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
     let mut removedEqns: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
     let mut systemStr: ArcStr = if (isLambda0.clone()) {literal!("initialization_lambda0")} else {literal!("initialization")};
     let mut shared: Arc<BackendDAE::Shared> = inShared.clone();
-    let mut initsyst: Arc<BackendDAE::EqSystem>;
+    let mut initsyst: Arc<BackendDAE::EqSystem> = Arc::new(<BackendDAE::EqSystem as ::std::default::Default>::default());
     let mut systs: Arc<metamodelica::List<Arc<BackendDAE::EqSystem>>> = metamodelica::nil();
     let mut dumpVars2: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
     let mut initOptModules: Arc<metamodelica::List<(BackendDAEFunc::optimizationModule, ArcStr)>> = metamodelica::nil();
@@ -270,7 +271,7 @@ pub fn createInitialDAEFromSystem(mut inInitsyst: Arc<BackendDAE::EqSystem>, mut
     if Flags::isSet(Flags::OPT_DAE_DUMP.clone())? {
         BackendDump::dumpBackendDAE(initdae.clone(), ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("partitioned ")); __mm_s.push_str(&*systemStr.clone()); __mm_s.push_str(&*literal!(" system")); ArcStr::from(__mm_s) }).clone())?;
     }
-    (initdae, dumpVars2, removedEqns) = analyzeInitialSystem(initdae.clone(), initVars.clone(), Arc::new(balanceInitialSystem.clone()))?;
+    (initdae, dumpVars2, removedEqns) = analyzeInitialSystem(initdae.clone(), initVars.clone(), (std::sync::Arc::new(balanceInitialSystem) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::EqSystem>, Arc<BackendDAE::Shared>, i32, BackendDAE::Variables, DoubleEnded::MutableList<BackendDAE::Var>, DoubleEnded::MutableList<Arc<BackendDAE::Equation>>) -> Result<(Arc<BackendDAE::EqSystem>, Arc<BackendDAE::Shared>, i32)> + 'static>))?;
     dumpVars = listAppend(dumpVars.clone(), dumpVars2.clone());
     execStat(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("analyzeInitialSystem (")); __mm_s.push_str(&*systemStr.clone()); __mm_s.push_str(&*literal!(")")); ArcStr::from(__mm_s) }).clone())?;
     if Flags::isSet(Flags::DUMP_INITIAL_SYSTEM.clone())? {
@@ -362,7 +363,7 @@ fn inlineWhenForInitialization(mut inDAE: Arc<BackendDAE::BackendDAE>) -> Result
 }
 
 fn inlineWhenForInitializationSystem(mut inEqSystem: Arc<BackendDAE::EqSystem>) -> Result<Arc<BackendDAE::EqSystem>> {
-    let mut outEqSystem: Arc<BackendDAE::EqSystem>;
+    let mut outEqSystem: Arc<BackendDAE::EqSystem> = Arc::new(<BackendDAE::EqSystem as ::std::default::Default>::default());
     let mut eqnlst: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
     let mut leftCrs: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<Arc<DAE::ComponentRef>>>), i32, i32, (HashSet::FuncHashCref, HashSet::FuncCrefEqual, HashSet::FuncCrefStr)) = HashSet::emptyHashSet();
     let mut crefLst: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
@@ -377,9 +378,9 @@ fn inlineWhenForInitializationSystem(mut inEqSystem: Arc<BackendDAE::EqSystem>) 
 fn inlineWhenForInitializationEquation(mut inEq: Arc<BackendDAE::Equation>, mut inTpl: (Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<Arc<DAE::ComponentRef>>>), i32, i32, (HashSet::FuncHashCref, HashSet::FuncCrefEqual, HashSet::FuncCrefStr)))) -> Result<(Arc<BackendDAE::Equation>, (Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<Arc<DAE::ComponentRef>>>), i32, i32, (HashSet::FuncHashCref, HashSet::FuncCrefEqual, HashSet::FuncCrefStr))))> {
     let mut outEq: Arc<BackendDAE::Equation> = inEq.clone();
     let mut outTpl: (Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<Arc<DAE::ComponentRef>>>), i32, i32, (HashSet::FuncHashCref, HashSet::FuncCrefEqual, HashSet::FuncCrefStr)));
-    let mut eqAttr: BackendDAE::EquationAttributes;
-    let mut weqn: Arc<BackendDAE::WhenEquation>;
-    let mut alg: Arc<DAE::Algorithm>;
+    let mut eqAttr: BackendDAE::EquationAttributes = <BackendDAE::EquationAttributes as ::std::default::Default>::default();
+    let mut weqn: Arc<BackendDAE::WhenEquation> = Arc::new(<BackendDAE::WhenEquation as ::std::default::Default>::default());
+    let mut alg: Arc<DAE::Algorithm> = Arc::new(<DAE::Algorithm as ::std::default::Default>::default());
     let mut source: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
     let mut crefExpand: DAE::Expand = DAE::Expand::EXPAND;
     let mut leftCrs: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<Arc<DAE::ComponentRef>>>), i32, i32, (HashSet::FuncHashCref, HashSet::FuncCrefEqual, HashSet::FuncCrefStr));
@@ -688,13 +689,13 @@ fn warnAboutEqns2(mut inEqns: Arc<metamodelica::List<Arc<BackendDAE::Equation>>>
 // =============================================================================
 fn selectInitializationVariablesDAE(mut dae: Arc<BackendDAE::BackendDAE>) -> Result<(Arc<BackendDAE::BackendDAE>, BackendDAE::Variables, Arc<metamodelica::List<BackendDAE::Var>>, BackendDAE::Variables)> {
     let mut dae: Arc<BackendDAE::BackendDAE> = dae;
-    let mut outInitVars: BackendDAE::Variables;
+    let mut outInitVars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
     let mut outAllPrimaryParameters: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
     let mut outGlobalKnownVars: BackendDAE::Variables = dae.shared.globalKnownVars.clone();
-    let mut otherVariables: BackendDAE::Variables;
-    let mut globalKnownVars: BackendDAE::Variables;
+    let mut otherVariables: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
+    let mut globalKnownVars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
     let mut globalKnownVarsEqns: Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>;
-    let mut globalKnownVarsSystem: Arc<BackendDAE::EqSystem>;
+    let mut globalKnownVarsSystem: Arc<BackendDAE::EqSystem> = Arc::new(<BackendDAE::EqSystem as ::std::default::Default>::default());
     let mut m: metamodelica::Array<Arc<metamodelica::List<i32>>>;
     let mut mT: metamodelica::Array<Arc<metamodelica::List<i32>>>;
     let mut ass1: metamodelica::Array<i32>;
@@ -703,7 +704,7 @@ fn selectInitializationVariablesDAE(mut dae: Arc<BackendDAE::BackendDAE>) -> Res
     let mut flatComps: Arc<metamodelica::List<i32>> = metamodelica::nil();
     let mut nGlobalKnownVars: i32 = 0;
     let mut secondary: metamodelica::Array<i32>;
-    let mut v: BackendDAE::Var;
+    let mut v: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
     let mut bindExp: Arc<DAE::Exp>;
     let mut hs: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<Arc<DAE::ComponentRef>>>), i32, i32, (HashSet::FuncHashCref, HashSet::FuncCrefEqual, HashSet::FuncCrefStr));
     let mut crefs: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
@@ -802,7 +803,7 @@ fn addExtObjToGlobalKnownVars(mut extObj: BackendDAE::Var, mut globalKnownVars: 
     let mut globalKnownVars: BackendDAE::Variables = globalKnownVars;
     globalKnownVars = (::match_deref::match_deref! { match &(extObj.clone()) {
         BackendDAE::Var { bindExp: Some(_), varKind: BackendDAE::VarKind::EXTOBJ { .. }, .. } => {
-            let mut var: BackendDAE::Var;
+            let mut var: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
             var = BackendVariable::setVarFixed(extObj.clone(), true)?;
             globalKnownVars = BackendVariable::addVar(var.clone(), globalKnownVars.clone())?;
             globalKnownVars.clone()
@@ -822,7 +823,7 @@ fn createGlobalKnownVarsEquations(mut var: BackendDAE::Var, mut parameterEqns: A
     let mut rhs: Arc<DAE::Exp>;
     let mut startValue: Arc<DAE::Exp>;
     let mut eqn: Arc<BackendDAE::Equation> = Arc::new(BackendDAE::Equation::DUMMY_EQUATION);
-    let mut v: BackendDAE::Var;
+    let mut v: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
     let mut s: ArcStr = arcstr::literal!("");
     let mut r#str: ArcStr = arcstr::literal!("");
     let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
@@ -862,7 +863,7 @@ fn selectSecondaryParameters(mut inOrdering: Arc<metamodelica::List<i32>>, mut i
         },
         Deref @ metamodelica::List::Cons { head: i, tail: rest } => {
             let mut secondaryParams: metamodelica::Array<i32>;
-            let mut param: BackendDAE::Var;
+            let mut param: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
             param = BackendVariable::getVarAt(inParameters.clone(), i.clone())?;
             secondaryParams = if (if (BackendVariable::isVarAlg(param.clone())) {false} else {!(BackendVariable::varFixed(param.clone()))} || 1 == inSecondaryParams.borrow()[(i.clone()-1) as usize].clone()) {List::fold(inM.borrow()[(i.clone()-1) as usize].clone(), (std::sync::Arc::new(fnptr!(markIndex, i32, metamodelica::Array<i32>)) as std::sync::Arc<dyn ::std::ops::Fn(i32, metamodelica::Array<i32>) -> Result<metamodelica::Array<i32>> + 'static>), inSecondaryParams.clone())} else {inSecondaryParams.clone()};
             secondaryParams = selectSecondaryParameters(rest.clone(), inParameters.clone(), inM.clone(), secondaryParams.clone())?;
@@ -882,7 +883,7 @@ pub fn flattenParamComp(mut paramIndices: Arc<metamodelica::List<i32>>, mut inAl
         _ => {
             let mut i: i32 = 0;
             let mut paramLst: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
-            let mut param: BackendDAE::Var;
+            let mut param: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
             paramLst = metamodelica::nil();
             for mut i in &*paramIndices.clone() {
                 let mut i = i.clone();
@@ -898,21 +899,21 @@ pub fn flattenParamComp(mut paramIndices: Arc<metamodelica::List<i32>>, mut inAl
 }
 
 fn selectInitializationVariables(mut inEqSystems: Arc<metamodelica::List<Arc<BackendDAE::EqSystem>>>) -> BackendDAE::Variables {
-    let mut outVars: BackendDAE::Variables;
+    let mut outVars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
     outVars = BackendVariable::emptyVars(BaseHashTable::bigBucketSize.clone());
     outVars = List::fold(inEqSystems.clone(), (std::sync::Arc::new(selectInitializationVariables1) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::EqSystem>, BackendDAE::Variables) -> Result<BackendDAE::Variables> + 'static>), outVars.clone());
     outVars
 }
 
 fn selectInitializationVariables1(mut inEqSystem: Arc<BackendDAE::EqSystem>, mut inVars: BackendDAE::Variables) -> Result<BackendDAE::Variables> {
-    let mut outVars: BackendDAE::Variables;
+    let mut outVars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
     outVars = BackendVariable::traverseBackendDAEVars(inEqSystem.orderedVars.clone(), (std::sync::Arc::new(selectInitializationVariables2) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Var, BackendDAE::Variables) -> Result<(BackendDAE::Var, BackendDAE::Variables)> + 'static>), inVars.clone())?;
     Ok(outVars)
 }
 
 fn selectInitializationVariables2(mut inVar: BackendDAE::Var, mut inVars: BackendDAE::Variables) -> Result<(BackendDAE::Var, BackendDAE::Variables)> {
-    let mut outVar: BackendDAE::Var;
-    let mut outVars: BackendDAE::Variables;
+    let mut outVar: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
+    let mut outVars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
     (outVar, outVars) = 'mc: {
         let __mc_input = (inVar.clone(), inVars.clone());
         if let Ok(__v) = (|| -> Result<_> {
@@ -923,7 +924,7 @@ fn selectInitializationVariables2(mut inVar: BackendDAE::Var, mut inVars: Backen
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             let (BackendDAE::Var { arryDim: mut arryDim, varType: ref ty, varKind: BackendDAE::VarKind::DISCRETE, varName: ref cr, .. }, mut vars) = __mc_input.clone() else { bail!("nomatch") };
-            let mut preVar: BackendDAE::Var;
+            let mut preVar: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
             let mut preCR: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
             let false = (BackendVariable::varFixed(inVar.clone())) else { bail!("pattern mismatch") };
             preCR = ComponentReference::crefPrefixPre(cr.clone());
@@ -984,7 +985,7 @@ fn simplifyInitialFunctionsExp(mut inExp: Arc<DAE::Exp>, mut inUseHomotopy: bool
 fn preBalanceInitialSystem(mut inEqSystem: Arc<BackendDAE::EqSystem>, mut initVars: BackendDAE::Variables, mut isLambda0: bool) -> Result<(Arc<BackendDAE::EqSystem>, Arc<metamodelica::List<BackendDAE::Var>>)> {
     let mut outEqSystem: Arc<BackendDAE::EqSystem> = inEqSystem.clone();
     let mut outDumpVars: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
-    let mut orderedVars: BackendDAE::Variables;
+    let mut orderedVars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
     let mut orderedEqs: Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>;
     let mut b: bool = false;
     let mut mt: metamodelica::Array<Arc<metamodelica::List<i32>>>;
@@ -1001,7 +1002,7 @@ fn preBalanceInitialSystem(mut inEqSystem: Arc<BackendDAE::EqSystem>, mut initVa
 }
 
 fn preBalanceInitialSystem1(mut n: i32, mut mt: metamodelica::Array<Arc<metamodelica::List<i32>>>, mut inVars: BackendDAE::Variables, mut inEqs: Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, mut initVars: BackendDAE::Variables, mut isLambda0: bool, mut inB: bool, mut inDumpVars: Arc<metamodelica::List<BackendDAE::Var>>) -> Result<(BackendDAE::Variables, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, bool, Arc<metamodelica::List<BackendDAE::Var>>)> {
-    let mut outVars: BackendDAE::Variables;
+    let mut outVars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
     let mut outEqs: Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>;
     let mut outB: bool = false;
     let mut outDumpVars: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
@@ -1010,13 +1011,13 @@ fn preBalanceInitialSystem1(mut n: i32, mut mt: metamodelica::Array<Arc<metamode
             (inVars.clone(), inEqs.clone(), false, inDumpVars.clone())
         },
         (0, true) => {
-            let mut vars: BackendDAE::Variables;
+            let mut vars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
             vars = BackendVariable::listVar1(BackendVariable::varList(inVars.clone())?);
             (vars.clone(), inEqs.clone(), true, inDumpVars.clone())
         },
         _ => {
             let mut b: bool = false;
-            let mut vars: BackendDAE::Variables;
+            let mut vars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
             let mut eqs: Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>;
             let mut dumpVars: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
             let true = (n.clone() > 0) else { bail!("pattern mismatch") };
@@ -1034,7 +1035,7 @@ fn preBalanceInitialSystem2(mut n: i32, mut mt: metamodelica::Array<Arc<metamode
     let mut outB: bool = inB.clone();
     let mut outDumpVars: Arc<metamodelica::List<BackendDAE::Var>> = inDumpVars.clone();
     let mut row: Arc<metamodelica::List<i32>> = metamodelica::nil();
-    let mut var: BackendDAE::Var;
+    let mut var: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
     let mut cref: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
     let mut r#str: ArcStr = arcstr::literal!("");
     let mut err_str: ArcStr = literal!(" with unknown reason.");
@@ -1068,11 +1069,11 @@ fn preBalanceInitialSystem2(mut n: i32, mut mt: metamodelica::Array<Arc<metamode
 }
 
 fn analyzeInitialSystem(mut inInitDAE: Arc<BackendDAE::BackendDAE>, mut inInitVars: BackendDAE::Variables, mut func: Arc<dyn ::std::ops::Fn(Arc<BackendDAE::EqSystem>, Arc<BackendDAE::Shared>, i32, BackendDAE::Variables, DoubleEnded::MutableList<BackendDAE::Var>, DoubleEnded::MutableList<Arc<BackendDAE::Equation>>) -> Result<(Arc<BackendDAE::EqSystem>, Arc<BackendDAE::Shared>, i32)> + 'static>) -> Result<(Arc<BackendDAE::BackendDAE>, Arc<metamodelica::List<BackendDAE::Var>>, Arc<metamodelica::List<Arc<BackendDAE::Equation>>>)> {
-    let mut outDAE: Arc<BackendDAE::BackendDAE>;
+    let mut outDAE: Arc<BackendDAE::BackendDAE> = Arc::new(<BackendDAE::BackendDAE as ::std::default::Default>::default());
     let mut outDumpVars: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
     let mut outRemovedEqns: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
-    let mut dae: Arc<BackendDAE::BackendDAE>;
-    let mut syst: Arc<BackendDAE::EqSystem>;
+    let mut dae: Arc<BackendDAE::BackendDAE> = Arc::new(<BackendDAE::BackendDAE as ::std::default::Default>::default());
+    let mut syst: Arc<BackendDAE::EqSystem> = Arc::new(<BackendDAE::EqSystem as ::std::default::Default>::default());
     let mut eqs: Arc<metamodelica::List<Arc<BackendDAE::EqSystem>>> = metamodelica::nil();
     let mut dumpVars: DoubleEnded::MutableList<BackendDAE::Var>;
     let mut removedEqns: DoubleEnded::MutableList<Arc<BackendDAE::Equation>>;
@@ -1121,6 +1122,138 @@ fn getInitEqIndices(mut equations: Arc<metamodelica::List<Arc<BackendDAE::Equati
 
 type constraintHandlerFunc = std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::EqSystem>, Arc<BackendDAE::Shared>, i32, BackendDAE::Variables, DoubleEnded::MutableList<BackendDAE::Var>, DoubleEnded::MutableList<Arc<BackendDAE::Equation>>) -> Result<(Arc<BackendDAE::EqSystem>, Arc<BackendDAE::Shared>, i32)> + 'static>;
 
+fn balanceInitialSystem(mut inEqSystem: Arc<BackendDAE::EqSystem>, mut inShared: Arc<BackendDAE::Shared>, mut dummy: i32, mut initVars: BackendDAE::Variables, mut dumpVars: DoubleEnded::MutableList<BackendDAE::Var>, mut removedEqns: DoubleEnded::MutableList<Arc<BackendDAE::Equation>>) -> Result<(Arc<BackendDAE::EqSystem>, Arc<BackendDAE::Shared>, i32)> {
+    let mut outEqSystem: Arc<BackendDAE::EqSystem> = Arc::new(<BackendDAE::EqSystem as ::std::default::Default>::default());
+    let mut outShared: Arc<BackendDAE::Shared> = inShared.clone();
+    let mut dummy: i32 = dummy;
+    let mut debug: bool = false;
+    let mut eqn_lst: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
+    let mut init_eqns: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
+    let mut sim_eqns: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
+    let mut funcs: Arc<AvlTreePathFunction::Tree> = Arc::new(AvlTreePathFunction::Tree::EMPTY);
+    let mut m: metamodelica::Array<Arc<metamodelica::List<i32>>>;
+    let mut mT: metamodelica::Array<Arc<metamodelica::List<i32>>>;
+    let mut me: metamodelica::Array<Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>>>;
+    let mut nVars: i32 = 0;
+    let mut nEqns: i32 = 0;
+    let mut scal_to_arr: metamodelica::Array<i32>;
+    let mut var_to_eqn: metamodelica::Array<i32>;
+    let mut eqn_to_var: metamodelica::Array<i32>;
+    let mut changed: bool = false;
+    let mut comps: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = metamodelica::nil();
+    let mut redundantEqns: Arc<metamodelica::List<i32>> = metamodelica::nil();
+    let mut unfixedVars: Arc<metamodelica::List<i32>> = metamodelica::nil();
+    let mut initASSC: bool = Flags::getConfigBool(Flags::INIT_ASSC.clone())?;
+    if BackendVariable::varsSize(inEqSystem.orderedVars.clone())? > 0 {
+        (init_eqns, sim_eqns) = List::splitOnTrue(BackendEquation::equationList(inEqSystem.orderedEqs.clone()), (std::sync::Arc::new(BackendEquation::isInitialEquation) as std::sync::Arc<dyn ::std::ops::Fn(Arc<BackendDAE::Equation>) -> Result<bool> + 'static>));
+        outEqSystem = BackendDAEUtil::createEqSystem(BackendVariable::sortInitialVars(inEqSystem.orderedVars.clone(), initVars.clone())?, BackendEquation::listEquation(sim_eqns.clone())?, metamodelica::nil(), crate::BackendDAE::BaseClockPartitionKind::UNKNOWN_PARTITION, BackendEquation::emptyEqns());
+        assign_field!(outEqSystem.removedEqs = inEqSystem.removedEqs.clone());
+        funcs = BackendDAEUtil::getFunctions(inShared.clone())?;
+        (outEqSystem, m, mT, _, scal_to_arr) = BackendDAEUtil::getAdjacencyMatrixScalar(outEqSystem.clone(), crate::BackendDAE::IndexType::SOLVABLE, Some(funcs.clone()), true)?;
+        nVars = BackendVariable::varsSize(outEqSystem.orderedVars.clone())?;
+        nEqns = BackendEquation::equationArraySize(inEqSystem.orderedEqs.clone())?;
+        (eqn_to_var, var_to_eqn, _, _, _) = Matching::RegularMatching(mT.clone(), nEqns.clone(), nVars.clone())?;
+        assign_field!(outEqSystem.orderedEqs = BackendEquation::addList(init_eqns.clone(), outEqSystem.orderedEqs.clone())?);
+        (outEqSystem, m, mT, _, scal_to_arr) = BackendDAEUtil::getAdjacencyMatrixScalar(outEqSystem.clone(), crate::BackendDAE::IndexType::SOLVABLE, Some(funcs.clone()), true)?;
+        (eqn_to_var, var_to_eqn, _, _, _) = Matching::ContinueMatching(mT.clone(), nEqns.clone(), nVars.clone(), eqn_to_var.clone(), var_to_eqn.clone(), false)?;
+        unfixedVars = {
+        let mut __acc: Arc<metamodelica::List<i32>> = metamodelica::nil();
+        for mut i in (1..=(var_to_eqn.clone().borrow().len() as i32)).into_iter() {
+            if !(var_to_eqn.borrow()[(i.clone()-1) as usize].clone() < 0) { continue; }
+            let __x = i.clone();
+            __acc = cons(__x, __acc);
+        }
+        __acc.reverse()
+    };
+        redundantEqns = {
+        let mut __acc: Arc<metamodelica::List<i32>> = metamodelica::nil();
+        for mut i in (1..=(eqn_to_var.clone().borrow().len() as i32)).into_iter() {
+            if !(eqn_to_var.borrow()[(i.clone()-1) as usize].clone() < 0) { continue; }
+            let __x = i.clone();
+            __acc = cons(__x, __acc);
+        }
+        __acc.reverse()
+    };
+        if !(redundantEqns.clone().is_empty() && unfixedVars.clone().is_empty()) {
+            (me, _, _, _) = BackendDAEUtil::getAdjacencyMatrixEnhancedScalar(outEqSystem.clone(), inShared.clone(), false)?;
+            (_, _, _) = consistencyCheck(redundantEqns.clone(), outEqSystem.orderedEqs.clone(), outEqSystem.orderedVars.clone(), inShared.clone(), 0, m.clone(), me.clone(), var_to_eqn.clone(), eqn_to_var.clone(), scal_to_arr.clone())?;
+            redundantEqns = List::unique({
+        let mut __acc: Arc<metamodelica::List<i32>> = metamodelica::nil();
+        for mut i in (redundantEqns.clone()).into_iter().cloned() {
+            let __x = scal_to_arr.borrow()[(i.clone()-1) as usize].clone();
+            __acc = cons(__x, __acc);
+        }
+        __acc.reverse()
+    });
+            outEqSystem = resolveOverAndUnderconstraints(outEqSystem.clone(), initVars.clone(), unfixedVars.clone(), redundantEqns.clone(), dumpVars.clone(), removedEqns.clone())?;
+            (outEqSystem, m, mT, _, scal_to_arr) = BackendDAEUtil::getAdjacencyMatrixScalar(outEqSystem.clone(), crate::BackendDAE::IndexType::SOLVABLE, Some(funcs.clone()), true)?;
+            nVars = BackendVariable::varsSize(outEqSystem.orderedVars.clone())?;
+            nEqns = BackendEquation::equationArraySize(outEqSystem.orderedEqs.clone())?;
+            (eqn_to_var, var_to_eqn, _, _, _) = Matching::RegularMatching(mT.clone(), nEqns.clone(), nVars.clone())?;
+        } else if !(initASSC.clone()) {
+            outEqSystem = inEqSystem.clone();
+        }
+        if debug.clone() {
+            BackendDump::dumpEqSystem(outEqSystem.clone(), (literal!("fixInitialSystem")).clone())?;
+            BackendDump::dumpAdjacencyMatrixT(mT.clone());
+            BackendDump::dumpMatchingVars(var_to_eqn.clone());
+            BackendDump::dumpMatchingEqns(eqn_to_var.clone());
+        }
+        if initASSC.clone() {
+            comps = Sorting::Tarjan(m.clone(), var_to_eqn.clone(), nEqns.clone())?;
+            for mut comp in &*comps.clone() {
+                let mut comp = comp.clone();
+                (eqn_to_var, var_to_eqn, outEqSystem, changed) = BackendDAEUtil::analyticalToStructuralSingularity(comp.clone(), eqn_to_var.clone(), var_to_eqn.clone(), outEqSystem.clone(), changed.clone(), true)?;
+            }
+            if changed.clone() {
+                let (__pa0, __pa1) = ::match_deref::match_deref! { match &(outEqSystem.clone()) {
+                    Deref @ BackendDAE::EqSystem { mT: Some(__pa0), m: Some(__pa1), .. } => (__pa0.clone(), __pa1.clone()),
+                    _ => bail!("pattern mismatch"),
+                } };
+                mT = __pa0.clone();
+                m = __pa1.clone();
+                (outEqSystem, m, mT, _, scal_to_arr) = BackendDAEUtil::getAdjacencyMatrixScalar(outEqSystem.clone(), crate::BackendDAE::IndexType::NORMAL, Some(funcs.clone()), true)?;
+                (eqn_to_var, var_to_eqn, _, _, _) = Matching::ContinueMatching(mT.clone(), nEqns.clone(), nVars.clone(), eqn_to_var.clone(), var_to_eqn.clone(), false)?;
+                unfixedVars = {
+        let mut __acc: Arc<metamodelica::List<i32>> = metamodelica::nil();
+        for mut i in (1..=(var_to_eqn.clone().borrow().len() as i32)).into_iter() {
+            if !(var_to_eqn.borrow()[(i.clone()-1) as usize].clone() < 0) { continue; }
+            let __x = i.clone();
+            __acc = cons(__x, __acc);
+        }
+        __acc.reverse()
+    };
+                redundantEqns = {
+        let mut __acc: Arc<metamodelica::List<i32>> = metamodelica::nil();
+        for mut i in (1..=(eqn_to_var.clone().borrow().len() as i32)).into_iter() {
+            if !(eqn_to_var.borrow()[(i.clone()-1) as usize].clone() < 0) { continue; }
+            let __x = i.clone();
+            __acc = cons(__x, __acc);
+        }
+        __acc.reverse()
+    };
+                redundantEqns = List::unique({
+        let mut __acc: Arc<metamodelica::List<i32>> = metamodelica::nil();
+        for mut i in (redundantEqns.clone()).into_iter().cloned() {
+            let __x = scal_to_arr.borrow()[(i.clone()-1) as usize].clone();
+            __acc = cons(__x, __acc);
+        }
+        __acc.reverse()
+    });
+                if !(redundantEqns.clone().is_empty() && unfixedVars.clone().is_empty()) {
+                    (me, _, _, _) = BackendDAEUtil::getAdjacencyMatrixEnhancedScalar(outEqSystem.clone(), inShared.clone(), false)?;
+                    (_, _, _) = consistencyCheck(redundantEqns.clone(), outEqSystem.orderedEqs.clone(), outEqSystem.orderedVars.clone(), inShared.clone(), 0, m.clone(), me.clone(), var_to_eqn.clone(), eqn_to_var.clone(), scal_to_arr.clone())?;
+                    outEqSystem = resolveOverAndUnderconstraints(outEqSystem.clone(), initVars.clone(), unfixedVars.clone(), redundantEqns.clone(), dumpVars.clone(), removedEqns.clone())?;
+                    (outEqSystem, m, mT, _, scal_to_arr) = BackendDAEUtil::getAdjacencyMatrixScalar(outEqSystem.clone(), crate::BackendDAE::IndexType::SOLVABLE, Some(funcs.clone()), true)?;
+                }
+            }
+        }
+    } else {
+        outEqSystem = inEqSystem.clone();
+    }
+    Ok((outEqSystem, outShared, dummy))
+}
+
 fn resolveOverAndUnderconstraints(mut syst: Arc<BackendDAE::EqSystem>, mut initVars: BackendDAE::Variables, mut unfixedVars: Arc<metamodelica::List<i32>>, mut redundantEqns: Arc<metamodelica::List<i32>>, mut dumpVars: DoubleEnded::MutableList<BackendDAE::Var>, mut removedEqns: DoubleEnded::MutableList<Arc<BackendDAE::Equation>>) -> Result<Arc<BackendDAE::EqSystem>> {
     let mut syst: Arc<BackendDAE::EqSystem> = syst;
     let mut debug: bool = false;
@@ -1159,6 +1292,167 @@ fn resolveOverAndUnderconstraints(mut syst: Arc<BackendDAE::EqSystem>, mut initV
     }
     syst = BackendDAEUtil::setEqSystEqs(syst.clone(), BackendEquation::sortInitialEqns(new_eqns.clone())?);
     Ok(syst)
+}
+
+fn fixInitialSystem(mut inEqSystem: Arc<BackendDAE::EqSystem>, mut inShared: Arc<BackendDAE::Shared>, mut dummy: i32, mut initVars: BackendDAE::Variables, mut dumpVars: DoubleEnded::MutableList<BackendDAE::Var>, mut removedEqns: DoubleEnded::MutableList<Arc<BackendDAE::Equation>>) -> Result<(Arc<BackendDAE::EqSystem>, Arc<BackendDAE::Shared>, i32)> {
+    let mut outEqSystem: Arc<BackendDAE::EqSystem> = Arc::new(<BackendDAE::EqSystem as ::std::default::Default>::default());
+    let mut outShared: Arc<BackendDAE::Shared> = inShared.clone();
+    let mut dummy: i32 = dummy;
+    let mut eqns2: Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>;
+    let mut dumpVars2: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
+    let mut removedEqns2: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
+    let mut nVars: i32 = 0;
+    let mut nEqns: i32 = 0;
+    let mut nInitEqs: i32 = 0;
+    let mut nAddEqs: i32 = 0;
+    let mut nAddVars: i32 = 0;
+    let mut stateIndices: Arc<metamodelica::List<i32>> = metamodelica::nil();
+    let mut range: Arc<metamodelica::List<i32>> = metamodelica::nil();
+    let mut initEqsIndices: Arc<metamodelica::List<i32>> = metamodelica::nil();
+    let mut redundantEqns: Arc<metamodelica::List<i32>> = metamodelica::nil();
+    let mut initVarList: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
+    let mut ass1: metamodelica::Array<i32>;
+    let mut ass2: metamodelica::Array<i32>;
+    let mut m: metamodelica::Array<Arc<metamodelica::List<i32>>>;
+    let mut m_: metamodelica::Array<Arc<metamodelica::List<i32>>>;
+    let mut syst: Arc<BackendDAE::EqSystem> = Arc::new(<BackendDAE::EqSystem as ::std::default::Default>::default());
+    let mut funcs: Arc<AvlTreePathFunction::Tree> = Arc::new(AvlTreePathFunction::Tree::EMPTY);
+    let mut me: metamodelica::Array<Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>>>;
+    let mut mapIncRowEqn: metamodelica::Array<i32>;
+    let mut perfectMatching: bool = false;
+    let mut maxMixedDeterminedIndex: i32 = intMax(0, Flags::getConfigInt(Flags::MAX_MIXED_DETERMINED_INDEX.clone())?);
+    let mut eMarks: metamodelica::Array<bool>;
+    let mut vMarks: metamodelica::Array<bool>;
+    let mut singular_eqns_idx: Arc<metamodelica::List<i32>> = metamodelica::nil();
+    let mut singular_vars_idx: Arc<metamodelica::List<i32>> = metamodelica::nil();
+    let mut overDetIndex: i32 = 0;
+    let mut underDetIndex: i32 = 0;
+    let mut scalarEqnSize: i32 = 0;
+    let mut eq: Arc<BackendDAE::Equation> = Arc::new(BackendDAE::Equation::DUMMY_EQUATION);
+    let debug: bool = false;
+    for mut index in 0..=maxMixedDeterminedIndex.clone() {
+        nVars = BackendVariable::varsSize(inEqSystem.orderedVars.clone())?;
+        nEqns = BackendEquation::equationArraySize(inEqSystem.orderedEqs.clone())?;
+        syst = BackendDAEUtil::createEqSystem(inEqSystem.orderedVars.clone(), inEqSystem.orderedEqs.clone(), metamodelica::nil(), crate::BackendDAE::BaseClockPartitionKind::UNKNOWN_PARTITION, BackendEquation::emptyEqns());
+        funcs = BackendDAEUtil::getFunctions(inShared.clone())?;
+        (m_, _, _, mapIncRowEqn) = BackendDAEUtil::adjacencyMatrixScalar(syst.clone(), crate::BackendDAE::IndexType::SOLVABLE, Some(funcs.clone()), BackendDAEUtil::isInitializationDAE(inShared.clone()))?;
+        if debug.clone() {
+            BackendDump::dumpEqSystem(syst.clone(), (literal!("fixInitialSystem")).clone())?;
+            BackendDump::dumpVariables(initVars.clone(), (literal!("selected initialization variables")).clone())?;
+            BackendDump::dumpVariables(inEqSystem.orderedVars.clone(), (literal!("vars in the system")).clone())?;
+            BackendDump::dumpAdjacencyMatrix(m_.clone());
+        }
+        stateIndices = BackendVariable::getVarIndexFromVariablesIndexInFirstSet(inEqSystem.orderedVars.clone(), initVars.clone())?;
+        nAddEqs = intMax(nVars.clone() - nEqns.clone() + index.clone(), index.clone());
+        if debug.clone() {
+            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("nAddEqs: ")); __mm_s.push_str(&*intString(nAddEqs.clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+        }
+        m = fixUnderDeterminedSystem(m_.clone(), stateIndices.clone(), nEqns.clone(), nAddEqs.clone())?;
+        nAddVars = intMax(nEqns.clone() - nVars.clone() + index.clone(), index.clone());
+        if debug.clone() {
+            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("nAddVars: ")); __mm_s.push_str(&*intString(nAddVars.clone())); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+        }
+        m = fixOverDeterminedSystem(m.clone(), inEqSystem.orderedEqs.clone(), nVars.clone(), nAddVars.clone())?;
+        (ass1, ass2, perfectMatching, eMarks, vMarks) = Matching::RegularMatching(m.clone(), nVars.clone() + nAddVars.clone(), nEqns.clone() + nAddEqs.clone())?;
+        if debug.clone() {
+            BackendDump::dumpMatchingVars(ass1.clone());
+            BackendDump::dumpMatchingEqns(ass2.clone());
+        }
+        if perfectMatching.clone() {
+            if index.clone() > 0 {
+                Error::addCompilerNotification(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("The given system is mixed-determined.   [index = ")); __mm_s.push_str(&*intString(index.clone())); __mm_s.push_str(&*literal!("]")); ArcStr::from(__mm_s) }).clone())?;
+            }
+            if nAddVars.clone() > 0 {
+                range = List::intRange2(nVars.clone() + 1, nVars.clone() + nAddVars.clone());
+                redundantEqns = mapIndices(range.clone(), ass1.clone());
+                (me, _, _, _) = BackendDAEUtil::getAdjacencyMatrixEnhancedScalar(syst.clone(), inShared.clone(), false)?;
+                (_, _, _) = consistencyCheck(redundantEqns.clone(), inEqSystem.orderedEqs.clone(), inEqSystem.orderedVars.clone(), inShared.clone(), nAddVars.clone(), m_.clone(), me.clone(), ass1.clone(), ass2.clone(), mapIncRowEqn.clone())?;
+                removedEqns2 = BackendEquation::getList(redundantEqns.clone(), inEqSystem.orderedEqs.clone());
+                eqns2 = BackendEquation::deleteList(inEqSystem.orderedEqs.clone(), redundantEqns.clone())?;
+                DoubleEnded::push_list_back(removedEqns.clone(), removedEqns2.clone());
+            } else {
+                eqns2 = inEqSystem.orderedEqs.clone();
+            }
+            if nAddEqs.clone() > 0 {
+                range = List::intRange2(nEqns.clone() + 1, nEqns.clone() + nAddEqs.clone());
+                range = mapIndices(range.clone(), ass2.clone());
+                initVarList = List::map1r(range.clone(), (std::sync::Arc::new(BackendVariable::getVarAt) as std::sync::Arc<dyn ::std::ops::Fn(BackendDAE::Variables, i32) -> Result<BackendDAE::Var> + 'static>), inEqSystem.orderedVars.clone());
+                (eqns2, dumpVars2) = addStartValueEquations(initVarList.clone(), eqns2.clone(), metamodelica::nil())?;
+                DoubleEnded::push_list_back(dumpVars.clone(), dumpVars2.clone());
+            }
+            outEqSystem = BackendDAEUtil::setEqSystEqs(inEqSystem.clone(), eqns2.clone());
+            return Ok((outEqSystem, outShared, dummy));
+        }
+        if debug.clone() {
+            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("index-")); __mm_s.push_str(&*intString(index.clone())); __mm_s.push_str(&*literal!(" ende\n")); ArcStr::from(__mm_s) }).clone());
+        }
+    }
+    if Flags::isSet(Flags::INITIALIZATION.clone())? {
+        overDetIndex = ({
+        let mut __acc: Arc<metamodelica::List<i32>> = metamodelica::nil();
+        for mut i in (1..=(ass1.clone().borrow().len() as i32)).into_iter() {
+            if !(ass1.borrow()[(i.clone()-1) as usize].clone() < 0) { continue; }
+            let __x = i.clone();
+            __acc = cons(__x, __acc);
+        }
+        __acc.reverse()
+    }.len() as i32);
+        underDetIndex = ({
+        let mut __acc: Arc<metamodelica::List<i32>> = metamodelica::nil();
+        for mut i in (1..=(ass2.clone().borrow().len() as i32)).into_iter() {
+            if !(ass2.borrow()[(i.clone()-1) as usize].clone() < 0) { continue; }
+            let __x = i.clone();
+            __acc = cons(__x, __acc);
+        }
+        __acc.reverse()
+    }.len() as i32);
+        singular_eqns_idx = {
+        let mut __acc: Arc<metamodelica::List<i32>> = metamodelica::nil();
+        for mut i in (1..=(mapIncRowEqn.clone().borrow().len() as i32)).into_iter() {
+            if !(eMarks.borrow()[(i.clone()-1) as usize].clone()) { continue; }
+            let __x = i.clone();
+            __acc = cons(__x, __acc);
+        }
+        __acc.reverse()
+    };
+        singular_vars_idx = {
+        let mut __acc: Arc<metamodelica::List<i32>> = metamodelica::nil();
+        for mut i in (1..=BackendVariable::varsSize(syst.orderedVars.clone())?).into_iter() {
+            if !(vMarks.borrow()[(i.clone()-1) as usize].clone()) { continue; }
+            let __x = i.clone();
+            __acc = cons(__x, __acc);
+        }
+        __acc.reverse()
+    };
+        scalarEqnSize = (singular_eqns_idx.clone().len() as i32);
+        singular_eqns_idx = List::uniqueOnTrue({
+        let mut __acc: Arc<metamodelica::List<i32>> = metamodelica::nil();
+        for mut i in (singular_eqns_idx.clone()).into_iter().cloned() {
+            let __x = mapIncRowEqn.borrow()[(i.clone()-1) as usize].clone();
+            __acc = cons(__x, __acc);
+        }
+        __acc.reverse()
+    }, (std::sync::Arc::new(fnptr!(intEq, i32, i32)) as std::sync::Arc<dyn ::std::ops::Fn(i32, i32) -> Result<bool> + 'static>));
+        println!("{}", (literal!("\n------------ UNBALANCED INITIAL SYSTEM ------------\n")).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("The initial system is over- as well as underdetermined and it could not be resolved after ")); __mm_s.push_str(&*intString(maxMixedDeterminedIndex.clone())); __mm_s.push_str(&*literal!(" iterations.\n\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("==== OVERDETERMINATION BY ")); __mm_s.push_str(&*intString(overDetIndex.clone())); __mm_s.push_str(&*literal!(" EQUATION(S)\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("==== UNDERDETERMINATION OF ")); __mm_s.push_str(&*intString(underDetIndex.clone())); __mm_s.push_str(&*literal!(" VARIABLE(S)\n")); ArcStr::from(__mm_s) }).clone());
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n---- involved set eqns (")); __mm_s.push_str(&*intString(scalarEqnSize.clone())); __mm_s.push_str(&*literal!("/")); __mm_s.push_str(&*intString((singular_eqns_idx.clone().len() as i32))); __mm_s.push_str(&*literal!("):\n")); ArcStr::from(__mm_s) }).clone());
+        for mut eqn in &*singular_eqns_idx.clone() {
+            let mut eqn = eqn.clone();
+            eq = BackendEquation::get(syst.orderedEqs.clone(), mapIncRowEqn.borrow()[(eqn.clone()-1) as usize].clone());
+            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("  ")); __mm_s.push_str(&*intString(eqn.clone())); __mm_s.push_str(&*literal!("(")); __mm_s.push_str(&*intString(BackendEquation::equationSize(eq.clone())?)); __mm_s.push_str(&*literal!("):\t")); __mm_s.push_str(&*BackendDump::equationString(eq.clone())?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+        }
+        println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("\n---- involved set vars (")); __mm_s.push_str(&*intString((singular_vars_idx.clone().len() as i32))); __mm_s.push_str(&*literal!("):\n")); ArcStr::from(__mm_s) }).clone());
+        for mut var in &*singular_vars_idx.clone() {
+            let mut var = var.clone();
+            println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("  ")); __mm_s.push_str(&*intString(var.clone())); __mm_s.push_str(&*literal!(":\t")); __mm_s.push_str(&*BackendDump::varString(BackendVariable::getVarAt(syst.orderedVars.clone(), var.clone())?)?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
+        }
+        println!("{}", (literal!("--------------------------------------------------\n")).clone());
+    }
+    Error::addMessage(Error::MIXED_DETERMINED.clone(), list![(intString(maxMixedDeterminedIndex.clone())).clone()])?;
+    bail!("fail");
+    Ok((outEqSystem, outShared, dummy))
 }
 
 fn updateFixedAttribute(mut var: BackendDAE::Var, mut vars: BackendDAE::Variables) -> Result<(BackendDAE::Var, BackendDAE::Variables)> {
@@ -1229,7 +1523,7 @@ fn squareAdjacencyMatrix2(mut inPos: i32, mut inRange: Arc<metamodelica::List<i3
 fn addStartValueEquations(mut inVarLst: Arc<metamodelica::List<BackendDAE::Var>>, mut inEqns: Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, mut inDumpVars: Arc<metamodelica::List<BackendDAE::Var>>) -> Result<(Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, Arc<metamodelica::List<BackendDAE::Var>>)> {
     let mut outEqns: Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>> = inEqns.clone();
     let mut outDumpVars: Arc<metamodelica::List<BackendDAE::Var>> = inDumpVars.clone();
-    let mut dumpVar: BackendDAE::Var;
+    let mut dumpVar: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
     let mut eqn: Arc<BackendDAE::Equation> = Arc::new(BackendDAE::Equation::DUMMY_EQUATION);
     let mut e: Arc<DAE::Exp>;
     let mut crefExp: Arc<DAE::Exp>;
@@ -1296,7 +1590,7 @@ fn consistencyCheck(mut inRedundantEqns: Arc<metamodelica::List<i32>>, mut inEqn
                     let mut nEqns: i32 = 0;
                     let mut redundantEqn: i32 = 0;
                     let mut comps: Arc<metamodelica::List<Arc<metamodelica::List<i32>>>> = metamodelica::nil();
-                    let mut repl: BackendVarTransform::VariableReplacements;
+                    let mut repl: BackendVarTransform::VariableReplacements = <BackendVarTransform::VariableReplacements as ::std::default::Default>::default();
                     let mut substEqns: Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>;
                     let _ = BackendVariable::varsSize(inVars.clone())?;
                     nEqns = BackendEquation::equationArraySize(inEqns.clone())?;
@@ -1502,7 +1796,7 @@ fn downCompsMarker(mut unassignedEqns: Arc<metamodelica::List<i32>>, mut vecVarT
 // NOTE: #[tailcall::tailcall] disabled: function body contains a `match_deref!{…}` match,
 // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
 fn setupVarReplacements(mut inMarkedEqns: Arc<metamodelica::List<i32>>, mut inEqns: Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, mut inVars: BackendDAE::Variables, mut inVecEqToVar: metamodelica::Array<i32>, mut inRepls: BackendVarTransform::VariableReplacements, mut inMapIncRowEqn: metamodelica::Array<i32>, mut inME: metamodelica::Array<Arc<metamodelica::List<(i32, BackendDAE::Solvability, Arc<metamodelica::List<Arc<DAE::Constraint>>>)>>>, mut inShared: Arc<BackendDAE::Shared>) -> Result<BackendVarTransform::VariableReplacements> {
-    let mut outRepls: BackendVarTransform::VariableReplacements;
+    let mut outRepls: BackendVarTransform::VariableReplacements = <BackendVarTransform::VariableReplacements as ::std::default::Default>::default();
     outRepls = 'mc: {
         let __mc_input = inMarkedEqns.clone();
         if let Ok(__v) = (|| -> Result<_> {
@@ -1518,8 +1812,8 @@ fn setupVarReplacements(mut inMarkedEqns: Arc<metamodelica::List<i32>>, mut inEq
                 Deref @ metamodelica::List::Cons { head: markedEqn, tail: markedEqns } => {
                     let mut indexVar: i32 = 0;
                     let mut indexEq: i32 = 0;
-                    let mut repls: BackendVarTransform::VariableReplacements;
-                    let mut var: BackendDAE::Var;
+                    let mut repls: BackendVarTransform::VariableReplacements = <BackendVarTransform::VariableReplacements as ::std::default::Default>::default();
+                    let mut var: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
                     let mut varName: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
                     let mut eqn: Arc<BackendDAE::Equation> = Arc::new(BackendDAE::Equation::DUMMY_EQUATION);
                     let mut cref: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
@@ -1535,7 +1829,10 @@ fn setupVarReplacements(mut inMarkedEqns: Arc<metamodelica::List<i32>>, mut inEq
                     cref = BackendVariable::varCref(var.clone())?;
                     type_ = BackendVariable::varType(var.clone())?;
                     x = Arc::new(DAE::Exp::CREF { componentRef: cref.clone(), ty: type_.clone() });
-                    let ref __pa1 @ BackendDAE::EQUATION { scalar: ref __pa0, .. } = (BackendEquation::solveEquation(eqn.clone(), x.clone(), Some(inShared.functionTree.clone()))?) else { bail!("pattern mismatch") };
+                    let (__pa1, __pa0) = ::match_deref::match_deref! { match &(BackendEquation::solveEquation(eqn.clone(), x.clone(), Some(inShared.functionTree.clone()))?) {
+                        __pa1 @ Deref @ BackendDAE::Equation::EQUATION { scalar: __pa0, .. } => (__pa1.clone(), __pa0.clone()),
+                        _ => bail!("pattern mismatch"),
+                    } };
                     exp = __pa0.clone();
                     eqn = __pa1.clone();
                     varName = BackendVariable::varCref(var.clone())?;
@@ -1550,7 +1847,7 @@ fn setupVarReplacements(mut inMarkedEqns: Arc<metamodelica::List<i32>>, mut inEq
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ metamodelica::List::Cons { head: _, tail: markedEqns } => {
-                    let mut repls: BackendVarTransform::VariableReplacements;
+                    let mut repls: BackendVarTransform::VariableReplacements = <BackendVarTransform::VariableReplacements as ::std::default::Default>::default();
                     repls = setupVarReplacements(markedEqns.clone(), inEqns.clone(), inVars.clone(), inVecEqToVar.clone(), inRepls.clone(), inMapIncRowEqn.clone(), inME.clone(), inShared.clone())?;
                     Ok(repls.clone())
                 }
@@ -1661,8 +1958,8 @@ fn getConsistentEquation(mut inUnassignedEqn: i32, mut inEqns: Arc<ExpandableArr
             let mut exp: Arc<DAE::Exp>;
             let mut listParameter: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
             let mut m: metamodelica::Array<Arc<metamodelica::List<i32>>>;
-            let mut system: Arc<BackendDAE::EqSystem>;
-            let mut funcs; // TODO: local with unresolved type
+            let mut system: Arc<BackendDAE::EqSystem> = Arc::new(<BackendDAE::EqSystem as ::std::default::Default>::default());
+            let mut funcs: Arc<AvlTreePathFunction::Tree> = Arc::new(AvlTreePathFunction::Tree::EMPTY);
             let mut list_inEqns: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
             nVars = BackendVariable::varsSize(vars.clone())?;
             nEqns = BackendEquation::equationArraySize(inEqnsOrig.clone())?;
@@ -1763,7 +2060,7 @@ fn parameterCheck2(mut inExp: Arc<DAE::Exp>, mut inParams: (Arc<metamodelica::Li
 //
 // =============================================================================
 fn introducePreVarsForAliasVariables(mut inVar: BackendDAE::Var, mut inTpl: (BackendDAE::Variables, BackendDAE::Variables, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<Arc<DAE::ComponentRef>>>), i32, i32, (HashSet::FuncHashCref, HashSet::FuncCrefEqual, HashSet::FuncCrefStr)))) -> Result<(BackendDAE::Var, (BackendDAE::Variables, BackendDAE::Variables, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<Arc<DAE::ComponentRef>>>), i32, i32, (HashSet::FuncHashCref, HashSet::FuncCrefEqual, HashSet::FuncCrefStr))))> {
-    let mut outVar: BackendDAE::Var;
+    let mut outVar: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
     let mut outTpl: (BackendDAE::Variables, BackendDAE::Variables, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<Arc<DAE::ComponentRef>>>), i32, i32, (HashSet::FuncHashCref, HashSet::FuncCrefEqual, HashSet::FuncCrefStr)));
     (outVar, outTpl) = 'mc: {
         let __mc_input = (inVar.clone(), inTpl.clone());
@@ -1774,7 +2071,7 @@ fn introducePreVarsForAliasVariables(mut inVar: BackendDAE::Var, mut inTpl: (Bac
                     let mut isFixed: bool = false;
                     let mut startValue: Arc<DAE::Exp>;
                     let mut preCR: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
-                    let mut preVar: BackendDAE::Var;
+                    let mut preVar: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
                     let mut eqn: Arc<BackendDAE::Equation> = Arc::new(BackendDAE::Equation::DUMMY_EQUATION);
                     let mut vars = (*vars).clone();
                     let mut eqns = (*eqns).clone();
@@ -1798,7 +2095,7 @@ fn introducePreVarsForAliasVariables(mut inVar: BackendDAE::Var, mut inTpl: (Bac
                 (var @ BackendDAE::Var { arryDim, varType: ty, varName: cr, .. }, (vars, fixvars, eqns, hs)) => {
                     let mut preUsed: bool = false;
                     let mut preCR: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
-                    let mut preVar: BackendDAE::Var;
+                    let mut preVar: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
                     let mut eqn: Arc<BackendDAE::Equation> = Arc::new(BackendDAE::Equation::DUMMY_EQUATION);
                     let mut vars = (*vars).clone();
                     let mut eqns = (*eqns).clone();
@@ -1862,9 +2159,9 @@ fn collectInitialVarsEqnsSystem(mut eqSystems: Arc<metamodelica::List<Arc<Backen
 }
 
 fn collectInitialStateSets(mut stateSets: Arc<metamodelica::List<BackendDAE::StateSet>>, mut stateSetFixCounts: metamodelica::Array<i32>, mut iVars: BackendDAE::Variables, mut iEqns: Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>) -> Result<(BackendDAE::Variables, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>)> {
-    let mut oVars: BackendDAE::Variables;
+    let mut oVars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
     let mut oEqns: Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>;
-    let mut stateSet: BackendDAE::StateSet;
+    let mut stateSet: BackendDAE::StateSet = <BackendDAE::StateSet as ::std::default::Default>::default();
     let mut eqn: Arc<BackendDAE::Equation> = Arc::new(BackendDAE::Equation::DUMMY_EQUATION);
     let mut Feqn: Arc<BackendDAE::Equation> = Arc::new(BackendDAE::Equation::DUMMY_EQUATION);
     let mut initEqn: Arc<BackendDAE::Equation> = Arc::new(BackendDAE::Equation::DUMMY_EQUATION);
@@ -1882,8 +2179,8 @@ fn collectInitialStateSets(mut stateSets: Arc<metamodelica::List<BackendDAE::Sta
     let mut set: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
     let mut crF: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
     let mut crInitStates: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
-    let mut var: BackendDAE::Var;
-    let mut fixState: BackendDAE::Var;
+    let mut var: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
+    let mut fixState: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
     let mut statesToFix: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
     let mut unfixedStates: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
     let mut VarsF: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
@@ -1957,16 +2254,16 @@ fn collectInitialStateSets(mut stateSets: Arc<metamodelica::List<BackendDAE::Sta
 }
 
 fn collectInitialVars(mut inVar: BackendDAE::Var, mut inTpl: (BackendDAE::Variables, BackendDAE::Variables, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, metamodelica::Array<i32>, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<Arc<DAE::ComponentRef>>>), i32, i32, (HashSet::FuncHashCref, HashSet::FuncCrefEqual, HashSet::FuncCrefStr)), Arc<AvlSetCR::Tree>, bool)) -> Result<(BackendDAE::Var, (BackendDAE::Variables, BackendDAE::Variables, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, metamodelica::Array<i32>, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<Arc<DAE::ComponentRef>>>), i32, i32, (HashSet::FuncHashCref, HashSet::FuncCrefEqual, HashSet::FuncCrefStr)), Arc<AvlSetCR::Tree>, bool))> {
-    let mut outVar: BackendDAE::Var;
+    let mut outVar: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
     let mut outTpl: (BackendDAE::Variables, BackendDAE::Variables, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, metamodelica::Array<i32>, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<Arc<DAE::ComponentRef>>>), i32, i32, (HashSet::FuncHashCref, HashSet::FuncCrefEqual, HashSet::FuncCrefStr)), Arc<AvlSetCR::Tree>, bool);
     (outVar, outTpl) = 'mc: {
         let __mc_input = (inVar.clone(), inTpl.clone());
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (var @ BackendDAE::Var { varType: ty, varKind: BackendDAE::VarKind::STATE { .. }, varName: cr, .. }, (vars, fixvars, eqns, stateSetFixCounts, hs, allPrimaryParameters, datarecon)) => {
-                    let mut preVar: BackendDAE::Var;
-                    let mut derVar: BackendDAE::Var;
-                    let mut startVar: BackendDAE::Var;
+                    let mut preVar: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
+                    let mut derVar: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
+                    let mut startVar: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
                     let mut eqn: Arc<BackendDAE::Equation> = Arc::new(BackendDAE::Equation::DUMMY_EQUATION);
                     let mut preCR: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
                     let mut derCR: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
@@ -2051,7 +2348,7 @@ fn collectInitialVars(mut inVar: BackendDAE::Var, mut inTpl: (BackendDAE::Variab
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (var @ BackendDAE::Var { varType: ty, varKind: BackendDAE::VarKind::DISCRETE, varName: cr, .. }, (vars, fixvars, eqns, stateSetFixCounts, hs, allPrimaryParameters, datarecon)) => {
-                    let mut preVar: BackendDAE::Var;
+                    let mut preVar: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
                     let mut eqn: Arc<BackendDAE::Equation> = Arc::new(BackendDAE::Equation::DUMMY_EQUATION);
                     let mut preCR: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
                     let mut startValue_: Arc<DAE::Exp>;
@@ -2080,7 +2377,7 @@ fn collectInitialVars(mut inVar: BackendDAE::Var, mut inTpl: (BackendDAE::Variab
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (var @ BackendDAE::Var { varKind: BackendDAE::VarKind::DISCRETE, varName: cr, .. }, (vars, fixvars, eqns, stateSetFixCounts, hs, allPrimaryParameters, datarecon)) => {
-                    let mut preVar: BackendDAE::Var;
+                    let mut preVar: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
                     let mut preCR: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
                     let mut preUsed: bool = false;
                     let mut startValue: Option<Arc<DAE::Exp>> = None;
@@ -2240,8 +2537,8 @@ fn collectInitialVars(mut inVar: BackendDAE::Var, mut inTpl: (BackendDAE::Variab
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (var @ BackendDAE::Var { varType: ty, varName: cr, .. }, (vars, fixvars, eqns, stateSetFixCounts, hs, allPrimaryParameters, datarecon)) => {
-                    let mut preVar: BackendDAE::Var;
-                    let mut startVar: BackendDAE::Var;
+                    let mut preVar: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
+                    let mut startVar: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
                     let mut eqn: Arc<BackendDAE::Equation> = Arc::new(BackendDAE::Equation::DUMMY_EQUATION);
                     let mut preCR: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
                     let mut startCR: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
@@ -2306,8 +2603,8 @@ fn collectInitialVars(mut inVar: BackendDAE::Var, mut inTpl: (BackendDAE::Variab
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (var @ BackendDAE::Var { varType: ty, varName: cr, .. }, (vars, fixvars, eqns, stateSetFixCounts, hs, allPrimaryParameters, datarecon)) => {
-                    let mut preVar: BackendDAE::Var;
-                    let mut startVar: BackendDAE::Var;
+                    let mut preVar: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
+                    let mut startVar: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
                     let mut eqn: Arc<BackendDAE::Equation> = Arc::new(BackendDAE::Equation::DUMMY_EQUATION);
                     let mut preCR: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
                     let mut startCR: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
@@ -2393,9 +2690,9 @@ fn checkComponentNames(mut inVarDirection: DAE::VarDirection, mut inComponentRef
 }
 
 fn collectInitialClockedVarsEqns(mut inVar: BackendDAE::Var, mut inTpl: (BackendDAE::Variables, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>)) -> Result<(BackendDAE::Var, (BackendDAE::Variables, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>))> {
-    let mut outVar: BackendDAE::Var;
+    let mut outVar: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
     let mut outTpl: (BackendDAE::Variables, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>);
-    let mut vars: BackendDAE::Variables;
+    let mut vars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
     let mut eqns: Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>;
     (vars, eqns) = inTpl.clone();
     (outVar, outTpl) = (match inVar.clone() {
@@ -2405,7 +2702,7 @@ fn collectInitialClockedVarsEqns(mut inVar: BackendDAE::Var, mut inTpl: (Backend
             crExp = Expression::crefExp(cr.clone())?;
             (vars, eqns) = (match kind.clone() {
         BackendDAE::VarKind::CLOCKED_STATE { previousName: ref previousCR, .. } => {
-            let mut previousVar: BackendDAE::Var;
+            let mut previousVar: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
             let mut previousExp: Arc<DAE::Exp>;
             previousVar = BackendVariable::copyVarNewName(previousCR.clone(), var.clone());
             previousVar = BackendVariable::setVarKind(previousVar.clone(), crate::BackendDAE::VarKind::VARIABLE)?;
@@ -2482,7 +2779,7 @@ fn replaceDerPreCref(mut inExp: Arc<DAE::Exp>) -> Arc<DAE::Exp> {
 //
 // =============================================================================
 fn collectInitialBindings(mut inVar: BackendDAE::Var, mut inTpl: (Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>)) -> Result<(BackendDAE::Var, (Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>))> {
-    let mut outVar: BackendDAE::Var;
+    let mut outVar: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
     let mut outTpl: (Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>);
     (outVar, outTpl) = (::match_deref::match_deref! { match &((inVar.clone(), inTpl.clone())) {
         (var @ BackendDAE::Var { bindExp: None, .. }, _) => {

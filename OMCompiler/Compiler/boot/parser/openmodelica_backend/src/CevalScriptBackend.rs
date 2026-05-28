@@ -106,6 +106,7 @@ use openmodelica_frontend::UnitAbsynBuilder;
 use openmodelica_frontend::ValuesUtil;
 use openmodelica_frontend_dump::AbsynToSCode;
 use openmodelica_frontend_dump::AbsynUtil;
+use openmodelica_frontend_dump::AvlTreePathFunction;
 use openmodelica_frontend_dump::ComponentReferenceBasics;
 use openmodelica_frontend_dump::Dump;
 use openmodelica_frontend_dump::ExpressionBasics;
@@ -438,7 +439,7 @@ fn diffSanityCheckEqual(mut s1: ArcStr, mut s2: ArcStr) -> Result<bool> {
         }
         __acc.reverse()
     }, (std::sync::Arc::new(fnptr!(Util::strcmpBool, ArcStr, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>))?;
-    b = List::isEqualOnTrue(comments1.clone(), comments2.clone(), (std::sync::Arc::new(stringEq) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>));
+    b = List::isEqualOnTrue(comments1.clone(), comments2.clone(), (std::sync::Arc::new(fnptr!(stringEq, ArcStr, ArcStr)) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, ArcStr) -> Result<bool> + 'static>));
     Ok(b)
 }
 
@@ -523,7 +524,7 @@ pub fn cevalInteractiveFunctions3(mut inCache: FCore::Cache, mut inEnv: FCore::G
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ "isShortDefinition", Deref @ metamodelica::List::Cons { head: Deref @ Values::Value::CODE { A: Deref @ Absyn::CodeNode::C_TYPENAME { path } }, tail: Deref @ metamodelica::List::Nil }) => {
                     let mut b: bool = false;
-                    b = isShortDefinition(path.clone(), SymbolTable::getAbsyn())?;
+                    b = isShortDefinition(path.clone(), SymbolTable::getAbsyn());
                     Ok(Arc::new(Values::Value::BOOL { boolean: b.clone() }))
                 }
                 _ => bail!("nomatch"),
@@ -904,17 +905,9 @@ pub fn cevalInteractiveFunctions3(mut inCache: FCore::Cache, mut inEnv: FCore::G
                 (Deref @ "addInitialState", Deref @ metamodelica::List::Cons { head: Deref @ Values::Value::CODE { A: Deref @ Absyn::CodeNode::C_TYPENAME { path: classpath } }, tail: Deref @ metamodelica::List::Cons { head: Deref @ Values::Value::STRING { string: str1 }, tail: Deref @ metamodelica::List::Cons { head: Deref @ Values::Value::CODE { A: Deref @ Absyn::CodeNode::C_MODIFICATION { modification: Deref @ Absyn::Modification { eqMod: Deref @ Absyn::EqMod::NOMOD, elementArgLst: eltargs } } }, tail: Deref @ metamodelica::List::Nil } } }) => {
                     let mut p: Absyn::Program = <Absyn::Program as ::std::default::Default>::default();
                     let mut bval: bool = false;
-                    (bval, p) = addInitialStateWithAnnotation(classpath.clone(), (str1.clone()).clone(), Arc::new(Absyn::Annotation { elementArgs: eltargs.clone() }), SymbolTable::getAbsyn())?;
+                    (bval, p) = addInitialStateWithAnnotation(classpath.clone(), (str1.clone()).clone(), Arc::new(Absyn::Annotation { elementArgs: eltargs.clone() }), SymbolTable::getAbsyn());
                     SymbolTable::setAbsyn(p.clone())?;
                     Ok(Arc::new(Values::Value::BOOL { boolean: bval.clone() }))
-                }
-                _ => bail!("nomatch"),
-            }}
-        })() { break 'mc __v; }
-        if let Ok(__v) = (|| -> Result<_> {
-            ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ "addInitialState", Deref @ metamodelica::List::Cons { head: _, tail: Deref @ metamodelica::List::Cons { head: _, tail: Deref @ metamodelica::List::Cons { head: _, tail: Deref @ metamodelica::List::Nil } } }) => {
-                    Ok(Arc::new(Values::Value::BOOL { boolean: false }))
                 }
                 _ => bail!("nomatch"),
             }}
@@ -994,7 +987,7 @@ pub fn cevalInteractiveFunctions3(mut inCache: FCore::Cache, mut inEnv: FCore::G
                     let mut p: Absyn::Program = <Absyn::Program as ::std::default::Default>::default();
                     let mut bval: bool = false;
                     (bval, p) = deleteInitialState(classpath.clone(), (str1.clone()).clone(), SymbolTable::getAbsyn())?;
-                    (bval, p) = addInitialStateWithAnnotation(classpath.clone(), (str1.clone()).clone(), Arc::new(Absyn::Annotation { elementArgs: eltargs.clone() }), p.clone())?;
+                    (bval, p) = addInitialStateWithAnnotation(classpath.clone(), (str1.clone()).clone(), Arc::new(Absyn::Annotation { elementArgs: eltargs.clone() }), p.clone());
                     SymbolTable::setAbsyn(p.clone())?;
                     Ok(Arc::new(Values::Value::BOOL { boolean: bval.clone() }))
                 }
@@ -1251,14 +1244,14 @@ pub fn cevalInteractiveFunctions3(mut inCache: FCore::Cache, mut inEnv: FCore::G
                     let mut filenameprefix: ArcStr = arcstr::literal!("");
                     let mut description: ArcStr = arcstr::literal!("");
                     let mut env: FCore::Graph;
-                    let mut dae: DAE::DAElist;
-                    let mut daelow: Arc<BackendDAE::BackendDAE>;
-                    let mut vars: BackendDAE::Variables;
+                    let mut dae: DAE::DAElist = <DAE::DAElist as ::std::default::Default>::default();
+                    let mut daelow: Arc<BackendDAE::BackendDAE> = Arc::new(<BackendDAE::BackendDAE as ::std::default::Default>::default());
+                    let mut vars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
                     let mut eqnarr: Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>;
                     let mut m: metamodelica::Array<Arc<metamodelica::List<i32>>>;
                     let mut jac: Option<Arc<metamodelica::List<(i32, i32, Arc<BackendDAE::Equation>)>>> = None;
-                    let mut syst: Arc<BackendDAE::EqSystem>;
-                    let mut shared: Arc<BackendDAE::Shared>;
+                    let mut syst: Arc<BackendDAE::EqSystem> = Arc::new(<BackendDAE::EqSystem as ::std::default::Default>::default());
+                    let mut shared: Arc<BackendDAE::Shared> = Arc::new(<BackendDAE::Shared as ::std::default::Default>::default());
                     let mut outCache: FCore::Cache = outCache.clone();
                     let (__pa0, __pa1, Some(__pa2), _) = (runFrontEnd(outCache.clone(), inEnv.clone(), path.clone(), true, false, true)?) else { bail!("pattern mismatch") };
                     outCache = __pa0.clone();
@@ -1287,7 +1280,7 @@ pub fn cevalInteractiveFunctions3(mut inCache: FCore::Cache, mut inEnv: FCore::G
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ "translateModel", vals @ Deref @ metamodelica::List::Cons { head: Deref @ Values::Value::CODE { A: Deref @ Absyn::CodeNode::C_TYPENAME { path: className } }, tail: Deref @ metamodelica::List::Cons { head: _, tail: Deref @ metamodelica::List::Cons { head: _, tail: Deref @ metamodelica::List::Cons { head: _, tail: Deref @ metamodelica::List::Cons { head: _, tail: Deref @ metamodelica::List::Cons { head: _, tail: Deref @ metamodelica::List::Cons { head: Deref @ Values::Value::STRING { string: filenameprefix }, tail: Deref @ metamodelica::List::Cons { head: _, tail: Deref @ metamodelica::List::Cons { head: _, tail: Deref @ metamodelica::List::Cons { head: _, tail: Deref @ metamodelica::List::Cons { head: _, tail: Deref @ metamodelica::List::Cons { head: _, tail: Deref @ metamodelica::List::Nil } } } } } } } } } } } }) => {
                     let mut b: bool = false;
-                    let mut simSettings: SimCode::SimulationSettings;
+                    let mut simSettings: SimCode::SimulationSettings = <SimCode::SimulationSettings as ::std::default::Default>::default();
                     let mut outCache: FCore::Cache = outCache.clone();
                     (outCache, simSettings) = calculateSimulationSettings(outCache.clone(), vals.clone())?;
                     (b, outCache) = translateModel(outCache.clone(), inEnv.clone(), className.clone(), (filenameprefix.clone()).clone(), true, true, Some(simSettings.clone()))?;
@@ -1668,7 +1661,7 @@ pub fn cevalInteractiveFunctions3(mut inCache: FCore::Cache, mut inEnv: FCore::G
                     let mut timeSimulation: metamodelica::Real = metamodelica::OrderedFloat(0.0_f64);
                     let mut b: bool = false;
                     let mut resultValues: Arc<metamodelica::List<(ArcStr, Arc<Values::Value>)>> = metamodelica::nil();
-                    let mut simSettings: SimCode::SimulationSettings;
+                    let mut simSettings: SimCode::SimulationSettings = <SimCode::SimulationSettings as ::std::default::Default>::default();
                     let mut vals = (*vals).clone();
                     let mut outCache: FCore::Cache = outCache.clone();
                     System::realtimeTick(ClockIndexes::RT_CLOCK_SIMULATE_TOTAL.clone())?;
@@ -1943,7 +1936,7 @@ pub fn cevalInteractiveFunctions3(mut inCache: FCore::Cache, mut inEnv: FCore::G
                     let mut timeSimulation: metamodelica::Real = metamodelica::OrderedFloat(0.0_f64);
                     let mut b: bool = false;
                     let mut resultValues: Arc<metamodelica::List<(ArcStr, Arc<Values::Value>)>> = metamodelica::nil();
-                    let mut simSettings: SimCode::SimulationSettings;
+                    let mut simSettings: SimCode::SimulationSettings = <SimCode::SimulationSettings as ::std::default::Default>::default();
                     let mut vals = (*vals).clone();
                     let mut outCache: FCore::Cache = outCache.clone();
                     System::realtimeTick(ClockIndexes::RT_CLOCK_SIMULATE_TOTAL.clone())?;
@@ -2020,7 +2013,7 @@ pub fn cevalInteractiveFunctions3(mut inCache: FCore::Cache, mut inEnv: FCore::G
                     let mut timeSimulation: metamodelica::Real = metamodelica::OrderedFloat(0.0_f64);
                     let mut b: bool = false;
                     let mut resultValues: Arc<metamodelica::List<(ArcStr, Arc<Values::Value>)>> = metamodelica::nil();
-                    let mut simSettings: SimCode::SimulationSettings;
+                    let mut simSettings: SimCode::SimulationSettings = <SimCode::SimulationSettings as ::std::default::Default>::default();
                     let mut vals = (*vals).clone();
                     let mut outCache: FCore::Cache = outCache.clone();
                     System::realtimeTick(ClockIndexes::RT_CLOCK_SIMULATE_TOTAL.clone())?;
@@ -2086,8 +2079,8 @@ pub fn cevalInteractiveFunctions3(mut inCache: FCore::Cache, mut inEnv: FCore::G
                     let mut fmiModelVariablesInstance: Option<i32> = None;
                     let mut fmiTypeDefinitionsList: Arc<metamodelica::List<FMI::TypeDefinitions>> = metamodelica::nil();
                     let mut fmiModelVariablesList: Arc<metamodelica::List<FMI::ModelVariables>> = metamodelica::nil();
-                    let mut fmiExperimentAnnotation: FMI::ExperimentAnnotation;
-                    let mut fmiInfo: FMI::Info;
+                    let mut fmiExperimentAnnotation: FMI::ExperimentAnnotation = <FMI::ExperimentAnnotation as ::std::default::Default>::default();
+                    let mut fmiInfo: FMI::Info = <FMI::Info as ::std::default::Default>::default();
                     let mut b: bool = false;
                     let mut workdir = (*workdir).clone();
                     Error::clearMessages();
@@ -2151,8 +2144,8 @@ pub fn cevalInteractiveFunctions3(mut inCache: FCore::Cache, mut inEnv: FCore::G
                     let mut fmiModelVariablesInstance: Option<i32> = None;
                     let mut fmiTypeDefinitionsList: Arc<metamodelica::List<FMI::TypeDefinitions>> = metamodelica::nil();
                     let mut fmiModelVariablesList: Arc<metamodelica::List<FMI::ModelVariables>> = metamodelica::nil();
-                    let mut fmiExperimentAnnotation: FMI::ExperimentAnnotation;
-                    let mut fmiInfo: FMI::Info;
+                    let mut fmiExperimentAnnotation: FMI::ExperimentAnnotation = <FMI::ExperimentAnnotation as ::std::default::Default>::default();
+                    let mut fmiInfo: FMI::Info = <FMI::Info as ::std::default::Default>::default();
                     let mut b: bool = false;
                     let mut workdir = (*workdir).clone();
                     Error::clearMessages();
@@ -3864,7 +3857,7 @@ pub fn cevalInteractiveFunctions4(mut inCache: FCore::Cache, mut inEnv: FCore::G
                     let mut p: Absyn::Program = <Absyn::Program as ::std::default::Default>::default();
                     let mut absynClass: Arc<Absyn::Class> = Arc::new(<Absyn::Class as ::std::default::Default>::default());
                     let mut aexp: Arc<Absyn::Exp> = Arc::new(Absyn::Exp::BREAK);
-                    let mut istmts: GlobalScript::Statements;
+                    let mut istmts: GlobalScript::Statements = <GlobalScript::Statements as ::std::default::Default>::default();
                     let mut nargs: Arc<metamodelica::List<Arc<Absyn::NamedArg>>> = metamodelica::nil();
                     let mut annlst: Arc<metamodelica::List<Arc<Absyn::ElementArg>>> = metamodelica::nil();
                     istmts = Parser::parsestringexp(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("__dummy(")); __mm_s.push_str(&*annStr.clone()); __mm_s.push_str(&*literal!(");")); ArcStr::from(__mm_s) }).clone(), (literal!("<interactive>")).clone())?;
@@ -5201,8 +5194,8 @@ pub fn getAdjacencyMatrix(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mu
             let mut filename: ArcStr = arcstr::literal!("");
             let mut file_dir: ArcStr = arcstr::literal!("");
             let mut r#str: ArcStr = arcstr::literal!("");
-            let mut dae: DAE::DAElist;
-            let mut dlow: Arc<BackendDAE::BackendDAE>;
+            let mut dae: DAE::DAElist = <DAE::DAElist as ::std::default::Default>::default();
+            let mut dlow: Arc<BackendDAE::BackendDAE> = Arc::new(<BackendDAE::BackendDAE as ::std::default::Default>::default());
             let mut a_cref: Arc<Absyn::ComponentRef> = Arc::new(Absyn::ComponentRef::ALLWILD);
             let mut flatModelicaStr: ArcStr = arcstr::literal!("");
             let mut description: ArcStr = arcstr::literal!("");
@@ -5217,7 +5210,7 @@ pub fn getAdjacencyMatrix(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mu
             file_dir = (getFileDir(a_cref.clone(), SymbolTable::getAbsyn())?).clone();
             dlow = BackendDAECreate::lower(dae.clone(), cache.clone(), env.clone(), BackendDAE::ExtraInfo { description: (description.clone()).clone(), fileNamePrefix: (filenameprefix.clone()).clone(), simSettingsOption: None })?;
             dlow = FindZeroCrossings::findZeroCrossings(dlow.clone())?;
-            flatModelicaStr = DAEDump::dumpStr(dae.clone(), FCore::getFunctionTree(cache.clone()))?;
+            flatModelicaStr = (DAEDump::dumpStr(dae.clone(), FCore::getFunctionTree(cache.clone()))?).clone();
             flatModelicaStr = (stringAppend((literal!("OldEqStr={'")).clone(), (flatModelicaStr.clone()).clone())).clone();
             flatModelicaStr = (System::stringReplace((flatModelicaStr.clone()).clone(), (literal!("\n")).clone(), (literal!("%##%")).clone())?).clone();
             flatModelicaStr = (System::stringReplace((flatModelicaStr.clone()).clone(), (literal!("%##%")).clone(), (literal!("','")).clone())?).clone();
@@ -5239,7 +5232,7 @@ pub fn runFrontEnd(mut cache: FCore::Cache, mut env: FCore::Graph, mut className
     let mut env: FCore::Graph = env;
     let mut odae: Option<DAE::DAElist> = None;
     let mut flatString: ArcStr = literal!("");
-    let mut dae: DAE::DAElist;
+    let mut dae: DAE::DAElist = <DAE::DAElist as ::std::default::Default>::default();
     let mut b: bool = false;
     FlagsUtil::setConfigBool(Flags::BUILDING_MODEL.clone(), true)?;
     match '__try0: {
@@ -5277,7 +5270,7 @@ pub fn runFrontEnd(mut cache: FCore::Cache, mut env: FCore::Graph, mut className
 }
 
 pub fn runFrontEndNF(mut className: Arc<Absyn::Path>, mut relaxedFrontEnd: bool, mut dumpFlat: bool) -> Result<(Arc<NFFlatModel::NFFlatModel>, Arc<NFFlatten::FunctionTreeImpl::Tree>, ArcStr)> {
-    let mut flatModel: Arc<NFFlatModel::NFFlatModel>;
+    let mut flatModel: Arc<NFFlatModel::NFFlatModel> = Arc::new(<NFFlatModel::NFFlatModel as ::std::default::Default>::default());
     let mut functions: Arc<NFFlatten::FunctionTreeImpl::Tree> = Arc::new(NFFlatten::FunctionTreeImpl::Tree::EMPTY);
     let mut flatString: ArcStr = arcstr::literal!("");
     let true = (loadProgram(className.clone())?) else { bail!("pattern mismatch") };
@@ -5285,8 +5278,111 @@ pub fn runFrontEndNF(mut className: Arc<Absyn::Path>, mut relaxedFrontEnd: bool,
     Ok((flatModel, functions, flatString))
 }
 
+fn loadProgram(mut className: Arc<Absyn::Path>) -> Result<bool> {
+    let mut success: bool = false;
+    let mut restriction: Absyn::Restriction = Absyn::Restriction::R_BLOCK;
+    let mut absynClass: Arc<Absyn::Class> = Arc::new(<Absyn::Class as ::std::default::Default>::default());
+    let mut lib_name: ArcStr = arcstr::literal!("");
+    let mut scodeP: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
+    let mut p: Absyn::Program = <Absyn::Program as ::std::default::Default>::default();
+    let mut funcs: Arc<AvlTreePathFunction::Tree> = Arc::new(AvlTreePathFunction::Tree::EMPTY);
+    let mut b: bool = false;
+    p = SymbolTable::getAbsyn();
+    lib_name = (AbsynUtil::pathFirstIdent(className.clone())?).clone();
+    match '__try0: {
+        unwrap_break_err!(InteractiveUtil::getClassInProgram((lib_name.clone()).clone(), p.clone()), '__try0);
+        success = true;
+        Ok::<_, anyhow::Error>((success.clone(),))
+    } {
+        Ok((__try0_o0,)) => {
+            success = __try0_o0;
+        }
+        Err(_) => {
+            (p, b) = CevalScript::loadModel(list![(Arc::new(Absyn::Path::IDENT { name: (lib_name.clone()).clone() }), literal!("the given model name to instantiate"), list![(literal!("default")).clone()], false)], (Settings::getModelicaPath(Testsuite::isRunning()?)?).clone(), p.clone(), true, true, true, false, false, (literal!("")).clone())?;
+            Error::assertionOrAddSourceMessage(!(b.clone()), Error::NOTIFY_IMPLICIT_LOAD.clone(), list![(lib_name.clone()).clone(), (literal!("default")).clone()], Absyn::dummyInfo.clone())?;
+            System::loadModelCallBack((lib_name.clone()).clone());
+            SymbolTable::setAbsyn(p.clone())?;
+            SymbolTable::clearSCode();
+            bail!("try/else: outputs not set in else branch");
+        }
+    }
+    Ok(success)
+}
+
+fn runFrontEndWork(mut cache: FCore::Cache, mut env: FCore::Graph, mut className: Arc<Absyn::Path>, mut relaxedFrontEnd: bool, mut dumpFlat: bool) -> Result<(FCore::Cache, FCore::Graph, DAE::DAElist, ArcStr)> {
+    let mut cache: FCore::Cache = cache;
+    let mut env: FCore::Graph = env;
+    let mut dae: DAE::DAElist = <DAE::DAElist as ::std::default::Default>::default();
+    let mut flatString: ArcStr = literal!("");
+    let mut numError: i32 = Error::getNumErrorMessages();
+    let mut graph_inst: bool = false;
+    let mut nf_inst: bool = false;
+    let mut nf_inst_actual: bool = false;
+    let mut scodeP: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
+    let mut funcs: Arc<AvlTreePathFunction::Tree> = Arc::new(AvlTreePathFunction::Tree::EMPTY);
+    let mut flat_model: Arc<NFFlatModel::NFFlatModel> = Arc::new(<NFFlatModel::NFFlatModel as ::std::default::Default>::default());
+    let mut nf_funcs: Arc<NFFlatten::FunctionTreeImpl::Tree> = Arc::new(NFFlatten::FunctionTreeImpl::Tree::EMPTY);
+    graph_inst = Flags::isSet(Flags::GRAPH_INST.clone())?;
+    nf_inst = Flags::isSet(Flags::SCODE_INST.clone())?;
+    nf_inst_actual = nf_inst.clone();
+    if nf_inst.clone() && Flags::getConfigEnum(Flags::GRAMMAR.clone())? == Flags::PDEMODELICA.clone() {
+        nf_inst = false;
+        FlagsUtil::set(Flags::SCODE_INST.clone(), false)?;
+        Error::addMessage(Error::NF_PDE_NOT_IMPLEMENTED.clone(), metamodelica::nil())?;
+    }
+    (cache, env, dae) = 'mc: {
+        let __mc_input = (graph_inst.clone(), nf_inst.clone());
+        if let Ok(__v) = (|| -> Result<_> {
+            let (false, true) = __mc_input.clone() else { bail!("nomatch") };
+            let mut flatString: ArcStr = flatString.clone();
+            let mut nf_funcs: Arc<NFFlatten::FunctionTreeImpl::Tree> = nf_funcs.clone();
+            let mut dae: DAE::DAElist = dae.clone();
+            let mut cache: FCore::Cache = cache.clone();
+            let mut env: FCore::Graph = env.clone();
+            let mut flat_model: Arc<NFFlatModel::NFFlatModel> = flat_model.clone();
+            let mut funcs: Arc<AvlTreePathFunction::Tree> = funcs.clone();
+            (flat_model, nf_funcs, flatString) = runFrontEndWorkNF(className.clone(), relaxedFrontEnd.clone(), dumpFlat.clone())?;
+            (dae, funcs) = NFConvertDAE::convert(flat_model.clone(), nf_funcs.clone())?;
+            cache = FCore::emptyCache();
+            FCore::setCachedFunctionTree(cache.clone(), funcs.clone());
+            env = FGraph::new((literal!("graph")).clone(), FCore::dummyTopModel.clone())?;
+            Ok((cache.clone(), env.clone(), dae.clone()))
+        })() { break 'mc __v; }
+        if let Ok(__v) = (|| -> Result<_> {
+            let (true, false) = __mc_input.clone() else { bail!("nomatch") };
+            let mut dae: DAE::DAElist = dae.clone();
+            System::realtimeTick(ClockIndexes::RT_CLOCK_FINST.clone())?;
+            dae = FInst::instPath(className.clone(), SymbolTable::getSCode()?)?;
+            Ok((cache.clone(), env.clone(), dae.clone()))
+        })() { break 'mc __v; }
+        if let Ok(__v) = (|| -> Result<_> {
+            let (false, false) = __mc_input.clone() else { bail!("nomatch") };
+            let mut scodeP: Arc<metamodelica::List<Arc<SCode::Element>>> = scodeP.clone();
+            let mut env: FCore::Graph = env.clone();
+            let mut dae: DAE::DAElist = dae.clone();
+            let mut cache: FCore::Cache = cache.clone();
+            scodeP = SymbolTable::getSCode()?;
+            ExecStat::execStat((literal!("FrontEnd - Absyn->SCode")).clone())?;
+            (cache, env, _, dae) = Inst::instantiateClass(cache.clone(), InnerOuter::emptyInstHierarchy().clone(), scodeP.clone(), className.clone(), true, relaxedFrontEnd.clone(), true)?;
+            dae = DAEUtil::mergeAlgorithmSections(dae.clone())?;
+            DAEUtil::getFunctionList(FCore::getFunctionTree(cache.clone()), true)?;
+            Ok((cache.clone(), env.clone(), dae.clone()))
+        })() { break 'mc __v; }
+        if let Ok(__v) = (|| -> Result<_> {
+            let (_, _) = __mc_input.clone() else { bail!("nomatch") };
+            if !((Error::getNumErrorMessages() == numError.clone())) { bail!("guard") }
+            Error::addMessage(Error::INTERNAL_ERROR.clone(), list![({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Instantiation of ")); __mm_s.push_str(&*AbsynUtil::pathString(className.clone(), (literal!(".")).clone(), true, false)?); __mm_s.push_str(&*literal!(" failed with no error message.")); ArcStr::from(__mm_s) }).clone()])?;
+            FlagsUtil::set(Flags::SCODE_INST.clone(), nf_inst_actual.clone())?;
+            Ok(bail!("fail"))
+        })() { break 'mc __v; }
+        bail!("matchcontinue: no arm matched")
+    };
+    FlagsUtil::set(Flags::SCODE_INST.clone(), nf_inst_actual.clone())?;
+    Ok((cache, env, dae, flatString))
+}
+
 pub fn runFrontEndWorkNF(mut className: Arc<Absyn::Path>, mut relaxedFrontend: bool, mut dumpFlat: bool) -> Result<(Arc<NFFlatModel::NFFlatModel>, Arc<NFFlatten::FunctionTreeImpl::Tree>, ArcStr)> {
-    let mut flatModel: Arc<NFFlatModel::NFFlatModel>;
+    let mut flatModel: Arc<NFFlatModel::NFFlatModel> = Arc::new(<NFFlatModel::NFFlatModel as ::std::default::Default>::default());
     let mut functions: Arc<NFFlatten::FunctionTreeImpl::Tree> = Arc::new(NFFlatten::FunctionTreeImpl::Tree::EMPTY);
     let mut flatString: ArcStr = arcstr::literal!("");
     let mut builtin_p: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
@@ -5351,7 +5447,7 @@ fn configureFMU_cmake(mut platform: ArcStr, mut fmutmp: ArcStr, mut fmuTargetNam
     let mut dquote: ArcStr = arcstr::literal!("");
     let mut defaultFmiIncludeDirectoy: ArcStr = arcstr::literal!("");
     let mut CC: ArcStr = arcstr::literal!("");
-    let mut makefileParams: SimCodeFunction::MakefileParams;
+    let mut makefileParams: SimCodeFunction::MakefileParams = <SimCodeFunction::MakefileParams as ::std::default::Default>::default();
     makefileParams = SimCodeFunctionUtil::createMakefileParams(metamodelica::nil(), metamodelica::nil(), metamodelica::nil(), false, true)?;
     fmuSourceDir = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*fmutmp.clone()); __mm_s.push_str(&*literal!("/sources/")); ArcStr::from(__mm_s) }).clone();
     quote = (literal!("'")).clone();
@@ -5822,7 +5918,7 @@ fn translateModelXML(mut cache: FCore::Cache, mut env: FCore::Graph, mut classNa
     if isProtectedContentAccess(className.clone())? {
         outValue = Arc::new(Values::Value::STRING { string: (literal!("")).clone() });
     } else {
-        (success, cache) = SimCodeMain::translateModel(crate::SimCodeMain::TranslateModelKind::XML, cache.clone(), env.clone(), className.clone(), (fileNamePrefix.clone()).clone(), true, false, true, inSimSettingsOpt.clone(), Absyn::emptyFunctionArgs.clone())?;
+        (success, cache, _, _, _) = SimCodeMain::translateModel(crate::SimCodeMain::TranslateModelKind::XML, cache.clone(), env.clone(), className.clone(), (fileNamePrefix.clone()).clone(), true, false, true, inSimSettingsOpt.clone(), Absyn::emptyFunctionArgs.clone())?;
         outValue = Arc::new(Values::Value::STRING { string: (if (success.clone()) {{ let mut __mm_s = String::new(); __mm_s.push_str(&*if (!(Testsuite::isRunning()?)) {{ let mut __mm_s = String::new(); __mm_s.push_str(&*System::pwd()); __mm_s.push_str(&*arcstr::literal!(Autoconf::pathDelimiter)); ArcStr::from(__mm_s) }} else {literal!("")}); __mm_s.push_str(&*fileNamePrefix.clone()); __mm_s.push_str(&*literal!(".xml")); ArcStr::from(__mm_s) }} else {literal!("")}).clone() });
     }
     Ok((cache, outValue))
@@ -5873,7 +5969,7 @@ pub fn translateGraphics(mut className: Arc<Absyn::Path>, mut inMsg: Absyn::Msg)
 
 fn calculateSimulationSettings(mut inCache: FCore::Cache, mut vals: Arc<metamodelica::List<Arc<Values::Value>>>) -> Result<(FCore::Cache, SimCode::SimulationSettings)> {
     let mut outCache: FCore::Cache = FCore::Cache::NO_CACHE;
-    let mut outSimSettings: SimCode::SimulationSettings;
+    let mut outSimSettings: SimCode::SimulationSettings = <SimCode::SimulationSettings as ::std::default::Default>::default();
     (outCache, outSimSettings) = (::match_deref::match_deref! { match &((inCache.clone(), vals.clone())) {
         (cache, Deref @ metamodelica::List::Cons { head: Deref @ Values::Value::CODE { A: Deref @ Absyn::CodeNode::C_TYPENAME { path: _ } }, tail: Deref @ metamodelica::List::Cons { head: starttime_v, tail: Deref @ metamodelica::List::Cons { head: stoptime_v, tail: Deref @ metamodelica::List::Cons { head: Deref @ Values::Value::INTEGER { integer: interval_i }, tail: Deref @ metamodelica::List::Cons { head: tolerance_v, tail: Deref @ metamodelica::List::Cons { head: Deref @ Values::Value::STRING { string: method_str }, tail: Deref @ metamodelica::List::Cons { head: _, tail: Deref @ metamodelica::List::Cons { head: Deref @ Values::Value::STRING { string: options_str }, tail: Deref @ metamodelica::List::Cons { head: Deref @ Values::Value::STRING { string: outputFormat_str }, tail: Deref @ metamodelica::List::Cons { head: Deref @ Values::Value::STRING { string: variableFilter_str }, tail: Deref @ metamodelica::List::Cons { head: Deref @ Values::Value::STRING { string: cflags }, tail: Deref @ metamodelica::List::Cons { head: Deref @ Values::Value::STRING { string: simflags }, tail: Deref @ metamodelica::List::Nil } } } } } } } } } } } }) => {
             let mut starttime_r: metamodelica::Real = metamodelica::OrderedFloat(0.0_f64);
@@ -7038,8 +7134,8 @@ fn moveElementSpecInfo(mut inSpec: Arc<Absyn::ElementSpec>, mut dstPath: ArcStr)
 }
 
 fn moveComponentItemInfo(mut inComponent: Arc<Absyn::ComponentItem>, mut dstPath: ArcStr) -> Result<Arc<Absyn::ComponentItem>> {
-    let mut outComponent: Arc<Absyn::ComponentItem>;
-    let mut comp: Absyn::Component;
+    let mut outComponent: Arc<Absyn::ComponentItem> = Arc::new(<Absyn::ComponentItem as ::std::default::Default>::default());
+    let mut comp: Absyn::Component = <Absyn::Component as ::std::default::Default>::default();
     let mut cond: Option<Arc<Absyn::Exp>> = None;
     let mut cmt: Option<Arc<Absyn::Comment>> = None;
     let (__pa0, __pa1, __pa2) = ::match_deref::match_deref! { match &(inComponent.clone()) {
@@ -7092,15 +7188,15 @@ fn buildModel(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inValues: 
                     let mut simflags: ArcStr = arcstr::literal!("");
                     let mut classname: Arc<Absyn::Path>;
                     let mut timeCompile: metamodelica::Real = metamodelica::OrderedFloat(0.0_f64);
-                    let mut simSettings: SimCode::SimulationSettings;
+                    let mut simSettings: SimCode::SimulationSettings = <SimCode::SimulationSettings as ::std::default::Default>::default();
                     let mut values: Arc<metamodelica::List<Arc<Values::Value>>> = metamodelica::nil();
                     let mut simflags_mod: Option<Arc<Absyn::Modification>> = None;
                     let mut cache = (*cache).clone();
                     let mut vals = (*vals).clone();
-                    let mut resultValues: Arc<metamodelica::List<(ArcStr, Arc<Values::Value>)>> = resultValues.clone();
-                    let mut success: bool = success.clone();
-                    let mut outputFormat_str: ArcStr = outputFormat_str.clone();
                     let mut compileDir: ArcStr = compileDir.clone();
+                    let mut resultValues: Arc<metamodelica::List<(ArcStr, Arc<Values::Value>)>> = resultValues.clone();
+                    let mut outputFormat_str: ArcStr = outputFormat_str.clone();
+                    let mut success: bool = success.clone();
                     values = vals.clone();
                     let (__pa0, __pa1) = ::match_deref::match_deref! { match &(getListFirstShowError(vals.clone(), (literal!("while retrieving the className (1 arg) from the buildModel arguments")).clone())?) {
                         (Deref @ Values::Value::CODE { A: Deref @ Absyn::CodeNode::C_TYPENAME { path: __pa0 } }, __pa1) => (__pa0.clone(), __pa1.clone()),
@@ -7318,7 +7414,7 @@ pub fn checkModel(mut cache: FCore::Cache, mut env: FCore::Graph, mut className:
         if let Ok(__v) = (|| -> Result<_> {
             let () = __mc_input.clone() else { bail!("nomatch") };
             let mut odae: Option<DAE::DAElist> = None;
-            let mut dae: DAE::DAElist;
+            let mut dae: DAE::DAElist = <DAE::DAElist as ::std::default::Default>::default();
             let mut eqnSize: i32 = 0;
             let mut varSize: i32 = 0;
             let mut simpleEqnSize: i32 = 0;
@@ -7408,9 +7504,9 @@ fn dumpXMLDAE(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut vals: Arc<
                     let mut cname_str: ArcStr = arcstr::literal!("");
                     let mut compileDir: ArcStr = arcstr::literal!("");
                     let mut description: ArcStr = arcstr::literal!("");
-                    let mut dlow: Arc<BackendDAE::BackendDAE>;
-                    let mut dlow_1: Arc<BackendDAE::BackendDAE>;
-                    let mut dae: DAE::DAElist;
+                    let mut dlow: Arc<BackendDAE::BackendDAE> = Arc::new(<BackendDAE::BackendDAE as ::std::default::Default>::default());
+                    let mut dlow_1: Arc<BackendDAE::BackendDAE> = Arc::new(<BackendDAE::BackendDAE as ::std::default::Default>::default());
+                    let mut dae: DAE::DAElist = <DAE::DAElist as ::std::default::Default>::default();
                     let mut cache = (*cache).clone();
                     let mut env = (*env).clone();
                     let mut filenameprefix = (*filenameprefix).clone();
@@ -7449,9 +7545,9 @@ fn dumpXMLDAE(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut vals: Arc<
                     let mut cname_str: ArcStr = arcstr::literal!("");
                     let mut compileDir: ArcStr = arcstr::literal!("");
                     let mut description: ArcStr = arcstr::literal!("");
-                    let mut dlow: Arc<BackendDAE::BackendDAE>;
-                    let mut dlow_1: Arc<BackendDAE::BackendDAE>;
-                    let mut dae: DAE::DAElist;
+                    let mut dlow: Arc<BackendDAE::BackendDAE> = Arc::new(<BackendDAE::BackendDAE as ::std::default::Default>::default());
+                    let mut dlow_1: Arc<BackendDAE::BackendDAE> = Arc::new(<BackendDAE::BackendDAE as ::std::default::Default>::default());
+                    let mut dae: DAE::DAElist = <DAE::DAElist as ::std::default::Default>::default();
                     let mut cache = (*cache).clone();
                     let mut env = (*env).clone();
                     let mut filenameprefix = (*filenameprefix).clone();
@@ -7491,9 +7587,9 @@ fn dumpXMLDAE(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut vals: Arc<
                     let mut cname_str: ArcStr = arcstr::literal!("");
                     let mut compileDir: ArcStr = arcstr::literal!("");
                     let mut description: ArcStr = arcstr::literal!("");
-                    let mut dlow: Arc<BackendDAE::BackendDAE>;
-                    let mut indexed_dlow: Arc<BackendDAE::BackendDAE>;
-                    let mut dae: DAE::DAElist;
+                    let mut dlow: Arc<BackendDAE::BackendDAE> = Arc::new(<BackendDAE::BackendDAE as ::std::default::Default>::default());
+                    let mut indexed_dlow: Arc<BackendDAE::BackendDAE> = Arc::new(<BackendDAE::BackendDAE as ::std::default::Default>::default());
+                    let mut dae: DAE::DAElist = <DAE::DAElist as ::std::default::Default>::default();
                     let mut cache = (*cache).clone();
                     let mut env = (*env).clone();
                     let mut filenameprefix = (*filenameprefix).clone();
@@ -7510,7 +7606,7 @@ fn dumpXMLDAE(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut vals: Arc<
                     cname_str = (AbsynUtil::pathString(classname.clone(), (literal!(".")).clone(), true, false)?).clone();
                     filenameprefix = (if (filenameprefix.clone() == literal!("<default>")) {cname_str.clone()} else {filenameprefix.clone()}).clone();
                     dlow = BackendDAECreate::lower(dae.clone(), cache.clone(), env.clone(), BackendDAE::ExtraInfo { description: (description.clone()).clone(), fileNamePrefix: (filenameprefix.clone()).clone(), simSettingsOption: None })?;
-                    indexed_dlow = BackendDAEUtil::getSolvedSystem(dlow.clone(), (literal!("")).clone(), None, None, None, None)?;
+                    (indexed_dlow, _, _, _, _) = BackendDAEUtil::getSolvedSystem(dlow.clone(), (literal!("")).clone(), None, None, None, None)?;
                     xml_filename = stringAppendList(list![(filenameprefix.clone()).clone(), (literal!(".xml")).clone()]);
                     indexed_dlow = applyRewriteRulesOnBackend(indexed_dlow.clone())?;
                     Print::clearBuf();
@@ -7531,9 +7627,9 @@ fn dumpXMLDAE(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut vals: Arc<
                     let mut cname_str: ArcStr = arcstr::literal!("");
                     let mut compileDir: ArcStr = arcstr::literal!("");
                     let mut description: ArcStr = arcstr::literal!("");
-                    let mut dlow: Arc<BackendDAE::BackendDAE>;
-                    let mut indexed_dlow: Arc<BackendDAE::BackendDAE>;
-                    let mut dae: DAE::DAElist;
+                    let mut dlow: Arc<BackendDAE::BackendDAE> = Arc::new(<BackendDAE::BackendDAE as ::std::default::Default>::default());
+                    let mut indexed_dlow: Arc<BackendDAE::BackendDAE> = Arc::new(<BackendDAE::BackendDAE as ::std::default::Default>::default());
+                    let mut dae: DAE::DAElist = <DAE::DAElist as ::std::default::Default>::default();
                     let mut cache = (*cache).clone();
                     let mut env = (*env).clone();
                     let mut filenameprefix = (*filenameprefix).clone();
@@ -7550,7 +7646,7 @@ fn dumpXMLDAE(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut vals: Arc<
                     cname_str = (AbsynUtil::pathString(classname.clone(), (literal!(".")).clone(), true, false)?).clone();
                     filenameprefix = (if (filenameprefix.clone() == literal!("<default>")) {cname_str.clone()} else {filenameprefix.clone()}).clone();
                     dlow = BackendDAECreate::lower(dae.clone(), cache.clone(), env.clone(), BackendDAE::ExtraInfo { description: (description.clone()).clone(), fileNamePrefix: (filenameprefix.clone()).clone(), simSettingsOption: None })?;
-                    indexed_dlow = BackendDAEUtil::getSolvedSystem(dlow.clone(), (literal!("")).clone(), None, None, None, None)?;
+                    (indexed_dlow, _, _, _, _) = BackendDAEUtil::getSolvedSystem(dlow.clone(), (literal!("")).clone(), None, None, None, None)?;
                     xml_filename = stringAppendList(list![(filenameprefix.clone()).clone(), (literal!(".xml")).clone()]);
                     indexed_dlow = applyRewriteRulesOnBackend(indexed_dlow.clone())?;
                     Print::clearBuf();
@@ -7581,7 +7677,7 @@ fn dumpXMLDAE(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut vals: Arc<
 }
 
 fn applyRewriteRulesOnBackend(mut inBackendDAE: Arc<BackendDAE::BackendDAE>) -> Result<Arc<BackendDAE::BackendDAE>> {
-    let mut outBackendDAE: Arc<BackendDAE::BackendDAE>;
+    let mut outBackendDAE: Arc<BackendDAE::BackendDAE> = Arc::new(<BackendDAE::BackendDAE as ::std::default::Default>::default());
     outBackendDAE = 'mc: {
         let __mc_input = inBackendDAE.clone();
         if let Ok(__v) = (|| -> Result<_> {
@@ -7596,7 +7692,7 @@ fn applyRewriteRulesOnBackend(mut inBackendDAE: Arc<BackendDAE::BackendDAE>) -> 
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 _ => {
-                    let mut outBackendDAE: Arc<BackendDAE::BackendDAE>;
+                    let mut outBackendDAE: Arc<BackendDAE::BackendDAE> = outBackendDAE.clone();
                     let false = (RewriteRules::noRewriteRulesBackEnd()?) else { bail!("pattern mismatch") };
                     outBackendDAE = BackendDAEOptimize::applyRewriteRulesBackend(inBackendDAE.clone())?;
                     Ok(outBackendDAE.clone())
@@ -7754,14 +7850,23 @@ pub fn failOrSuccess(mut inStr: ArcStr) -> Result<(ArcStr, bool)> {
 pub fn checkAll(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut allClasses: Arc<metamodelica::List<Arc<Absyn::Path>>>, mut inMsg: Absyn::Msg, mut reportTimes: bool, mut failed: i32) -> Result<i32> {
     let mut failed: i32 = failed;
     let mut p: Absyn::Program = <Absyn::Program as ::std::default::Default>::default();
+    let mut rest: Arc<metamodelica::List<Arc<Absyn::Path>>> = metamodelica::nil();
+    let mut className: Arc<Absyn::Path>;
+    let mut r#str: ArcStr = arcstr::literal!("");
+    let mut s: ArcStr = arcstr::literal!("");
+    let mut smsg: ArcStr = arcstr::literal!("");
+    let mut t1: metamodelica::Real = metamodelica::OrderedFloat(0.0_f64);
+    let mut t2: metamodelica::Real = metamodelica::OrderedFloat(0.0_f64);
+    let mut elapsedTime: metamodelica::Real = metamodelica::OrderedFloat(0.0_f64);
+    let mut cr: Arc<Absyn::ComponentRef> = Arc::new(Absyn::ComponentRef::ALLWILD);
+    let mut c: Arc<Absyn::Class> = Arc::new(<Absyn::Class as ::std::default::Default>::default());
+    let mut f: bool = false;
     p = SymbolTable::getAbsyn();
-    let _ = ({
-        let mut f: bool = false;
-        'mc: {
-        let __mc_input = (inEnv.clone(), allClasses.clone(), inMsg.clone());
+    let () = 'mc: {
+        let __mc_input = allClasses.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (_, Deref @ metamodelica::List::Nil, _) => {
+                Deref @ metamodelica::List::Nil => {
                     Ok(())
                 }
                 _ => bail!("nomatch"),
@@ -7769,22 +7874,23 @@ pub fn checkAll(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut allClass
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (env, Deref @ metamodelica::List::Cons { head: className, tail: rest }, msg) => {
-                    let mut r#str: ArcStr = arcstr::literal!("");
-                    let mut s: ArcStr = arcstr::literal!("");
-                    let mut smsg: ArcStr = arcstr::literal!("");
-                    let mut t1: metamodelica::Real = metamodelica::OrderedFloat(0.0_f64);
-                    let mut t2: metamodelica::Real = metamodelica::OrderedFloat(0.0_f64);
-                    let mut elapsedTime: metamodelica::Real = metamodelica::OrderedFloat(0.0_f64);
-                    let mut c: Arc<Absyn::Class> = Arc::new(<Absyn::Class as ::std::default::Default>::default());
+                Deref @ metamodelica::List::Cons { head: className, tail: rest } => {
+                    let mut t2: metamodelica::Real = t2.clone();
+                    let mut f: bool = f.clone();
+                    let mut r#str: ArcStr = r#str.clone();
                     let mut failed: i32 = failed.clone();
+                    let mut s: ArcStr = s.clone();
+                    let mut smsg: ArcStr = smsg.clone();
+                    let mut t1: metamodelica::Real = t1.clone();
+                    let mut elapsedTime: metamodelica::Real = elapsedTime.clone();
+                    let mut c: Arc<Absyn::Class> = c.clone();
                     c = InteractiveUtil::getPathedClassInProgram(className.clone(), p.clone(), false, false)?;
                     let false = (Interactive::isPackage(className.clone(), p.clone())) else { bail!("pattern mismatch") };
                     let false = (Interactive::isType(className.clone(), p.clone())) else { bail!("pattern mismatch") };
                     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Checking: ")); __mm_s.push_str(&*Dump::unparseClassAttributesStr(c.clone())?); __mm_s.push_str(&*literal!(" ")); __mm_s.push_str(&*AbsynUtil::pathString(className.clone(), (literal!(".")).clone(), true, false)?); __mm_s.push_str(&*literal!("... ")); ArcStr::from(__mm_s) }).clone());
                     t1 = clock();
                     FlagsUtil::setConfigBool(Flags::CHECK_MODEL.clone(), true)?;
-                    let __pa0 = ::match_deref::match_deref! { match &(checkModel(FCore::emptyCache(), env.clone(), className.clone(), msg.clone())?) {
+                    let __pa0 = ::match_deref::match_deref! { match &(checkModel(FCore::emptyCache(), inEnv.clone(), className.clone(), inMsg.clone())?) {
                         (_, Deref @ Values::Value::STRING { string: __pa0 }) => __pa0.clone(),
                         _ => bail!("pattern mismatch"),
                     } };
@@ -7809,7 +7915,7 @@ pub fn checkAll(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut allClass
                     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Error Buffer:\n")); __mm_s.push_str(&*ErrorExt::printMessagesStr(false)); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
                     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("#")); __mm_s.push_str(&*if (f.clone()) {literal!("[-]")} else {literal!("[+]")}); __mm_s.push_str(&*literal!(", ")); __mm_s.push_str(&*if (reportTimes.clone()) {{ let mut __mm_s = String::new(); __mm_s.push_str(&*realString(elapsedTime.clone())); __mm_s.push_str(&*literal!(", ")); ArcStr::from(__mm_s) }} else {literal!("")}); __mm_s.push_str(&*AbsynUtil::pathString(className.clone(), (literal!(".")).clone(), true, false)?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
                     println!("{}", (literal!("-------------------------------------------------------------------------\n")).clone());
-                    failed = checkAll(inCache.clone(), env.clone(), rest.clone(), msg.clone(), reportTimes.clone(), failed.clone())?;
+                    failed = checkAll(inCache.clone(), inEnv.clone(), rest.clone(), inMsg.clone(), reportTimes.clone(), failed.clone())?;
                     Ok(())
                 }
                 _ => bail!("nomatch"),
@@ -7817,20 +7923,19 @@ pub fn checkAll(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut allClass
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
-                (env, Deref @ metamodelica::List::Cons { head: className, tail: rest }, msg) => {
-                    let mut c: Arc<Absyn::Class> = Arc::new(<Absyn::Class as ::std::default::Default>::default());
+                Deref @ metamodelica::List::Cons { head: className, tail: rest } => {
                     let mut failed: i32 = failed.clone();
+                    let mut c: Arc<Absyn::Class> = c.clone();
                     c = InteractiveUtil::getPathedClassInProgram(className.clone(), p.clone(), false, false)?;
                     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Checking skipped: ")); __mm_s.push_str(&*Dump::unparseClassAttributesStr(c.clone())?); __mm_s.push_str(&*literal!(" ")); __mm_s.push_str(&*AbsynUtil::pathString(className.clone(), (literal!(".")).clone(), true, false)?); __mm_s.push_str(&*literal!("...\n")); ArcStr::from(__mm_s) }).clone());
-                    failed = checkAll(inCache.clone(), env.clone(), rest.clone(), msg.clone(), reportTimes.clone(), failed.clone())?;
+                    failed = checkAll(inCache.clone(), inEnv.clone(), rest.clone(), inMsg.clone(), reportTimes.clone(), failed.clone())?;
                     Ok(())
                 }
                 _ => bail!("nomatch"),
             }}
         })() { break 'mc __v; }
         bail!("matchcontinue: no arm matched")
-    }
-    });
+    };
     Ok(failed)
 }
 
@@ -8099,17 +8204,10 @@ fn getAlgorithmItemsCountInAlgorithmItems(mut inAbsynAlgorithmItemLst: Arc<metam
 
 fn getNthAlgorithmItem(mut inClass: Arc<Absyn::Class>, mut inInteger: i32) -> Result<ArcStr> {
     let mut outString: ArcStr = arcstr::literal!("");
+    let mut parts: Arc<metamodelica::List<Arc<Absyn::ClassPart>>> = metamodelica::nil();
     outString = ((::match_deref::match_deref! { match &(inClass.clone()) {
-        Deref @ Absyn::Class { body: Deref @ Absyn::ClassDef::PARTS { classParts: parts, .. }, .. } => {
-            let mut r#str: ArcStr = arcstr::literal!("");
-            r#str = (getNthAlgorithmItemInClassParts(parts.clone(), inInteger.clone())?).clone();
-            r#str.clone()
-        },
-        Deref @ Absyn::Class { body: Deref @ Absyn::ClassDef::CLASS_EXTENDS { parts, .. }, .. } => {
-            let mut r#str: ArcStr = arcstr::literal!("");
-            r#str = (getNthAlgorithmItemInClassParts(parts.clone(), inInteger.clone())?).clone();
-            r#str.clone()
-        },
+        Deref @ Absyn::Class { body: Deref @ Absyn::ClassDef::PARTS { classParts: parts, .. }, .. } => getNthAlgorithmItemInClassParts(parts.clone(), inInteger.clone())?,
+        Deref @ Absyn::Class { body: Deref @ Absyn::ClassDef::CLASS_EXTENDS { parts, .. }, .. } => getNthAlgorithmItemInClassParts(parts.clone(), inInteger.clone())?,
         _ => bail!("match: no arm matched"),
     } })).clone();
     Ok(outString)
@@ -8759,17 +8857,10 @@ fn getInitialEquationItemsCountInClassParts(mut inAbsynClassPartLst: Arc<metamod
 
 fn getNthInitialEquationItem(mut inClass: Arc<Absyn::Class>, mut inInteger: i32) -> Result<ArcStr> {
     let mut outString: ArcStr = arcstr::literal!("");
+    let mut parts: Arc<metamodelica::List<Arc<Absyn::ClassPart>>> = metamodelica::nil();
     outString = ((::match_deref::match_deref! { match &(inClass.clone()) {
-        Deref @ Absyn::Class { body: Deref @ Absyn::ClassDef::PARTS { classParts: parts, .. }, .. } => {
-            let mut r#str: ArcStr = arcstr::literal!("");
-            r#str = (getNthInitialEquationItemInClassParts(parts.clone(), inInteger.clone())?).clone();
-            r#str.clone()
-        },
-        Deref @ Absyn::Class { body: Deref @ Absyn::ClassDef::CLASS_EXTENDS { parts, .. }, .. } => {
-            let mut r#str: ArcStr = arcstr::literal!("");
-            r#str = (getNthInitialEquationItemInClassParts(parts.clone(), inInteger.clone())?).clone();
-            r#str.clone()
-        },
+        Deref @ Absyn::Class { body: Deref @ Absyn::ClassDef::PARTS { classParts: parts, .. }, .. } => getNthInitialEquationItemInClassParts(parts.clone(), inInteger.clone())?,
+        Deref @ Absyn::Class { body: Deref @ Absyn::ClassDef::CLASS_EXTENDS { parts, .. }, .. } => getNthInitialEquationItemInClassParts(parts.clone(), inInteger.clone())?,
         _ => bail!("match: no arm matched"),
     } })).clone();
     Ok(outString)
@@ -8784,9 +8875,7 @@ fn getNthInitialEquationItemInClassParts(mut inAbsynClassPartLst: Arc<metamodeli
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ metamodelica::List::Cons { head: Deref @ Absyn::ClassPart::INITIALEQUATIONS { contents: eqs }, tail: _ } => {
-                    let mut r#str: ArcStr = arcstr::literal!("");
-                    r#str = (getNthEquationItemInEquations(eqs.clone(), inInteger.clone())?).clone();
-                    Ok(r#str.clone())
+                    Ok(getNthEquationItemInEquations(eqs.clone(), inInteger.clone())?)
                 }
                 _ => bail!("nomatch"),
             }}
@@ -8794,13 +8883,11 @@ fn getNthInitialEquationItemInClassParts(mut inAbsynClassPartLst: Arc<metamodeli
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ metamodelica::List::Cons { head: Deref @ Absyn::ClassPart::INITIALEQUATIONS { contents: eqs }, tail: xs } => {
-                    let mut r#str: ArcStr = arcstr::literal!("");
                     let mut c1: i32 = 0;
                     let mut newn: i32 = 0;
                     c1 = getEquationItemsCountInEquationItems(eqs.clone())?;
                     newn = inInteger.clone() - c1.clone();
-                    r#str = (getNthInitialEquationItemInClassParts(xs.clone(), newn.clone())?).clone();
-                    Ok(r#str.clone())
+                    Ok(getNthInitialEquationItemInClassParts(xs.clone(), newn.clone())?)
                 }
                 _ => bail!("nomatch"),
             }}
@@ -8808,9 +8895,7 @@ fn getNthInitialEquationItemInClassParts(mut inAbsynClassPartLst: Arc<metamodeli
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ metamodelica::List::Cons { head: _, tail: xs } => {
-                    let mut r#str: ArcStr = arcstr::literal!("");
-                    r#str = (getNthInitialEquationItemInClassParts(xs.clone(), inInteger.clone())?).clone();
-                    Ok(r#str.clone())
+                    Ok(getNthInitialEquationItemInClassParts(xs.clone(), inInteger.clone())?)
                 }
                 _ => bail!("nomatch"),
             }}
@@ -8960,33 +9045,24 @@ fn unparseGroupImport(mut inAbsynGroupImportLst: Arc<metamodelica::List<Absyn::G
     Ok(outList)
 }
 
-pub fn isShortDefinition(mut inPath: Arc<Absyn::Path>, mut inProgram: Absyn::Program) -> Result<bool> {
+pub fn isShortDefinition(mut inPath: Arc<Absyn::Path>, mut inProgram: Absyn::Program) -> bool {
     let mut outBoolean: bool = false;
-    outBoolean = 'mc: {
-        let __mc_input = inPath.clone();
-        if let Ok(__v) = (|| -> Result<_> {
-            ::match_deref::match_deref! { match &__mc_input {
-                path => {
-                    ::match_deref::match_deref! { match &(InteractiveUtil::getPathedClassInProgram(path.clone(), inProgram.clone(), false, false)?) {
-                        Deref @ Absyn::Class { body: Deref @ Absyn::ClassDef::DERIVED { .. }, .. } => (),
-                        _ => bail!("pattern mismatch"),
-                    } };
-                    Ok(true)
-                }
-                _ => bail!("nomatch"),
-            }}
-        })() { break 'mc __v; }
-        if let Ok(__v) = (|| -> Result<_> {
-            ::match_deref::match_deref! { match &__mc_input {
-                _ => {
-                    Ok(false)
-                }
-                _ => bail!("nomatch"),
-            }}
-        })() { break 'mc __v; }
-        bail!("matchcontinue: no arm matched")
-    };
-    Ok(outBoolean)
+    match '__try0: {
+        ::match_deref::match_deref! { match &(unwrap_break_err!(InteractiveUtil::getPathedClassInProgram(inPath.clone(), inProgram.clone(), false, false), '__try0)) {
+            Deref @ Absyn::Class { body: Deref @ Absyn::ClassDef::DERIVED { .. }, .. } => (),
+            _ => break '__try0 Err::<_, _>(anyhow::anyhow!("pattern mismatch")),
+        } };
+        outBoolean = true;
+        Ok::<_, anyhow::Error>((outBoolean.clone(),))
+    } {
+        Ok((__try0_o0,)) => {
+            outBoolean = __try0_o0;
+        }
+        Err(_) => {
+            outBoolean = false;
+        }
+    }
+    outBoolean
 }
 
 fn isExperiment(mut path: Arc<Absyn::Path>, mut program: Absyn::Program) -> bool {
@@ -9681,37 +9757,43 @@ fn getInitialStateInEquation(mut inEquation: Arc<Absyn::Equation>) -> Arc<metamo
 fn addInitialState(mut inPath: Arc<Absyn::Path>, mut state: ArcStr, mut inAbsynNamedArgLst: Arc<metamodelica::List<Arc<Absyn::NamedArg>>>, mut inProgram: Absyn::Program) -> Result<(bool, Absyn::Program)> {
     let mut b: bool = false;
     let mut outProgram: Absyn::Program = <Absyn::Program as ::std::default::Default>::default();
-    (b, outProgram) = addInitialStateWithAnnotation(inPath.clone(), (state.clone()).clone(), InteractiveUtil::annotationListToAbsyn(inAbsynNamedArgLst.clone())?, inProgram.clone())?;
+    (b, outProgram) = addInitialStateWithAnnotation(inPath.clone(), (state.clone()).clone(), InteractiveUtil::annotationListToAbsyn(inAbsynNamedArgLst.clone())?, inProgram.clone());
     Ok((b, outProgram))
 }
 
-fn addInitialStateWithAnnotation(mut inPath: Arc<Absyn::Path>, mut state: ArcStr, mut inAnnotation: Arc<Absyn::Annotation>, mut inProgram: Absyn::Program) -> Result<(bool, Absyn::Program)> {
+fn addInitialStateWithAnnotation(mut inPath: Arc<Absyn::Path>, mut state: ArcStr, mut inAnnotation: Arc<Absyn::Annotation>, mut inProgram: Absyn::Program) -> (bool, Absyn::Program) {
     let mut b: bool = false;
     let mut outProgram: Absyn::Program = <Absyn::Program as ::std::default::Default>::default();
-    (b, outProgram) = (::match_deref::match_deref! { match &((inPath.clone(), state.clone(), inProgram.clone())) {
-        (modelpath, state_, p @ Absyn::Program { .. }) => {
-            let mut package_: Arc<Absyn::Path>;
-            let mut cdef: Arc<Absyn::Class> = Arc::new(<Absyn::Class as ::std::default::Default>::default());
-            let mut newcdef: Arc<Absyn::Class> = Arc::new(<Absyn::Class as ::std::default::Default>::default());
-            let mut newp: Absyn::Program = <Absyn::Program as ::std::default::Default>::default();
-            let mut cmt: Option<Arc<Absyn::Comment>> = None;
-            cdef = InteractiveUtil::getPathedClassInProgram(modelpath.clone(), p.clone(), false, false)?;
-            cmt = Some(Arc::new(Absyn::Comment { annotation_: Some(inAnnotation.clone()), comment: None }));
-            newcdef = InteractiveUtil::addToEquation(cdef.clone(), Arc::new(Absyn::EquationItem::EQUATIONITEM { equation_: Arc::new(Absyn::Equation::EQ_NORETCALL { functionName: Arc::new(Absyn::ComponentRef::CREF_IDENT { name: (literal!("initialState")).clone(), subscripts: metamodelica::nil() }), functionArgs: Arc::new(Absyn::FunctionArgs::FUNCTIONARGS { args: list![Arc::new(Absyn::Exp::CREF { componentRef: Arc::new(Absyn::ComponentRef::CREF_IDENT { name: (state_.clone()).clone(), subscripts: metamodelica::nil() }) })], argNames: metamodelica::nil() }) }), comment: cmt.clone(), info: Absyn::dummyInfo.clone() }))?;
-            if AbsynUtil::pathIsIdent(AbsynUtil::makeNotFullyQualified(modelpath.clone())) {
-                newp = InteractiveUtil::updateProgram(Absyn::Program { classes: list![newcdef.clone()], within_: p.within_.clone() }, p.clone(), false)?;
-            } else {
-                package_ = AbsynUtil::stripLast(modelpath.clone())?;
-                newp = InteractiveUtil::updateProgram(Absyn::Program { classes: list![newcdef.clone()], within_: Absyn::Within::WITHIN { path: package_.clone() } }, p.clone(), false)?;
-            }
-            (true, newp.clone())
-        },
-        (_, _, p @ Absyn::Program { .. }) => {
-            (false, p.clone())
-        },
-        _ => bail!("match: no arm matched"),
-    } });
-    Ok((b, outProgram))
+    let mut package_: Arc<Absyn::Path>;
+    let mut cdef: Arc<Absyn::Class> = Arc::new(<Absyn::Class as ::std::default::Default>::default());
+    let mut newcdef: Arc<Absyn::Class> = Arc::new(<Absyn::Class as ::std::default::Default>::default());
+    let mut cmt: Option<Arc<Absyn::Comment>> = None;
+    match '__try0: {
+        cdef = unwrap_break_err!(InteractiveUtil::getPathedClassInProgram(inPath.clone(), inProgram.clone(), false, false), '__try0);
+        cmt = Some(Arc::new(Absyn::Comment { annotation_: Some(inAnnotation.clone()), comment: None }));
+        newcdef = unwrap_break_err!(InteractiveUtil::addToEquation(cdef.clone(), Arc::new(Absyn::EquationItem::EQUATIONITEM { equation_: Arc::new(Absyn::Equation::EQ_NORETCALL { functionName: Arc::new(Absyn::ComponentRef::CREF_IDENT { name: (literal!("initialState")).clone(), subscripts: metamodelica::nil() }), functionArgs: Arc::new(Absyn::FunctionArgs::FUNCTIONARGS { args: list![Arc::new(Absyn::Exp::CREF { componentRef: Arc::new(Absyn::ComponentRef::CREF_IDENT { name: (state.clone()).clone(), subscripts: metamodelica::nil() }) })], argNames: metamodelica::nil() }) }), comment: cmt.clone(), info: Absyn::dummyInfo.clone() })), '__try0);
+        if AbsynUtil::pathIsIdent(AbsynUtil::makeNotFullyQualified(inPath.clone())) {
+            outProgram = unwrap_break_err!(InteractiveUtil::updateProgram(Absyn::Program { classes: list![newcdef.clone()], within_: inProgram.within_.clone() }, inProgram.clone(), false), '__try0);
+        } else {
+            package_ = unwrap_break_err!(AbsynUtil::stripLast(inPath.clone()), '__try0);
+            outProgram = unwrap_break_err!(InteractiveUtil::updateProgram(Absyn::Program { classes: list![newcdef.clone()], within_: Absyn::Within::WITHIN { path: package_.clone() } }, inProgram.clone(), false), '__try0);
+        }
+        b = true;
+        Ok::<_, anyhow::Error>((b.clone(), cdef.clone(), cmt.clone(), newcdef.clone(), outProgram.clone()))
+    } {
+        Ok((__try0_o0, __try0_o1, __try0_o2, __try0_o3, __try0_o4)) => {
+            b = __try0_o0;
+            cdef = __try0_o1;
+            cmt = __try0_o2;
+            newcdef = __try0_o3;
+            outProgram = __try0_o4;
+        }
+        Err(_) => {
+            b = false;
+            panic!("try/else: outputs not set in else branch");
+        }
+    }
+    (b, outProgram)
 }
 
 fn deleteInitialState(mut inPath: Arc<Absyn::Path>, mut state: ArcStr, mut inProgram: Absyn::Program) -> Result<(bool, Absyn::Program)> {
@@ -9755,7 +9837,7 @@ fn deleteInitialState(mut inPath: Arc<Absyn::Path>, mut state: ArcStr, mut inPro
 fn deleteInitialStateInClass(mut inClass: Arc<Absyn::Class>, mut state: ArcStr) -> Result<Arc<Absyn::Class>> {
     let mut outClass: Arc<Absyn::Class> = Arc::new(<Absyn::Class as ::std::default::Default>::default());
     outClass = (::match_deref::match_deref! { match &(inClass.clone()) {
-        outClass @ Deref @ Absyn::Class { info: _, body: Deref @ Absyn::ClassDef::PARTS { comment: cmt, ann, classParts: parts, classAttrs, typeVars }, .. } => {
+        outClass @ Deref @ Absyn::Class { body: Deref @ Absyn::ClassDef::PARTS { comment: cmt, ann, classParts: parts, classAttrs, typeVars }, .. } => {
             let mut eqlst: Arc<metamodelica::List<Arc<Absyn::EquationItem>>> = metamodelica::nil();
             let mut eqlst_1: Arc<metamodelica::List<Arc<Absyn::EquationItem>>> = metamodelica::nil();
             let mut parts2: Arc<metamodelica::List<Arc<Absyn::ClassPart>>> = metamodelica::nil();
@@ -9782,77 +9864,36 @@ fn deleteInitialStateInClass(mut inClass: Arc<Absyn::Class>, mut state: ArcStr) 
     Ok(outClass)
 }
 
-// NOTE: #[tailcall::tailcall] disabled: function body contains a `match_deref!{…}` match,
-// and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
-fn deleteInitialStateInEqlist(mut inAbsynEquationItemLst: Arc<metamodelica::List<Arc<Absyn::EquationItem>>>, mut state: ArcStr) -> Result<Arc<metamodelica::List<Arc<Absyn::EquationItem>>>> {
-    let mut outAbsynEquationItemLst: Arc<metamodelica::List<Arc<Absyn::EquationItem>>> = metamodelica::nil();
-    outAbsynEquationItemLst = 'mc: {
-        let __mc_input = (inAbsynEquationItemLst.clone(), state.clone());
-        if let Ok(__v) = (|| -> Result<_> {
-            ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Nil, _) => {
-                    Ok(metamodelica::nil())
-                }
-                _ => bail!("nomatch"),
-            }}
-        })() { break 'mc __v; }
-        if let Ok(__v) = (|| -> Result<_> {
-            ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Cons { head: Deref @ Absyn::EquationItem::EQUATIONITEM { equation_: Deref @ Absyn::Equation::EQ_NORETCALL { functionName: name, functionArgs: Deref @ Absyn::FunctionArgs::FUNCTIONARGS { args: expArgs, argNames: _ } }, .. }, tail: xs }, state_) => {
-                    if !((AbsynUtil::crefEqual(name.clone(), Arc::new(Absyn::ComponentRef::CREF_IDENT { name: (literal!("initialState")).clone(), subscripts: metamodelica::nil() })))) { bail!("guard") }
-                    let mut args: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
-                    args = List::map(expArgs.clone(), (std::sync::Arc::new(Dump::printExpStr) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>) -> Result<ArcStr> + 'static>));
-                    let true = (compareInitialStateFuncArgs(args.clone(), (state_.clone()).clone())?) else { bail!("pattern mismatch") };
-                    Ok(deleteInitialStateInEqlist(xs.clone(), (state_.clone()).clone())?)
-                }
-                _ => bail!("nomatch"),
-            }}
-        })() { break 'mc __v; }
-        if let Ok(__v) = (|| -> Result<_> {
-            ::match_deref::match_deref! { match &__mc_input {
-                (Deref @ metamodelica::List::Cons { head: x, tail: xs }, state_) => {
-                    let mut res: Arc<metamodelica::List<Arc<Absyn::EquationItem>>> = metamodelica::nil();
-                    res = deleteInitialStateInEqlist(xs.clone(), (state_.clone()).clone())?;
-                    Ok(cons(x.clone(), res.clone()))
-                }
-                _ => bail!("nomatch"),
-            }}
-        })() { break 'mc __v; }
-        bail!("matchcontinue: no arm matched")
-    };
-    Ok(outAbsynEquationItemLst)
-}
+fn deleteInitialStateInEqlist(mut inEqs: Arc<metamodelica::List<Arc<Absyn::EquationItem>>>, mut state: ArcStr) -> Result<Arc<metamodelica::List<Arc<Absyn::EquationItem>>>> {
+    fn is_matching_initial_state(mut item: Arc<Absyn::EquationItem>, mut state: ArcStr) -> Result<bool> {
+        let mut isMatch: bool = false;
+        let mut name: Arc<Absyn::ComponentRef> = Arc::new(Absyn::ComponentRef::ALLWILD);
+        let mut args: Arc<metamodelica::List<Arc<Absyn::Exp>>> = metamodelica::nil();
+        isMatch = (::match_deref::match_deref! { match &(item.clone()) {
+        Deref @ Absyn::EquationItem::EQUATIONITEM { equation_: Deref @ Absyn::Equation::EQ_NORETCALL { functionArgs: Deref @ Absyn::FunctionArgs::FUNCTIONARGS { args, .. }, functionName: name }, .. } if (AbsynUtil::crefEqual(name.clone(), Arc::new(Absyn::ComponentRef::CREF_IDENT { name: (literal!("initialState")).clone(), subscripts: metamodelica::nil() }))) => !(args.clone().is_empty()) && state.clone() == Dump::printExpStr(listHead(args.clone())?)?,
+        _ => false,
+        _ => unreachable!("match_deref! exhaustiveness placeholder"),
+    } });
+        Ok(isMatch)
+    }
 
-fn compareInitialStateFuncArgs(mut args: Arc<metamodelica::List<ArcStr>>, mut state: ArcStr) -> Result<bool> {
-    let mut b: bool = false;
-    b = 'mc: {
-        let __mc_input = args.clone();
-        if let Ok(__v) = (|| -> Result<_> {
-            ::match_deref::match_deref! { match &__mc_input {
-                Deref @ metamodelica::List::Cons { head: state1, tail: Deref @ metamodelica::List::Nil } => {
-                    if !((stringEq((state1.clone()).clone(), (state.clone()).clone())?)) { bail!("guard") }
-                    Ok(true)
-                }
-                _ => bail!("nomatch"),
-            }}
-        })() { break 'mc __v; }
-        if let Ok(__v) = (|| -> Result<_> {
-            ::match_deref::match_deref! { match &__mc_input {
-                _ => {
-                    Ok(false)
-                }
-                _ => bail!("nomatch"),
-            }}
-        })() { break 'mc __v; }
-        bail!("matchcontinue: no arm matched")
+    let mut outEqs: Arc<metamodelica::List<Arc<Absyn::EquationItem>>> = metamodelica::nil();
+    outEqs = {
+        let mut __acc: Arc<metamodelica::List<Arc<Absyn::EquationItem>>> = metamodelica::nil();
+        for mut e in (inEqs.clone()).into_iter().cloned() {
+            if !(!(is_matching_initial_state(e.clone(), (state.clone()).clone())?)) { continue; }
+            let __x = e.clone();
+            __acc = cons(__x, __acc);
+        }
+        __acc.reverse()
     };
-    Ok(b)
+    Ok(outEqs)
 }
 
 fn getComponentInfo(mut comp: Arc<Absyn::Element>, mut inEnv: Interactive::GraphicEnvCache, mut isProtected: bool) -> Result<Arc<metamodelica::List<Arc<Values::Value>>>> {
     let mut vs: Arc<metamodelica::List<Arc<Values::Value>>> = metamodelica::nil();
     vs = (::match_deref::match_deref! { match &(comp.clone()) {
-        Deref @ Absyn::Element::ELEMENT { specification: spec @ Deref @ Absyn::ElementSpec::COMPONENTS { typeSpec: Deref @ Absyn::TypeSpec::TPATH { path: p, arrayDim: _ }, attributes: attr @ _, .. }, .. } => {
+        Deref @ Absyn::Element::ELEMENT { specification: spec @ Deref @ Absyn::ElementSpec::COMPONENTS { typeSpec: Deref @ Absyn::TypeSpec::TPATH { path: p, arrayDim: _ }, attributes: attr, .. }, .. } => {
             let mut p_1: Arc<Absyn::Path>;
             let mut typename: ArcStr = arcstr::literal!("");
             let mut inout_str: ArcStr = arcstr::literal!("");
@@ -9973,7 +10014,7 @@ fn getComponentitemsName(mut ci: Arc<Absyn::ComponentItem>) -> Result<(ArcStr, A
 fn getAnnotationNamedModifiers(mut classPath: Arc<Absyn::Path>, mut annotationName: ArcStr, mut program: Absyn::Program) -> Result<Arc<Values::Value>> {
     fn get_names(mut r#mod: Option<Arc<Absyn::Modification>>) -> Result<Arc<metamodelica::List<ArcStr>>> {
         let mut names: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
-        let mut m: Arc<Absyn::Modification>;
+        let mut m: Arc<Absyn::Modification> = Arc::new(<Absyn::Modification as ::std::default::Default>::default());
         let mut paths: Arc<metamodelica::List<Arc<Absyn::Path>>> = metamodelica::nil();
         names = (::match_deref::match_deref! { match &(r#mod.clone()) {
         Some(m) => {
@@ -10016,7 +10057,7 @@ fn getAnnotationNamedModifiers(mut classPath: Arc<Absyn::Path>, mut annotationNa
 
 fn getOptModifierValue(mut modifier: Option<Arc<Absyn::Modification>>) -> Result<Arc<Values::Value>> {
     let mut value: Arc<Values::Value> = Arc::new(Values::Value::META_FAIL);
-    let mut r#mod: Arc<Absyn::Modification>;
+    let mut r#mod: Arc<Absyn::Modification> = Arc::new(<Absyn::Modification as ::std::default::Default>::default());
     let mut exp: Arc<Absyn::Exp> = Arc::new(Absyn::Exp::BREAK);
     let __pa0 = ::match_deref::match_deref! { match &(modifier.clone()) {
         Some(__pa0) => __pa0.clone(),
@@ -10146,7 +10187,7 @@ fn instantiateModel(mut cache: FCore::Cache, mut env: FCore::Graph, mut path: Ar
     let mut r#str: ArcStr = arcstr::literal!("");
     let mut p: Absyn::Program = <Absyn::Program as ::std::default::Default>::default();
     let mut odae: Option<DAE::DAElist> = None;
-    let mut flat_model: Arc<NFFlatModel::NFFlatModel>;
+    let mut flat_model: Arc<NFFlatModel::NFFlatModel> = Arc::new(<NFFlatModel::NFFlatModel as ::std::default::Default>::default());
     let mut funcs: Arc<NFFlatten::FunctionTreeImpl::Tree> = Arc::new(NFFlatten::FunctionTreeImpl::Tree::EMPTY);
     let mut flags: Flags::Flag = Flags::Flag::NO_FLAGS;
     if isProtectedContentAccess(path.clone())? {
@@ -10159,8 +10200,8 @@ fn instantiateModel(mut cache: FCore::Cache, mut env: FCore::Graph, mut path: Ar
             let () = __mc_input.clone() else { bail!("nomatch") };
             let mut r#str: ArcStr = r#str.clone();
             let mut flags: Flags::Flag = flags.clone();
-            let mut cache: FCore::Cache = cache.clone();
             let mut odae: Option<DAE::DAElist> = odae.clone();
+            let mut cache: FCore::Cache = cache.clone();
             ExecStat::execStatReset()?;
             flags = loadCommandLineOptionsFromModel(path.clone())?;
             match '__try0: {
@@ -10172,7 +10213,7 @@ fn instantiateModel(mut cache: FCore::Cache, mut env: FCore::Graph, mut path: Ar
                 } else if unwrap_break_err!(Config::silent(), '__try0) {
                     r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("model ")); __mm_s.push_str(&*unwrap_break_err!(AbsynUtil::pathString(path.clone(), (literal!(".")).clone(), true, false), '__try0)); __mm_s.push_str(&*literal!("\n  /* Silent mode */\nend")); __mm_s.push_str(&*unwrap_break_err!(AbsynUtil::pathString(path.clone(), (literal!(".")).clone(), true, false), '__try0)); __mm_s.push_str(&*literal!(";\n")); ArcStr::from(__mm_s) }).clone();
                 } else {
-                    r#str = unwrap_break_err!(DAEDump::dumpStr(Util::getOption(odae.clone())?, FCore::getFunctionTree(cache.clone())), '__try0);
+                    r#str = (unwrap_break_err!(DAEDump::dumpStr(Util::getOption(odae.clone())?, FCore::getFunctionTree(cache.clone())), '__try0)).clone();
                     unwrap_break_err!(ExecStat::execStat((literal!("DAEDump.dumpStr")).clone()), '__try0);
                 }
                 FlagsUtil::saveFlags(flags.clone());

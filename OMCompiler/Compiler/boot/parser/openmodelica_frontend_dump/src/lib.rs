@@ -3,6 +3,7 @@
 pub mod AbsynDumpTpl;
 pub mod AbsynToSCode;
 pub mod AbsynUtil;
+pub mod AvlTreePathFunction;
 pub mod BackendInterface;
 pub mod ClassInfUtil;
 pub mod ComponentReferenceBasics;

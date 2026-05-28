@@ -80,7 +80,7 @@ fn refactorGraphAnnInClass(mut inClass: Arc<Absyn::Class>, mut inProgram: Absyn:
                     cPath = Arc::new(Absyn::Path::IDENT { name: (n.clone()).clone() });
                     env = Interactive::getClassEnv(p.clone(), cPath.clone())?;
                     resultClassDef = refactorGraphAnnInClassDef(d.clone(), p.clone(), cPath.clone(), env.clone())?;
-                    todo!("unhandled field-assign shape: outClass.body");
+                    assign_field!(outClass.body = resultClassDef.clone());
                     Ok(outClass.clone())
                 }
                 _ => bail!("nomatch"),
@@ -369,7 +369,7 @@ fn refactorGraphAnnInElSpec(mut inSpec: Arc<Absyn::ElementSpec>, mut inProgram: 
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ Absyn::ElementSpec::COMPONENTS { attributes: at, typeSpec: Deref @ Absyn::TypeSpec::TPATH { path, arrayDim: z }, components: Deref @ metamodelica::List::Cons { head: firstComp, tail: restCompList } }, p, cPath, env) => {
-                    let mut resultComp: Arc<Absyn::ComponentItem>;
+                    let mut resultComp: Arc<Absyn::ComponentItem> = Arc::new(<Absyn::ComponentItem as ::std::default::Default>::default());
                     let mut resCompList: Arc<metamodelica::List<Arc<Absyn::ComponentItem>>> = metamodelica::nil();
                     let mut at = (*at).clone();
                     let mut path = (*path).clone();
@@ -402,7 +402,7 @@ fn refactorGraphAnnInElSpec(mut inSpec: Arc<Absyn::ElementSpec>, mut inProgram: 
 }
 
 fn refactorGraphAnnInComponentItem(mut inCom: Arc<Absyn::ComponentItem>, mut classPath: Arc<Absyn::Path>, mut inPath: Arc<Absyn::Path>, mut inProgram: Absyn::Program, mut inClassEnv: Interactive::GraphicEnvCache) -> Result<Arc<Absyn::ComponentItem>> {
-    let mut outCom: Arc<Absyn::ComponentItem>;
+    let mut outCom: Arc<Absyn::ComponentItem> = Arc::new(<Absyn::ComponentItem as ::std::default::Default>::default());
     outCom = 'mc: {
         let __mc_input = (inCom.clone(), classPath.clone(), inPath.clone(), inProgram.clone(), inClassEnv.clone());
         if let Ok(__v) = (|| -> Result<_> {
@@ -905,10 +905,10 @@ fn getCoordsInAnnList(mut inAnns: Arc<metamodelica::List<Arc<Absyn::ElementArg>>
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ metamodelica::List::Cons { head: Deref @ Absyn::ElementArg::MODIFICATION { modification: Some(Deref @ Absyn::Modification { elementArgLst: args, .. }), path: Deref @ Absyn::Path::IDENT { name: Deref @ "Coordsys" }, .. }, tail: _ }, _) => {
-                    let mut y2: Arc<Absyn::Exp> = y2.clone();
-                    let mut y1: Arc<Absyn::Exp> = y1.clone();
-                    let mut x2: Arc<Absyn::Exp> = x2.clone();
                     let mut x1: Arc<Absyn::Exp> = x1.clone();
+                    let mut y1: Arc<Absyn::Exp> = y1.clone();
+                    let mut y2: Arc<Absyn::Exp> = y2.clone();
+                    let mut x2: Arc<Absyn::Exp> = x2.clone();
                     (x1, y1, x2, y2) = getCoordsFromCoordSysArgs(args.clone())?;
                     Ok((x1.clone(), y1.clone(), x2.clone(), y2.clone()))
                 }
@@ -918,9 +918,9 @@ fn getCoordsInAnnList(mut inAnns: Arc<metamodelica::List<Arc<Absyn::ElementArg>>
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ metamodelica::List::Cons { head: Deref @ Absyn::ElementArg::MODIFICATION { modification: Some(Deref @ Absyn::Modification { elementArgLst: args, .. }), path: Deref @ Absyn::Path::IDENT { name: Deref @ "Icon" }, .. }, tail: _ }, Deref @ metamodelica::List::Cons { head: Deref @ "Icon", tail: _ }) => {
-                    let mut y1: Arc<Absyn::Exp> = y1.clone();
                     let mut y2: Arc<Absyn::Exp> = y2.clone();
                     let mut x2: Arc<Absyn::Exp> = x2.clone();
+                    let mut y1: Arc<Absyn::Exp> = y1.clone();
                     let mut x1: Arc<Absyn::Exp> = x1.clone();
                     (x1, y1, x2, y2) = getCoordsFromLayerArgs(args.clone())?;
                     Ok((x1.clone(), y1.clone(), x2.clone(), y2.clone()))
@@ -931,10 +931,10 @@ fn getCoordsInAnnList(mut inAnns: Arc<metamodelica::List<Arc<Absyn::ElementArg>>
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ metamodelica::List::Cons { head: Deref @ Absyn::ElementArg::MODIFICATION { modification: Some(Deref @ Absyn::Modification { elementArgLst: args, .. }), path: Deref @ Absyn::Path::IDENT { name: Deref @ "Diagram" }, .. }, tail: _ }, Deref @ metamodelica::List::Cons { head: Deref @ "Diagram", tail: _ }) => {
-                    let mut x1: Arc<Absyn::Exp> = x1.clone();
-                    let mut y2: Arc<Absyn::Exp> = y2.clone();
                     let mut y1: Arc<Absyn::Exp> = y1.clone();
                     let mut x2: Arc<Absyn::Exp> = x2.clone();
+                    let mut x1: Arc<Absyn::Exp> = x1.clone();
+                    let mut y2: Arc<Absyn::Exp> = y2.clone();
                     (x1, y1, x2, y2) = getCoordsFromLayerArgs(args.clone())?;
                     Ok((x1.clone(), y1.clone(), x2.clone(), y2.clone()))
                 }
@@ -944,10 +944,10 @@ fn getCoordsInAnnList(mut inAnns: Arc<metamodelica::List<Arc<Absyn::ElementArg>>
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ metamodelica::List::Cons { head: _, tail: rest }, context) => {
-                    let mut x1: Arc<Absyn::Exp> = x1.clone();
                     let mut y1: Arc<Absyn::Exp> = y1.clone();
                     let mut y2: Arc<Absyn::Exp> = y2.clone();
                     let mut x2: Arc<Absyn::Exp> = x2.clone();
+                    let mut x1: Arc<Absyn::Exp> = x1.clone();
                     (x1, y1, x2, y2) = getCoordsInAnnList(rest.clone(), context.clone())?;
                     Ok((x1.clone(), y1.clone(), x2.clone(), y2.clone()))
                 }
@@ -1005,10 +1005,10 @@ fn getCoordsFromLayerArgs(mut inAnns: Arc<metamodelica::List<Arc<Absyn::ElementA
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ metamodelica::List::Cons { head: Deref @ Absyn::ElementArg::MODIFICATION { modification: Some(Deref @ Absyn::Modification { elementArgLst: args, .. }), path: Deref @ Absyn::Path::IDENT { name: Deref @ "coordinateSystem" }, .. }, tail: _ } => {
-                    let mut x1: Arc<Absyn::Exp> = x1.clone();
-                    let mut x2: Arc<Absyn::Exp> = x2.clone();
                     let mut y2: Arc<Absyn::Exp> = y2.clone();
                     let mut y1: Arc<Absyn::Exp> = y1.clone();
+                    let mut x2: Arc<Absyn::Exp> = x2.clone();
+                    let mut x1: Arc<Absyn::Exp> = x1.clone();
                     (x1, y1, x2, y2) = getExtentModification(args.clone())?;
                     Ok((x1.clone(), y1.clone(), x2.clone(), y2.clone()))
                 }
@@ -1018,10 +1018,10 @@ fn getCoordsFromLayerArgs(mut inAnns: Arc<metamodelica::List<Arc<Absyn::ElementA
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ metamodelica::List::Cons { head: _, tail: rest } => {
+                    let mut x2: Arc<Absyn::Exp> = x2.clone();
+                    let mut x1: Arc<Absyn::Exp> = x1.clone();
                     let mut y1: Arc<Absyn::Exp> = y1.clone();
                     let mut y2: Arc<Absyn::Exp> = y2.clone();
-                    let mut x1: Arc<Absyn::Exp> = x1.clone();
-                    let mut x2: Arc<Absyn::Exp> = x2.clone();
                     (x1, y1, x2, y2) = getCoordsFromLayerArgs(rest.clone())?;
                     Ok((x1.clone(), y1.clone(), x2.clone(), y2.clone()))
                 }

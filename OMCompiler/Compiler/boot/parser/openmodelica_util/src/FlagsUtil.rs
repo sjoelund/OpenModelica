@@ -169,6 +169,7 @@ fn checkDebugFlags() -> Result<()> {
         if flag.index.clone() != index.clone() {
             err_str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Invalid flag '")); __mm_s.push_str(&*flag.name.clone()); __mm_s.push_str(&*literal!("' with index ")); __mm_s.push_str(&*ArcStr::from(::std::format!("{}", flag.index.clone()))); __mm_s.push_str(&*literal!(" (expected ")); __mm_s.push_str(&*ArcStr::from(::std::format!("{}", index.clone()))); __mm_s.push_str(&*literal!(") in Flags.allDebugFlags. Make sure that all flags are present and ordered correctly!")); ArcStr::from(__mm_s) }).clone();
             Error::terminateError((err_str.clone()).clone(), metamodelica::sourceInfo!())?;
+            unreachable!("Error.terminateError always fails — caller-side flow-analysis hint");
         }
     }
     Ok(())
@@ -183,6 +184,7 @@ fn checkConfigFlags() -> Result<()> {
         if flag.index.clone() != index.clone() {
             err_str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Invalid flag '")); __mm_s.push_str(&*flag.name.clone()); __mm_s.push_str(&*literal!("' with index ")); __mm_s.push_str(&*ArcStr::from(::std::format!("{}", flag.index.clone()))); __mm_s.push_str(&*literal!(" (expected ")); __mm_s.push_str(&*ArcStr::from(::std::format!("{}", index.clone()))); __mm_s.push_str(&*literal!(") in Flags.allConfigFlags. Make sure that all flags are present and ordered correctly!")); ArcStr::from(__mm_s) }).clone();
             Error::terminateError((err_str.clone()).clone(), metamodelica::sourceInfo!())?;
+            unreachable!("Error.terminateError always fails — caller-side flow-analysis hint");
         }
     }
     Ok(())
@@ -334,7 +336,7 @@ fn parseFlag(mut inFlag: ArcStr, mut inFlags: Flags::Flag, mut restArgs: Arc<met
 
 fn parseConfigFlag(mut inFlag: ArcStr, mut inValue: ArcStr, mut inFlags: Flags::Flag, mut restArgs: Arc<metamodelica::List<ArcStr>>, mut inFlagPrefix: ArcStr, mut missingValue: bool) -> Result<Arc<metamodelica::List<ArcStr>>> {
     let mut restArgs: Arc<metamodelica::List<ArcStr>> = restArgs;
-    let mut config_flag: Flags::ConfigFlag;
+    let mut config_flag: Flags::ConfigFlag = <Flags::ConfigFlag as ::std::default::Default>::default();
     let mut value: ArcStr = arcstr::literal!("");
     config_flag = lookupConfigFlag((inFlag.clone()).clone(), (inFlagPrefix.clone()).clone())?;
     if missingValue.clone() && flagRequiresValue(config_flag.clone()) && !(restArgs.clone().is_empty()) && !(StringUtil::startsWith((listHead(restArgs.clone())?).clone(), (literal!("-")).clone())) {
@@ -348,7 +350,7 @@ fn parseConfigFlag(mut inFlag: ArcStr, mut inValue: ArcStr, mut inFlags: Flags::
 }
 
 fn lookupConfigFlag(mut inFlag: ArcStr, mut inFlagPrefix: ArcStr) -> Result<Flags::ConfigFlag> {
-    let mut outFlag: Flags::ConfigFlag;
+    let mut outFlag: Flags::ConfigFlag = <Flags::ConfigFlag as ::std::default::Default>::default();
     if let Ok(__iflet0) = List::getMemberOnTrue((inFlag.clone()).clone(), allConfigFlags.clone(), (std::sync::Arc::new(matchConfigFlag) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, Flags::ConfigFlag) -> Result<bool> + 'static>)) {
         outFlag = __iflet0;
     } else {
@@ -1033,7 +1035,7 @@ pub fn printHelp(mut inTopics: Arc<metamodelica::List<ArcStr>>) -> Result<ArcStr
                     let mut name: ArcStr = arcstr::literal!("");
                     let mut str1: ArcStr = arcstr::literal!("");
                     let mut str2: ArcStr = arcstr::literal!("");
-                    let mut config_flag: Flags::ConfigFlag;
+                    let mut config_flag: Flags::ConfigFlag = <Flags::ConfigFlag as ::std::default::Default>::default();
                     let mut r#str = (*r#str).clone();
                     let mut help: ArcStr = help.clone();
                     let ref __pa2 @ Flags::CONFIG_FLAG { description: ref __pa0, name: ref __pa1, .. } = (List::getMemberOnTrue((r#str.clone()).clone(), allConfigFlags.clone(), (std::sync::Arc::new(matchConfigFlag) as std::sync::Arc<dyn ::std::ops::Fn(ArcStr, Flags::ConfigFlag) -> Result<bool> + 'static>))?) else { bail!("pattern mismatch") };

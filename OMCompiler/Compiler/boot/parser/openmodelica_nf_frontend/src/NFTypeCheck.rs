@@ -241,7 +241,7 @@ pub fn matchOverloadedBinaryOperator(mut exp1: Arc<Expression::NFExpression>, mu
     let mut outType: Arc<Type::NFType> = Arc::new(Type::ANY);
     let mut args: Arc<metamodelica::List<Arc<TypedArg>>> = metamodelica::nil();
     let mut matchKind: Arc<FunctionMatchKind::FunctionMatchKind> = Arc::new(FunctionMatchKind::CAST);
-    let mut matchedFunc: Arc<MatchedFunction::MatchedFunction>;
+    let mut matchedFunc: Arc<MatchedFunction::MatchedFunction> = Arc::new(<MatchedFunction::MatchedFunction as ::std::default::Default>::default());
     let mut matchedFunctions: Arc<metamodelica::List<Arc<MatchedFunction::MatchedFunction>>> = metamodelica::nil();
     let mut exactMatches: Arc<metamodelica::List<Arc<MatchedFunction::MatchedFunction>>> = metamodelica::nil();
     let mut r#fn: Arc<Function::Function> = Arc::new(<Function::Function as ::std::default::Default>::default());
@@ -903,7 +903,7 @@ fn checkBinaryOperationDiv(mut exp1: Arc<Expression::NFExpression>, mut type1: A
     let mut ty2: Arc<Type::NFType> = Arc::new(Type::ANY);
     let mut mk: MatchKind = MatchKind::EXACT;
     let mut valid: bool = false;
-    let mut op: Arc<Operator::NFOperator>;
+    let mut op: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
     (e1, ty1, mk) = matchTypes(type1.clone(), Type::setArrayElementType(type1.clone(), Arc::new(crate::NFType::REAL)), exp1.clone(), ALLOW_UNKNOWN.clone())?;
     valid = isCompatibleMatch(mk.clone());
     (e2, ty2, mk) = matchTypes(type2.clone(), Type::setArrayElementType(type2.clone(), Arc::new(crate::NFType::REAL)), exp2.clone(), ALLOW_UNKNOWN.clone())?;
@@ -936,7 +936,7 @@ fn checkBinaryOperationPow(mut exp1: Arc<Expression::NFExpression>, mut type1: A
     let mut e2: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut mk: MatchKind = MatchKind::EXACT;
     let mut valid: bool = false;
-    let mut op: Arc<Operator::NFOperator>;
+    let mut op: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
     (e1, resultType, mk) = matchTypes(type1.clone(), Type::setArrayElementType(type1.clone(), Arc::new(crate::NFType::REAL)), exp1.clone(), ALLOW_UNKNOWN.clone())?;
     valid = isCompatibleMatch(mk.clone());
     if Type::isArray(resultType.clone()) {
@@ -966,7 +966,7 @@ fn checkBinaryOperationPowEW(mut exp1: Arc<Expression::NFExpression>, mut type1:
     let mut ty2: Arc<Type::NFType> = Arc::new(Type::ANY);
     let mut mk: MatchKind = MatchKind::EXACT;
     let mut valid: bool = false;
-    let mut op: Arc<Operator::NFOperator>;
+    let mut op: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
     (e1, ty1, mk) = matchTypes(type1.clone(), Type::setArrayElementType(type1.clone(), Arc::new(crate::NFType::REAL)), exp1.clone(), ALLOW_UNKNOWN.clone())?;
     valid = isCompatibleMatch(mk.clone());
     (e2, ty2, mk) = matchTypes(type2.clone(), Type::setArrayElementType(type2.clone(), Arc::new(crate::NFType::REAL)), exp2.clone(), ALLOW_UNKNOWN.clone())?;
@@ -999,7 +999,7 @@ fn checkBinaryOperationEW(mut exp1: Arc<Expression::NFExpression>, mut type1: Ar
     let mut valid: bool = false;
     let mut is_arr1: bool = false;
     let mut is_arr2: bool = false;
-    let mut op: Arc<Operator::NFOperator>;
+    let mut op: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
     is_arr1 = Type::isArray(type1.clone());
     is_arr2 = Type::isArray(type2.clone());
     if is_arr1.clone() && is_arr2.clone() {
@@ -1042,7 +1042,7 @@ pub fn checkUnaryOperation(mut exp1: Arc<Expression::NFExpression>, mut type1: A
     let mut unaryExp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut unaryType: Arc<Type::NFType> = Arc::new(Type::ANY);
     let mut valid: bool = true;
-    let mut op: Arc<Operator::NFOperator>;
+    let mut op: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
     if Type::isComplex(Type::arrayElementType(type1.clone())) {
         (unaryExp, unaryType) = checkOverloadedUnaryOperator(exp1.clone(), type1.clone(), var1.clone(), operator.clone(), context.clone(), info.clone())?;
         return Ok((unaryExp, unaryType));
@@ -1071,7 +1071,7 @@ pub fn checkOverloadedUnaryOperator(mut inExp1: Arc<Expression::NFExpression>, m
     let mut matched: bool = false;
     let mut args: Arc<metamodelica::List<Arc<TypedArg>>> = metamodelica::nil();
     let mut matchKind: Arc<FunctionMatchKind::FunctionMatchKind> = Arc::new(FunctionMatchKind::CAST);
-    let mut matchedFunc: Arc<MatchedFunction::MatchedFunction>;
+    let mut matchedFunc: Arc<MatchedFunction::MatchedFunction> = Arc::new(<MatchedFunction::MatchedFunction as ::std::default::Default>::default());
     let mut matchedFunctions: Arc<metamodelica::List<Arc<MatchedFunction::MatchedFunction>>> = metamodelica::nil();
     let mut exactMatches: Arc<metamodelica::List<Arc<MatchedFunction::MatchedFunction>>> = metamodelica::nil();
     opstr = (Operator::symbol(inOp.clone(), (literal!("'")).clone())?).clone();
@@ -2180,12 +2180,14 @@ pub fn getRangeType(mut startExp: Arc<Expression::NFExpression>, mut stepExp: Op
         Deref @ Type::BOOLEAN => {
             if isSome(stepExp.clone()) {
                 Error::addSourceMessageAndFail(Error::RANGE_INVALID_STEP.clone(), list![(Type::toString(rangeElemType.clone())?).clone()], info.clone())?;
+                unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
             }
             getRangeTypeBool(startExp.clone(), stopExp.clone())?
         },
         Deref @ Type::ENUMERATION { .. } => {
             if isSome(stepExp.clone()) {
                 Error::addSourceMessageAndFail(Error::RANGE_INVALID_STEP.clone(), list![(Type::toString(rangeElemType.clone())?).clone()], info.clone())?;
+                unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
             }
             getRangeTypeEnum(startExp.clone(), stopExp.clone())?
         },
@@ -2208,6 +2210,7 @@ pub fn getRangeTypeInt(mut startExp: Arc<Expression::NFExpression>, mut stepExp:
         (Deref @ Expression::INTEGER { .. }, Some(Deref @ Expression::INTEGER { value: step }), Deref @ Expression::INTEGER { .. }) => {
             if step.clone() == 0 {
                 Error::addSourceMessageAndFail(Error::RANGE_TOO_SMALL_STEP.clone(), list![ArcStr::from(::std::format!("{}", step.clone()))], info.clone())?;
+                unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
             }
             Dimension::fromInteger(std::cmp::max(intDiv(var_field!((*stopExp).value, Expression::NFExpression::INTEGER).clone() - var_field!((*startExp).value, Expression::NFExpression::INTEGER).clone(), step.clone()) + 1, 0), Prefixes::Variability::CONSTANT.clone())
         },
@@ -2256,6 +2259,7 @@ pub fn getRangeTypeReal(mut startExp: Arc<Expression::NFExpression>, mut stepExp
         (Deref @ Expression::REAL { value: start }, Some(Deref @ Expression::REAL { value: step }), Deref @ Expression::REAL { .. }) => {
             if start.clone() == start.clone() + step.clone() {
                 Error::addSourceMessageAndFail(Error::RANGE_TOO_SMALL_STEP.clone(), list![ArcStr::from(::std::format!("{}", step.clone()))], info.clone())?;
+                unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
             }
             Dimension::fromInteger(Util::realRangeSize(var_field!((*startExp).value, Expression::NFExpression::REAL).clone(), step.clone(), var_field!((*stopExp).value, Expression::NFExpression::REAL).clone()), Prefixes::Variability::CONSTANT.clone())
         },
@@ -2520,6 +2524,7 @@ pub fn checkReductionType(mut ty: Arc<Type::NFType>, mut name: Arc<Absyn::Path>,
     } })).clone();
     if !(stringEmpty((err.clone()).clone())) {
         Error::addSourceMessageAndFail(Error::INVALID_REDUCTION_TYPE.clone(), list![(Expression::toString(exp.clone())?).clone(), (Type::toString(ty.clone())?).clone(), (AbsynUtil::pathString(name.clone(), (literal!(".")).clone(), true, false)?).clone(), (err.clone()).clone()], info.clone())?;
+        unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
     }
     Ok(())
 }

@@ -376,7 +376,7 @@ pub fn printComponentRefOptStr(mut inComponentRefOpt: Option<Arc<DAE::ComponentR
 pub fn printComponentRefStrFixDollarDer(mut inComponentRef: Arc<DAE::ComponentRef>) -> Result<ArcStr> {
     let mut outString: ArcStr = arcstr::literal!("");
     outString = ((::match_deref::match_deref! { match &(inComponentRef.clone()) {
-        Deref @ DAE::ComponentRef::CREF_QUAL { componentRef: cr, subscriptLst: Deref @ metamodelica::List::Nil, ident: DAE::derivativeNamePrefix, .. } => {
+        Deref @ DAE::ComponentRef::CREF_QUAL { componentRef: cr, subscriptLst: Deref @ metamodelica::List::Nil, ident: Deref @ "$DER", .. } => {
             { let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("der(")); __mm_s.push_str(&*ComponentReferenceBasics::printComponentRefStr(cr.clone())?); __mm_s.push_str(&*literal!(")")); ArcStr::from(__mm_s) }
         },
         _ => {
@@ -451,8 +451,8 @@ pub fn isInternalCref(mut cr: Arc<DAE::ComponentRef>) -> bool {
     let mut b: bool = false;
     let mut s: ArcStr = arcstr::literal!("");
     b = (::match_deref::match_deref! { match &(cr.clone()) {
-        Deref @ DAE::ComponentRef::CREF_QUAL { ident: DAE::derivativeNamePrefix, .. } => false,
-        Deref @ DAE::ComponentRef::CREF_QUAL { ident: DAE::previousNamePrefix, .. } => false,
+        Deref @ DAE::ComponentRef::CREF_QUAL { ident: Deref @ "$DER", .. } => false,
+        Deref @ DAE::ComponentRef::CREF_QUAL { ident: Deref @ "$CLKPRE", .. } => false,
         Deref @ DAE::ComponentRef::CREF_IDENT { ident: s, .. } => StringUtil::startsWith((s.clone()).clone(), (literal!("$outputAlias_")).clone()),
         Deref @ DAE::ComponentRef::CREF_IDENT { ident: s, .. } => StringUtil::startsWith((s.clone()).clone(), (literal!("$")).clone()),
         Deref @ DAE::ComponentRef::CREF_QUAL { ident: s, .. } => StringUtil::startsWith((s.clone()).clone(), (literal!("$")).clone()),
@@ -506,7 +506,7 @@ pub fn isArrayElement(mut cr: Arc<DAE::ComponentRef>) -> bool {
 pub fn isPreCref(mut cr: Arc<DAE::ComponentRef>) -> bool {
     let mut b: bool = false;
     b = (::match_deref::match_deref! { match &(cr.clone()) {
-        Deref @ DAE::ComponentRef::CREF_QUAL { ident: DAE::preNamePrefix, .. } => true,
+        Deref @ DAE::ComponentRef::CREF_QUAL { ident: Deref @ "$PRE", .. } => true,
         _ => false,
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } });
@@ -516,7 +516,7 @@ pub fn isPreCref(mut cr: Arc<DAE::ComponentRef>) -> bool {
 pub fn isPreviousCref(mut cr: Arc<DAE::ComponentRef>) -> bool {
     let mut b: bool = false;
     b = (::match_deref::match_deref! { match &(cr.clone()) {
-        Deref @ DAE::ComponentRef::CREF_QUAL { ident: DAE::previousNamePrefix, .. } => true,
+        Deref @ DAE::ComponentRef::CREF_QUAL { ident: Deref @ "$CLKPRE", .. } => true,
         _ => false,
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } });
@@ -526,7 +526,7 @@ pub fn isPreviousCref(mut cr: Arc<DAE::ComponentRef>) -> bool {
 pub fn isStartCref(mut cr: Arc<DAE::ComponentRef>) -> bool {
     let mut b: bool = false;
     b = (::match_deref::match_deref! { match &(cr.clone()) {
-        Deref @ DAE::ComponentRef::CREF_QUAL { ident: DAE::startNamePrefix, .. } => true,
+        Deref @ DAE::ComponentRef::CREF_QUAL { ident: Deref @ "$START", .. } => true,
         _ => false,
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } });
@@ -536,7 +536,7 @@ pub fn isStartCref(mut cr: Arc<DAE::ComponentRef>) -> bool {
 pub fn popPreCref(mut inCR: Arc<DAE::ComponentRef>) -> Arc<DAE::ComponentRef> {
     let mut outCR: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
     outCR = (::match_deref::match_deref! { match &(inCR.clone()) {
-        Deref @ DAE::ComponentRef::CREF_QUAL { componentRef: cr, ident: DAE::preNamePrefix, .. } => {
+        Deref @ DAE::ComponentRef::CREF_QUAL { componentRef: cr, ident: Deref @ "$PRE", .. } => {
             cr.clone()
         },
         _ => {
@@ -1328,7 +1328,7 @@ pub fn crefPrefixAux(mut inCref: Arc<DAE::ComponentRef>) -> Arc<DAE::ComponentRe
 pub fn crefRemovePrePrefix(mut cref: Arc<DAE::ComponentRef>) -> Arc<DAE::ComponentRef> {
     let mut cref: Arc<DAE::ComponentRef> = cref;
     cref = (::match_deref::match_deref! { match &(cref.clone()) {
-        Deref @ DAE::ComponentRef::CREF_QUAL { ident: DAE::preNamePrefix, .. } => var_field!((*cref).componentRef, DAE::ComponentRef::CREF_QUAL).clone(),
+        Deref @ DAE::ComponentRef::CREF_QUAL { ident: Deref @ "$PRE", .. } => var_field!((*cref).componentRef, DAE::ComponentRef::CREF_QUAL).clone(),
         _ => cref.clone(),
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } });
@@ -2866,14 +2866,14 @@ pub fn writeCref(mut file: File::File, mut cref: Arc<DAE::ComponentRef>, mut esc
             return Ok(());
             bail!("fail")
         },
-        Deref @ DAE::ComponentRef::CREF_QUAL { ident: DAE::derivativeNamePrefix, .. } => {
+        Deref @ DAE::ComponentRef::CREF_QUAL { ident: Deref @ "$DER", .. } => {
             File::write(file.clone(), (literal!("der(")).clone());
             writeCref(file.clone(), var_field!((*c).componentRef, DAE::ComponentRef::CREF_QUAL).clone(), escape.clone())?;
             File::write(file.clone(), (literal!(")")).clone());
             return Ok(());
             bail!("fail")
         },
-        Deref @ DAE::ComponentRef::CREF_QUAL { ident: DAE::previousNamePrefix, .. } => {
+        Deref @ DAE::ComponentRef::CREF_QUAL { ident: Deref @ "$CLKPRE", .. } => {
             File::write(file.clone(), (literal!("previous(")).clone());
             writeCref(file.clone(), var_field!((*c).componentRef, DAE::ComponentRef::CREF_QUAL).clone(), escape.clone())?;
             File::write(file.clone(), (literal!(")")).clone());

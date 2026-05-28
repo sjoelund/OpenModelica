@@ -94,6 +94,16 @@ pub mod EvalTarget {
         pub extra: Option<Arc<EvalTargetData>>,
     }
 
+    impl Default for EvalTarget {
+        fn default() -> Self {
+            Self {
+                info: Default::default(),
+                context: Default::default(),
+                extra: Default::default(),
+            }
+        }
+    }
+
     pub type EVAL_TARGET = EvalTarget;
 
     pub fn new(mut info: SourceInfo, mut context: i32, mut extra: Option<Arc<EvalTargetData>>) -> Arc<EvalTarget> {
@@ -121,6 +131,16 @@ pub struct EvalTargetData {
     pub component: Arc<InstNode::InstNode>,
     pub index: i32,
     pub exp: Arc<Expression::NFExpression>,
+}
+
+impl Default for EvalTargetData {
+    fn default() -> Self {
+        Self {
+            component: Default::default(),
+            index: Default::default(),
+            exp: Default::default(),
+        }
+    }
 }
 
 pub type DIMENSION_DATA = EvalTargetData;
@@ -637,8 +657,8 @@ pub fn makeComponentBinding(mut component: Arc<Component::NFComponent>, mut node
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ Component::COMPONENT { ty: Deref @ Type::ARRAY { elementType: ty @ Deref @ Type::COMPLEX { complexTy: Deref @ ComplexType::RECORD { constructor: rec_node, .. }, .. }, .. }, .. } => {
-                    let mut binding: Arc<Binding::NFBinding> = binding.clone();
                     let mut exp: Arc<Expression::NFExpression> = exp.clone();
+                    let mut binding: Arc<Binding::NFBinding> = binding.clone();
                     exp = Expression::mapCrefScalars(Expression::fromCref(cref.clone(), false)?, Arc::new({ let __pe_b0 = var_field!((*component).classInst, Component::NFComponent::COMPONENT).clone(); let __pe_b1 = rec_node.clone(); let __pe_b2 = ty.clone(); let __pe_b4 = target.clone(); move |__pe_a3| makeRecordBindingExp(__pe_b0.clone(), __pe_b1.clone(), __pe_b2.clone(), __pe_a3, __pe_b4.clone()) }))?;
                     binding = Arc::new(Binding::NFBinding::CEVAL_BINDING { bindingExp: exp.clone() });
                     if !(ComponentRef::hasSubscripts(cref.clone())) {
@@ -891,7 +911,7 @@ pub fn evalBinaryExp(mut binaryExp: Arc<Expression::NFExpression>, mut target: A
     let mut result: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut e1: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut e2: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-    let mut op: Arc<Operator::NFOperator>;
+    let mut op: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
     let (__pa0, __pa1, __pa2) = ::match_deref::match_deref! { match &(binaryExp.clone()) {
         Deref @ Expression::BINARY { exp2: __pa0, operator: __pa1, exp1: __pa2 } => (__pa0.clone(), __pa1.clone(), __pa2.clone()),
         _ => bail!("pattern mismatch"),
@@ -1296,7 +1316,7 @@ pub fn evalLogicBinaryExp(mut binaryExp: Arc<Expression::NFExpression>, mut targ
     let mut result: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut e1: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut e2: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-    let mut op: Arc<Operator::NFOperator>;
+    let mut op: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
     let (__pa0, __pa1, __pa2) = ::match_deref::match_deref! { match &(binaryExp.clone()) {
         Deref @ Expression::LBINARY { exp2: __pa0, operator: __pa1, exp1: __pa2 } => (__pa0.clone(), __pa1.clone(), __pa2.clone()),
         _ => bail!("pattern mismatch"),
@@ -1427,7 +1447,7 @@ pub fn evalRelationExp(mut relationExp: Arc<Expression::NFExpression>) -> Result
     let mut result: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut e1: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut e2: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-    let mut op: Arc<Operator::NFOperator>;
+    let mut op: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
     let (__pa0, __pa1, __pa2) = ::match_deref::match_deref! { match &(relationExp.clone()) {
         Deref @ Expression::RELATION { exp2: __pa0, operator: __pa1, exp1: __pa2, .. } => (__pa0.clone(), __pa1.clone(), __pa2.clone()),
         _ => bail!("pattern mismatch"),
@@ -3101,7 +3121,7 @@ fn evalRecordElement2(mut exp: Arc<Expression::NFExpression>, mut index: i32) ->
 }
 
 fn printUnboundError(mut component: Arc<Component::NFComponent>, mut target: Arc<EvalTarget::EvalTarget>, mut exp: Arc<Expression::NFExpression>) -> Result<()> {
-    let mut extra: Arc<EvalTargetData>;
+    let mut extra: Arc<EvalTargetData> = Arc::new(<EvalTargetData as ::std::default::Default>::default());
     if !(EvalTarget::hasInfo(target.clone())) {
         return Ok(());
     }

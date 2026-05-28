@@ -1642,7 +1642,7 @@ fn extendEnvWithVar(mut inName: ArcStr, mut inType: Arc<DAE::Type>, mut inOptVal
             ::match_deref::match_deref! { match &__mc_input {
                 (_, _, _, _, _, _) => {
                     let mut ty: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
-                    let mut var: Arc<DAE::Var>;
+                    let mut var: Arc<DAE::Var> = Arc::new(<DAE::Var as ::std::default::Default>::default());
                     let mut binding: Arc<DAE::Binding> = Arc::new(DAE::Binding::UNBOUND);
                     let mut cache: FCore::Cache = FCore::Cache::NO_CACHE;
                     let mut env: FCore::Graph;
@@ -1662,7 +1662,7 @@ fn extendEnvWithVar(mut inName: ArcStr, mut inType: Arc<DAE::Type>, mut inOptVal
             ::match_deref::match_deref! { match &__mc_input {
                 _ => {
                     let mut ty: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
-                    let mut var: Arc<DAE::Var>;
+                    let mut var: Arc<DAE::Var> = Arc::new(<DAE::Var as ::std::default::Default>::default());
                     let mut binding: Arc<DAE::Binding> = Arc::new(DAE::Binding::UNBOUND);
                     let mut cache: FCore::Cache = FCore::Cache::NO_CACHE;
                     let mut env: FCore::Graph;
@@ -1681,7 +1681,7 @@ fn extendEnvWithVar(mut inName: ArcStr, mut inType: Arc<DAE::Type>, mut inOptVal
 }
 
 fn makeFunctionVariable(mut inName: ArcStr, mut inType: Arc<DAE::Type>, mut inBinding: Arc<DAE::Binding>) -> Arc<DAE::Var> {
-    let mut outVar: Arc<DAE::Var>;
+    let mut outVar: Arc<DAE::Var> = Arc::new(<DAE::Var as ::std::default::Default>::default());
     outVar = Arc::new(DAE::Var { name: (inName.clone()).clone(), attributes: DAE::dummyAttrVar().clone(), ty: inType.clone(), binding: inBinding.clone(), bind_from_outside: false, constOfForIteratorRange: None });
     outVar
 }
@@ -1710,7 +1710,7 @@ fn makeRecordEnvironment(mut inRecordType: Arc<DAE::Type>, mut inOptValue: Optio
             let mut graph: FCore::Graph;
             let mut parent: metamodelica::Array<FCore::Node>;
             let mut child: metamodelica::Array<FCore::Node>;
-            let mut node: FCore::Node;
+            let mut node: FCore::Node = <FCore::Node as ::std::default::Default>::default();
             parent = FGraph::lastScopeRef(inGraph.clone())?;
             (graph, node) = FGraph::node(inGraph.clone(), (arcstr::literal!(FNode::feNodeName)).clone(), list![parent.clone()], FCore::Data::ND { scopeType: None });
             child = FNode::toRef(node.clone());
@@ -1915,7 +1915,7 @@ fn assignVariable(mut inCref: Arc<DAE::ComponentRef>, mut inNewValue: Arc<Values
                 (Deref @ DAE::ComponentRef::CREF_IDENT { identType: ety @ Deref @ DAE::Type::T_COMPLEX { complexClassType: ClassInf::State::RECORD { .. }, .. }, subscriptLst: Deref @ metamodelica::List::Nil, ident: id }, _, _, _) => {
                     let mut cache: FCore::Cache = FCore::Cache::NO_CACHE;
                     let mut env: FCore::Graph;
-                    let mut var: Arc<DAE::Var>;
+                    let mut var: Arc<DAE::Var> = Arc::new(<DAE::Var as ::std::default::Default>::default());
                     let mut inst_status: FCore::Status = FCore::Status::CLS_FULL;
                     (_, var, _, _, inst_status, env) = Lookup::lookupIdentLocal(inCache.clone(), inEnv.clone(), (id.clone()).clone())?;
                     (cache, env) = assignRecord(ety.clone(), inNewValue.clone(), inCache.clone(), env.clone())?;
@@ -1960,7 +1960,7 @@ fn assignVariable(mut inCref: Arc<DAE::ComponentRef>, mut inNewValue: Arc<Values
                 (Deref @ DAE::ComponentRef::CREF_QUAL { componentRef: cr_rest, subscriptLst: Deref @ metamodelica::List::Nil, ident: id, .. }, _, _, _) => {
                     let mut cache: FCore::Cache = FCore::Cache::NO_CACHE;
                     let mut env: FCore::Graph;
-                    let mut var: Arc<DAE::Var>;
+                    let mut var: Arc<DAE::Var> = Arc::new(<DAE::Var as ::std::default::Default>::default());
                     let mut inst_status: FCore::Status = FCore::Status::CLS_FULL;
                     let mut comp_id: ArcStr = arcstr::literal!("");
                     (_, var, _, _, inst_status, env) = Lookup::lookupIdentLocal(inCache.clone(), inEnv.clone(), (id.clone()).clone())?;
@@ -2182,7 +2182,7 @@ fn assignWholeDim(mut inNewValues: Arc<metamodelica::List<Arc<Values::Value>>>, 
 fn updateVariableBinding(mut inVariableCref: Arc<DAE::ComponentRef>, mut inEnv: FCore::Graph, mut inType: Arc<DAE::Type>, mut inNewValue: Arc<Values::Value>) -> Result<FCore::Graph> {
     let mut outEnv: FCore::Graph;
     let mut var_name: ArcStr = arcstr::literal!("");
-    let mut var: Arc<DAE::Var>;
+    let mut var: Arc<DAE::Var> = Arc::new(<DAE::Var as ::std::default::Default>::default());
     var_name = (ComponentReference::crefStr(inVariableCref.clone())?).clone();
     var = makeFunctionVariable((var_name.clone()).clone(), inType.clone(), Arc::new(DAE::Binding::VALBOUND { valBound: inNewValue.clone(), source: openmodelica_frontend_types::DAE::BindingSource::BINDING_FROM_DEFAULT_VALUE }));
     outEnv = FGraph::updateComp(inEnv.clone(), var.clone(), crate::FCore::Status::VAR_TYPED, FGraph::empty())?;
@@ -2190,9 +2190,9 @@ fn updateVariableBinding(mut inVariableCref: Arc<DAE::ComponentRef>, mut inEnv: 
 }
 
 fn updateRecordBinding(mut inVar: Arc<DAE::Var>, mut inValue: Arc<Values::Value>) -> Arc<DAE::Var> {
-    let mut outVar: Arc<DAE::Var>;
+    let mut outVar: Arc<DAE::Var> = Arc::new(<DAE::Var as ::std::default::Default>::default());
     let mut name: ArcStr = arcstr::literal!("");
-    let mut attr: Arc<DAE::Attributes>;
+    let mut attr: Arc<DAE::Attributes> = Arc::new(<DAE::Attributes as ::std::default::Default>::default());
     let mut ty: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
     let mut c: Option<DAE::Const> = None;
     outVar = inVar.clone();
@@ -2201,7 +2201,7 @@ fn updateRecordBinding(mut inVar: Arc<DAE::Var>, mut inValue: Arc<Values::Value>
 }
 
 fn updateRecordComponentBinding(mut inVar: Arc<DAE::Var>, mut inComponentId: ArcStr, mut inValue: Arc<Values::Value>) -> Result<Arc<DAE::Var>> {
-    let mut outVar: Arc<DAE::Var>;
+    let mut outVar: Arc<DAE::Var> = Arc::new(<DAE::Var as ::std::default::Default>::default());
     let mut val: Arc<Values::Value> = Arc::new(Values::Value::META_FAIL);
     outVar = inVar.clone();
     val = getBindingOrDefault(outVar.binding.clone(), outVar.ty.clone())?;

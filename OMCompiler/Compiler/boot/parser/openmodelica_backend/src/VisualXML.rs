@@ -117,12 +117,12 @@ pub use self::Visualization::{SHAPE,VECTOR,SURFACE};
 // dump visualization xml
 //-------------------------
 pub fn visualizationInfoXML(mut daeIn: Arc<BackendDAE::BackendDAE>, mut fileName: ArcStr, mut program: Absyn::Program) -> Result<Arc<BackendDAE::BackendDAE>> {
-    let mut daeOut: Arc<BackendDAE::BackendDAE>;
+    let mut daeOut: Arc<BackendDAE::BackendDAE> = Arc::new(<BackendDAE::BackendDAE as ::std::default::Default>::default());
     let mut eqs: Arc<metamodelica::List<Arc<BackendDAE::EqSystem>>> = metamodelica::nil();
     let mut eqs0: Arc<metamodelica::List<Arc<BackendDAE::EqSystem>>> = metamodelica::nil();
-    let mut shared: Arc<BackendDAE::Shared>;
-    let mut globalKnownVars: BackendDAE::Variables;
-    let mut aliasVars: BackendDAE::Variables;
+    let mut shared: Arc<BackendDAE::Shared> = Arc::new(<BackendDAE::Shared as ::std::default::Default>::default());
+    let mut globalKnownVars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
+    let mut aliasVars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
     let mut globalKnownVarLst: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
     let mut allVarLst: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
     let mut aliasVarLst: Arc<metamodelica::List<BackendDAE::Var>> = metamodelica::nil();
@@ -205,7 +205,7 @@ fn getConstCrefBinding(mut cr: Arc<DAE::ComponentRef>, mut vars: BackendDAE::Var
     let mut eOut: Arc<DAE::Exp>;
     let mut s: ArcStr = arcstr::literal!("");
     let mut e: Arc<DAE::Exp>;
-    let mut var: BackendDAE::Var;
+    let mut var: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
     match '__try0: {
         let __pa1 = ::match_deref::match_deref! { match &(unwrap_break_err!(BackendVariable::getVar(cr.clone(), vars.clone()), '__try0)) {
             (Deref @ metamodelica::List::Cons { head: __pa1, tail: Deref @ metamodelica::List::Nil }, _) => __pa1.clone(),
@@ -268,7 +268,7 @@ fn setVisVarsPublic(mut inVar: BackendDAE::Var, mut dummyArgIn: ArcStr) -> Resul
 }
 
 fn makeVarPublicHideResultFalse(mut inVar: BackendDAE::Var) -> Result<BackendDAE::Var> {
-    let mut outVar: BackendDAE::Var;
+    let mut outVar: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
     let mut vals: Option<Arc<DAE::VariableAttributes>> = None;
     vals = inVar.values.clone();
     vals = DAEUtil::setProtectedAttr(vals.clone(), false)?;
@@ -278,9 +278,9 @@ fn makeVarPublicHideResultFalse(mut inVar: BackendDAE::Var) -> Result<BackendDAE
 }
 
 fn setBindingForProtectedVars(mut eqSysIn: Arc<BackendDAE::EqSystem>) -> Arc<BackendDAE::EqSystem> {
-    let mut eqSysOut: Arc<BackendDAE::EqSystem>;
+    let mut eqSysOut: Arc<BackendDAE::EqSystem> = Arc::new(<BackendDAE::EqSystem as ::std::default::Default>::default());
     let mut ass1: metamodelica::Array<i32>;
-    let mut vars: BackendDAE::Variables;
+    let mut vars: BackendDAE::Variables = <BackendDAE::Variables as ::std::default::Default>::default();
     let mut eqs: Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>;
     if '__try0: {
         let (__pa1, __pa2, __pa3) = ::match_deref::match_deref! { match &(eqSysIn.clone()) {
@@ -299,7 +299,7 @@ fn setBindingForProtectedVars(mut eqSysIn: Arc<BackendDAE::EqSystem>) -> Arc<Bac
 }
 
 fn setBindingForProtectedVars1(mut varIn: BackendDAE::Var, mut tplIn: (i32, metamodelica::Array<i32>, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>)) -> Result<(BackendDAE::Var, (i32, metamodelica::Array<i32>, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>))> {
-    let mut varOut: BackendDAE::Var;
+    let mut varOut: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
     let mut tplOut: (i32, metamodelica::Array<i32>, Arc<ExpandableArray::ExpandableArray<Arc<BackendDAE::Equation>>>);
     (varOut, tplOut) = 'mc: {
         let __mc_input = (varIn.clone(), tplIn.clone());
@@ -308,7 +308,7 @@ fn setBindingForProtectedVars1(mut varIn: BackendDAE::Var, mut tplIn: (i32, meta
                 (BackendDAE::Var { values: Some(_), bindExp: None, .. }, (idx, ass1, eqs)) => {
                     if !((BackendVariable::isProtectedVar(varIn.clone()) && isVisualizationVar(varIn.clone())?)) { bail!("guard") }
                     let mut eq: Arc<BackendDAE::Equation> = Arc::new(BackendDAE::Equation::DUMMY_EQUATION);
-                    let mut var: BackendDAE::Var;
+                    let mut var: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
                     let mut exp1: Arc<DAE::Exp>;
                     let mut exp2: Arc<DAE::Exp>;
                     eq = BackendEquation::get(eqs.clone(), ass1.clone().borrow()[(idx.clone()-1) as usize].clone());
@@ -329,7 +329,7 @@ fn setBindingForProtectedVars1(mut varIn: BackendDAE::Var, mut tplIn: (i32, meta
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (_, (idx, ass1, eqs)) => {
-                    let mut var: BackendDAE::Var;
+                    let mut var: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
                     if BackendVariable::isProtectedVar(varIn.clone()) && isVisualizationVar(varIn.clone())? {
                         var = makeVarPublicHideResultFalse(varIn.clone())?;
                     } else {

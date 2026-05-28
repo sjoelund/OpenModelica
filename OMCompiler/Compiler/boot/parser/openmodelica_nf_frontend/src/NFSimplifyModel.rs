@@ -569,7 +569,7 @@ pub fn simplifyIfStmtBranches<ElemT: Clone + 'static>(mut branches: Arc<metamode
 
 pub fn simplifyFunction(mut func: Arc<Function::Function>) -> Result<()> {
     let mut cls: Arc<Class::NFClass> = Arc::new(Class::NOT_INSTANTIATED);
-    let mut fn_body: Arc<Algorithm::NFAlgorithm>;
+    let mut fn_body: Arc<Algorithm::NFAlgorithm> = Arc::new(<Algorithm::NFAlgorithm as ::std::default::Default>::default());
     let mut sections: Arc<Sections::NFSections> = Arc::new(Sections::EMPTY);
     if !(Function::isSimplified(func.clone())) {
         Function::markSimplified(func.clone());

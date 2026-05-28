@@ -66,7 +66,7 @@ pub fn dumpGraphInfoInternal(mut in_txt: Tpl::Text, mut in_a_graphInfo: GraphML:
     let mut out_txt: Tpl::Text;
     out_txt = (match (in_txt.clone(), in_a_graphInfo.clone()) {
         (mut txt, GraphML::GraphInfo::GRAPHINFOARR { nodes: mut i_nodes, graphs: mut i_graphs, graphNodeKey: mut i_graphNodeKey, graphEdgeKey: ref i_graphEdgeKey @ ref i_graphInfo_graphEdgeKey, edges: ref i_edges, attributes: mut i_attributes }) => {
-            let mut ret_5: GraphML::Graph;
+            let mut ret_5: GraphML::Graph = <GraphML::Graph as ::std::default::Default>::default();
             let mut ret_4: i32 = 0;
             let mut ret_3: i32 = 0;
             let mut l_edgeDump: Tpl::Text;
@@ -316,7 +316,7 @@ pub fn dumpNode(mut in_txt: Tpl::Text, mut in_a_node: GraphML::Node, mut in_a_al
             txt.clone()
         },
         (mut txt, GraphML::Node::GROUPNODE { internalGraphIdx: mut i_internalGraphIdx, header: mut i_header, id: mut i_id, isFolded: mut i_isFolded }, mut a_allGraphs, mut a_allNodes, mut a_graphNodeKey, mut a_graphAttributes) => {
-            let mut ret_10: GraphML::Graph;
+            let mut ret_10: GraphML::Graph = <GraphML::Graph as ::std::default::Default>::default();
             let mut ret_9: i32 = 0;
             let mut ret_8: i32 = 0;
             let mut ret_7: i32 = 0;
@@ -559,7 +559,7 @@ pub fn dumpAttKey(mut in_txt: Tpl::Text, mut in_a_key: (i32, ArcStr), mut in_a_g
     let mut out_txt: Tpl::Text;
     out_txt = (match (in_txt.clone(), in_a_key.clone(), in_a_graphAttributes.clone()) {
         (mut txt, (mut i_idx, mut i_val), mut a_graphAttributes) => {
-            let mut ret_0: GraphML::Attribute;
+            let mut ret_0: GraphML::Attribute = <GraphML::Attribute as ::std::default::Default>::default();
             ret_0 = a_graphAttributes.clone().borrow()[(i_idx.clone()-1) as usize].clone();
             txt = fun_22(txt.clone(), ret_0.clone(), (i_val.clone()).clone(), i_idx.clone())?;
             txt.clone()

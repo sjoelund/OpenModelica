@@ -84,7 +84,7 @@ use openmodelica_util_datatypes_basic::Pointer;
 // NF imports
 // Backend imports
 // Util imports
-pub fn getModule() -> Result<Module::functionAliasInterface> {
+pub fn getModule() -> Result<Arc<dyn ::std::ops::Fn(Arc<VarData::VarData>, Arc<EqData::EqData>, Partition::Kind) -> Result<(Arc<VarData::VarData>, Arc<EqData::EqData>)> + 'static>> {
     let mut func: Module::functionAliasInterface;
     let mut flag: ArcStr = literal!("default");
     func = (::match_deref::match_deref! { match &(flag.clone()) {
@@ -313,9 +313,9 @@ fn introduceFunctionAliasEquation(mut eqn: Arc<Equation::Equation>, mut map: Arc
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } });
     if depth.clone() == Depth.FULL.clone() {
-        eqn = BEquation::Equation::map(eqn.clone(), Arc::new({ let __pe_b1 = map.clone(); let __pe_b2 = aux_index.clone(); let __pe_b3 = iter.clone(); let __pe_b4 = init.clone(); move |__pe_a0| introduceFunctionAlias(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_b3.clone(), __pe_b4.clone()) }), None, (std::sync::Arc::new(fnptr!(Expression::fakeMap, Arc<Expression::NFExpression>, fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>>) -> Result<Arc<Expression::NFExpression>> + 'static>))?;
+        eqn = BEquation::Equation::map(eqn.clone(), Arc::new({ let __pe_b1 = map.clone(); let __pe_b2 = aux_index.clone(); let __pe_b3 = iter.clone(); let __pe_b4 = init.clone(); move |__pe_a0| introduceFunctionAlias(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_b3.clone(), __pe_b4.clone()) }), None, (std::sync::Arc::new(fnptr!(Expression::fakeMap, Arc<Expression::NFExpression>, Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Result<Arc<Expression::NFExpression>> + 'static>))?;
     } else if depth.clone() == Depth.CONDITION.clone() {
-        eqn = BEquation::Equation::mapCondition(eqn.clone(), Arc::new({ let __pe_b1 = map.clone(); let __pe_b2 = aux_index.clone(); let __pe_b3 = iter.clone(); let __pe_b4 = init.clone(); move |__pe_a0| introduceFunctionAlias(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_b3.clone(), __pe_b4.clone()) }), None, (std::sync::Arc::new(fnptr!(Expression::fakeMap, Arc<Expression::NFExpression>, fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>>) -> Result<Arc<Expression::NFExpression>> + 'static>));
+        eqn = BEquation::Equation::mapCondition(eqn.clone(), Arc::new({ let __pe_b1 = map.clone(); let __pe_b2 = aux_index.clone(); let __pe_b3 = iter.clone(); let __pe_b4 = init.clone(); move |__pe_a0| introduceFunctionAlias(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_b3.clone(), __pe_b4.clone()) }), None, (std::sync::Arc::new(fnptr!(Expression::fakeMap, Arc<Expression::NFExpression>, Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Result<Arc<Expression::NFExpression>> + 'static>));
     }
     Ok(eqn)
 }
@@ -656,7 +656,7 @@ pub type Indices = Arc<UnorderedSet::UnorderedSet<i32>>;
 fn collectSlicedStatesAliasEquation(mut eqn: Arc<Equation::Equation>, mut map: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<UnorderedSet::UnorderedSet<i32>>>>) -> Result<Arc<Equation::Equation>> {
     let mut eqn: Arc<Equation::Equation> = eqn;
     let mut iter: Arc<Iterator::Iterator> = BEquation::Equation::getForIterator(eqn.clone());
-    BEquation::Equation::map(eqn.clone(), Arc::new({ let __pe_b1 = iter.clone(); let __pe_b2 = map.clone(); move |__pe_a0| collectSlicedStatesAlias(__pe_a0, __pe_b1.clone(), __pe_b2.clone()) }), None, (std::sync::Arc::new(fnptr!(Expression::fakeMap, Arc<Expression::NFExpression>, fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>>) -> Result<Arc<Expression::NFExpression>> + 'static>))?;
+    BEquation::Equation::map(eqn.clone(), Arc::new({ let __pe_b1 = iter.clone(); let __pe_b2 = map.clone(); move |__pe_a0| collectSlicedStatesAlias(__pe_a0, __pe_b1.clone(), __pe_b2.clone()) }), None, (std::sync::Arc::new(fnptr!(Expression::fakeMap, Arc<Expression::NFExpression>, Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Result<Arc<Expression::NFExpression>> + 'static>))?;
     Ok(eqn)
 }
 
@@ -727,7 +727,7 @@ fn getSlicedStatesSet(mut map: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::
 fn introduceSlicedStateAliasEquation(mut eqn: Arc<Equation::Equation>, mut set: Arc<UnorderedSet::UnorderedSet<Arc<ComponentRef::NFComponentRef>>>, mut map: Arc<UnorderedMap::UnorderedMap<Arc<Call_Id::Call_Id>, Arc<Call_Aux::Call_Aux>>>, mut aux_index: Pointer::Pointer<i32>) -> Result<Arc<Equation::Equation>> {
     let mut eqn: Arc<Equation::Equation> = eqn;
     let mut iter: Arc<Iterator::Iterator> = BEquation::Equation::getForIterator(eqn.clone());
-    eqn = BEquation::Equation::map(eqn.clone(), Arc::new({ let __pe_b1 = set.clone(); let __pe_b2 = map.clone(); let __pe_b3 = iter.clone(); let __pe_b4 = aux_index.clone(); move |__pe_a0| introduceSlicedStateAliasExp(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_b3.clone(), __pe_b4.clone()) }), None, (std::sync::Arc::new(fnptr!(Expression::fakeMap, Arc<Expression::NFExpression>, fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>>) -> Result<Arc<Expression::NFExpression>> + 'static>))?;
+    eqn = BEquation::Equation::map(eqn.clone(), Arc::new({ let __pe_b1 = set.clone(); let __pe_b2 = map.clone(); let __pe_b3 = iter.clone(); let __pe_b4 = aux_index.clone(); move |__pe_a0| introduceSlicedStateAliasExp(__pe_a0, __pe_b1.clone(), __pe_b2.clone(), __pe_b3.clone(), __pe_b4.clone()) }), None, (std::sync::Arc::new(fnptr!(Expression::fakeMap, Arc<Expression::NFExpression>, Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Result<Arc<Expression::NFExpression>> + 'static>))?;
     Ok(eqn)
 }
 

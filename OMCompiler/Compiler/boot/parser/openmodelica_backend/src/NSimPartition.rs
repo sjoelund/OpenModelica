@@ -126,7 +126,7 @@ pub fn createBasePartitions(mut clock_collector: Arc<UnorderedMap::UnorderedMap<
             let mut source: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
             let mut fire: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             let mut stmt: Arc<WhenStatement::WhenStatement>;
-            let mut attr: Arc<EquationAttributes::EquationAttributes>;
+            let mut attr: Arc<EquationAttributes::EquationAttributes> = Arc::new(<EquationAttributes::EquationAttributes as ::std::default::Default>::default());
             let mut blck: Arc<Block::Block>;
             source = DAE::emptyElementSource().clone();
             fire = Arc::new(Expression::NFExpression::CALL { call: Call::makeTypedCall(BuiltinFuncs::CLOCK_FIRE().clone(), list![Arc::new(Expression::NFExpression::INTEGER { value: clock_idx.clone() })], Prefixes::Variability::CONSTANT.clone(), Prefixes::Purity::PURE.clone(), BuiltinFuncs::CLOCK_FIRE().returnType.clone()) });
@@ -195,7 +195,7 @@ pub fn toStringShort(mut part: Arc<NSimPartition>) -> Result<ArcStr> {
 }
 
 pub fn convertBase(mut part: Arc<NSimPartition>) -> Result<OldSimCode::ClockedPartition> {
-    let mut oldPart: OldSimCode::ClockedPartition;
+    let mut oldPart: OldSimCode::ClockedPartition = <OldSimCode::ClockedPartition as ::std::default::Default>::default();
     oldPart = (::match_deref::match_deref! { match &(part.clone()) {
         Deref @ BASE_PARTITION { .. } => OldSimCode::ClockedPartition { subPartitions: {
         let mut __acc: Arc<metamodelica::List<OldSimCode::SubPartition>> = metamodelica::nil();
@@ -215,7 +215,7 @@ pub fn convertBase(mut part: Arc<NSimPartition>) -> Result<OldSimCode::ClockedPa
 }
 
 pub fn convertSub(mut part: Arc<NSimPartition>) -> Result<OldSimCode::SubPartition> {
-    let mut oldPart: OldSimCode::SubPartition;
+    let mut oldPart: OldSimCode::SubPartition = <OldSimCode::SubPartition as ::std::default::Default>::default();
     oldPart = (::match_deref::match_deref! { match &(part.clone()) {
         Deref @ SUB_PARTITION { .. } => OldSimCode::SubPartition { holdEvents: var_field!((*part).holdEvents, NSimPartition::SUB_PARTITION).clone(), subClock: BClock::convertSub(var_field!((*part).subClock, NSimPartition::SUB_PARTITION).clone())?, removedEquations: {
         let mut __acc: Arc<metamodelica::List<Arc<OldSimCode::SimEqSystem>>> = metamodelica::nil();

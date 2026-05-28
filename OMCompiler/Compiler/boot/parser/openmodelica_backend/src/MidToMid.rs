@@ -72,11 +72,11 @@ Some SSA variables and purity marked functions perhaps.
 
 */
 pub fn longJmpGoto(mut oldFunction: MidCode::Function) -> Result<MidCode::Function> {
-    let mut newFunction: MidCode::Function;
+    let mut newFunction: MidCode::Function = <MidCode::Function as ::std::default::Default>::default();
     let mut newBody: Arc<metamodelica::List<MidCode::Block>> = metamodelica::nil();
     let mut oldBody: Arc<metamodelica::List<MidCode::Block>> = metamodelica::nil();
-    let mut newBlock: MidCode::Block;
-    let mut oldBlock: MidCode::Block;
+    let mut newBlock: MidCode::Block = <MidCode::Block as ::std::default::Default>::default();
+    let mut oldBlock: MidCode::Block = <MidCode::Block as ::std::default::Default>::default();
     let mut node: i32 = 0;
     let mut jump: i32 = 0;
     let mut jumps: Arc<metamodelica::List<i32>> = metamodelica::nil();
@@ -135,9 +135,9 @@ pub fn longJmpGoto(mut oldFunction: MidCode::Function) -> Result<MidCode::Functi
 // NOTE: #[tailcall::tailcall] disabled: function body contains a `match_deref!{…}` match,
 // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
 pub fn lookupId(mut blocks: Arc<metamodelica::List<MidCode::Block>>, mut id: i32) -> Result<MidCode::Block> {
-    let mut block_: MidCode::Block;
+    let mut block_: MidCode::Block = <MidCode::Block as ::std::default::Default>::default();
     let mut blocks_local: Arc<metamodelica::List<MidCode::Block>> = metamodelica::nil();
-    let mut block_local: MidCode::Block;
+    let mut block_local: MidCode::Block = <MidCode::Block as ::std::default::Default>::default();
     block_ = (::match_deref::match_deref! { match &(blocks.clone()) {
         Deref @ metamodelica::List::Cons { head: block_local, tail: _ } if (block_local.id.clone() == id.clone()) => block_local.clone(),
         Deref @ metamodelica::List::Cons { head: _, tail: blocks_local } => lookupId(blocks_local.clone(), id.clone())?,

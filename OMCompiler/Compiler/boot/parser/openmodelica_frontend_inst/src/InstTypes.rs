@@ -82,6 +82,15 @@ pub struct SplicedExpData {
     pub identType: Arc<DAE::Type>,
 }
 
+impl Default for SplicedExpData {
+    fn default() -> Self {
+        Self {
+            splicedExp: Default::default(),
+            identType: Default::default(),
+        }
+    }
+}
+
 pub type SPLICEDEXPDATA = SplicedExpData;
 
 

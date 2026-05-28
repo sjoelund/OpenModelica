@@ -158,7 +158,7 @@ pub fn printStructuralParameters(mut flatModel: Arc<FlatModel::NFFlatModel>) -> 
 
 pub fn dumpFlatModel(mut flatModel: Arc<FlatModel::NFFlatModel>, mut functions: Arc<NFFlatten::FunctionTreeImpl::Tree>) -> Result<ArcStr> {
     let mut r#str: ArcStr = arcstr::literal!("");
-    let mut flat_model: Arc<FlatModel::NFFlatModel>;
+    let mut flat_model: Arc<FlatModel::NFFlatModel> = Arc::new(<FlatModel::NFFlatModel as ::std::default::Default>::default());
     flat_model = combineSubscripts(flatModel.clone())?;
     r#str = (FlatModel::toFlatString(flat_model.clone(), functions.clone(), false)).clone();
     Ok(r#str)
@@ -489,8 +489,8 @@ pub fn isMergeableType(mut ty: Arc<Absyn::TypeSpec>) -> bool {
 
 pub fn getComponentSignature(mut element: Arc<SCode::Element>) -> Result<ArcStr> {
     let mut signature: ArcStr = arcstr::literal!("");
-    let mut prefs: Arc<SCode::Prefixes>;
-    let mut attrs: SCode::Attributes;
+    let mut prefs: Arc<SCode::Prefixes> = Arc::new(<SCode::Prefixes as ::std::default::Default>::default());
+    let mut attrs: SCode::Attributes = <SCode::Attributes as ::std::default::Default>::default();
     let mut ty: Arc<Absyn::TypeSpec>;
     let mut r#mod: Arc<SCode::Mod> = Arc::new(SCode::Mod::NOMOD);
     let (__pa0, __pa1, __pa2, __pa3) = ::match_deref::match_deref! { match &(element.clone()) {
@@ -551,8 +551,8 @@ pub fn getModSignature(mut r#mod: Arc<SCode::Mod>, mut name: ArcStr) -> Result<A
 pub fn mergeComponents(mut components: Arc<metamodelica::List<Arc<SCode::Element>>>, mut prefix: ArcStr, mut nameMap: MergeNameMap) -> Result<Arc<SCode::Element>> {
     let mut mergedComponent: Arc<SCode::Element>;
     let mut ty: Arc<Absyn::TypeSpec>;
-    let mut prefs: Arc<SCode::Prefixes>;
-    let mut attrs: SCode::Attributes;
+    let mut prefs: Arc<SCode::Prefixes> = Arc::new(<SCode::Prefixes as ::std::default::Default>::default());
+    let mut attrs: SCode::Attributes = <SCode::Attributes as ::std::default::Default>::default();
     let mut r#mod: Arc<SCode::Mod> = Arc::new(SCode::Mod::NOMOD);
     let mut i: i32 = 1;
     let mut name: ArcStr = arcstr::literal!("");

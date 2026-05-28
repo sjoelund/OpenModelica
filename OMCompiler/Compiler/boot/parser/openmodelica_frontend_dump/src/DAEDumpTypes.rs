@@ -63,6 +63,22 @@ pub struct splitElements {
     pub sm: Arc<metamodelica::List<Arc<compWithSplitElements>>>,
 }
 
+impl Default for splitElements {
+    fn default() -> Self {
+        Self {
+            v: Default::default(),
+            ie: Default::default(),
+            ia: Default::default(),
+            e: Default::default(),
+            a: Default::default(),
+            co: Default::default(),
+            o: Default::default(),
+            ca: Default::default(),
+            sm: Default::default(),
+        }
+    }
+}
+
 pub type SPLIT_ELEMENTS = splitElements;
 
 
@@ -73,12 +89,30 @@ pub struct compWithSplitElements {
     pub comment: Option<Arc<SCode::Comment>>,
 }
 
+impl Default for compWithSplitElements {
+    fn default() -> Self {
+        Self {
+            name: Default::default(),
+            spltElems: Default::default(),
+            comment: Default::default(),
+        }
+    }
+}
+
 pub type COMP_WITH_SPLIT = compWithSplitElements;
 
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct functionList {
     pub funcs: Arc<metamodelica::List<DAE::Function>>,
+}
+
+impl Default for functionList {
+    fn default() -> Self {
+        Self {
+            funcs: Default::default(),
+        }
+    }
 }
 
 pub type FUNCTION_LIST = functionList;

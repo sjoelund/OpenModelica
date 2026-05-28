@@ -70,7 +70,7 @@ pub mod ZeroCrossingTree {
 
     pub fn valueStr(mut inValue: Value) -> Result<ArcStr> {
         let mut outString: ArcStr = arcstr::literal!("");
-        let mut zc: ZeroCrossing;
+        let mut zc: ZeroCrossing = <ZeroCrossing as ::std::default::Default>::default();
         zc = (inValue.clone()).get(1)?;
         outString = (ExpressionBasics::printExpStr(zc.relation_.clone())?).clone();
         Ok(outString)
@@ -104,6 +104,9 @@ pub mod ZeroCrossingTree {
             value: Value,
         },
         EMPTY,
+    }
+    impl Default for Tree {
+        fn default() -> Self { Self::EMPTY }
     }
     pub use self::Tree::{NODE,LEAF,EMPTY};
 
@@ -174,7 +177,7 @@ pub mod ZeroCrossingTree {
 
     pub fn addList(mut tree: Arc<Tree>, mut inValues: Arc<metamodelica::List<(ZeroCrossing, Arc<metamodelica::List<ZeroCrossing>>)>>, mut conflictFunc: Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<ZeroCrossing>>, Arc<metamodelica::List<ZeroCrossing>>, ZeroCrossing) -> Result<Arc<metamodelica::List<ZeroCrossing>>> + 'static>) -> Result<Arc<Tree>> {
         let mut tree: Arc<Tree> = tree;
-        let mut key: Key;
+        let mut key: Key = <ZeroCrossing as ::std::default::Default>::default();
         let mut value: Value = metamodelica::nil();
         for mut t in &*inValues.clone() {
             let mut t = t.clone();
@@ -356,7 +359,7 @@ pub mod ZeroCrossingTree {
 
     pub fn fromList(mut inValues: Arc<metamodelica::List<(ZeroCrossing, Arc<metamodelica::List<ZeroCrossing>>)>>, mut conflictFunc: Arc<dyn ::std::ops::Fn(Arc<metamodelica::List<ZeroCrossing>>, Arc<metamodelica::List<ZeroCrossing>>, ZeroCrossing) -> Result<Arc<metamodelica::List<ZeroCrossing>>> + 'static>) -> Result<Arc<Tree>> {
         let mut tree: Arc<Tree> = Arc::new(crate::ZeroCrossings::ZeroCrossingTree::Tree::EMPTY);
-        let mut key: Key;
+        let mut key: Key = <ZeroCrossing as ::std::default::Default>::default();
         let mut value: Value = metamodelica::nil();
         for mut t in &*inValues.clone() {
             let mut t = t.clone();
@@ -368,7 +371,7 @@ pub mod ZeroCrossingTree {
 
     pub fn get(mut tree: Arc<Tree>, mut key: Key) -> Result<Value> {
         let mut value: Value = metamodelica::nil();
-        let mut k: Key;
+        let mut k: Key = <ZeroCrossing as ::std::default::Default>::default();
         k = (::match_deref::match_deref! { match &(tree.clone()) {
         Deref @ Tree::NODE { .. } => var_field!((*tree).key, Tree::NODE).clone(),
         Deref @ Tree::LEAF { .. } => var_field!((*tree).key, Tree::LEAF).clone(),
@@ -388,7 +391,7 @@ pub mod ZeroCrossingTree {
     // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
     pub fn getOpt(mut tree: Arc<Tree>, mut key: Key) -> Result<Option<Arc<metamodelica::List<ZeroCrossing>>>> {
         let mut value: Option<Arc<metamodelica::List<ZeroCrossing>>> = None;
-        let mut k: Key;
+        let mut k: Key = <ZeroCrossing as ::std::default::Default>::default();
         k = (::match_deref::match_deref! { match &(tree.clone()) {
         Deref @ Tree::NODE { .. } => var_field!((*tree).key, Tree::NODE).clone(),
         Deref @ Tree::LEAF { .. } => var_field!((*tree).key, Tree::LEAF).clone(),
@@ -408,7 +411,7 @@ pub mod ZeroCrossingTree {
 
     pub fn hasKey(mut inTree: Arc<Tree>, mut inKey: Key) -> Result<bool> {
         let mut comp: bool = false;
-        let mut key: Key;
+        let mut key: Key = <ZeroCrossing as ::std::default::Default>::default();
         let mut key_comp: i32 = 0;
         let mut tree: Arc<Tree> = Arc::new(Tree::EMPTY);
         key = (::match_deref::match_deref! { match &(inTree.clone()) {
@@ -707,7 +710,7 @@ pub mod ZeroCrossingTree {
     // NOTE: #[tailcall::tailcall] disabled: function body contains a `match_deref!{…}` match,
     // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
     pub fn smallestKey(mut tree: Arc<Tree>) -> Result<Key> {
-        let mut key: Key;
+        let mut key: Key = <ZeroCrossing as ::std::default::Default>::default();
         key = (::match_deref::match_deref! { match &(tree.clone()) {
         Deref @ Tree::NODE { right: Deref @ Tree::EMPTY { .. }, .. } => var_field!((*tree).key, Tree::NODE).clone(),
         Deref @ Tree::NODE { .. } => smallestKey(var_field!((*tree).right, Tree::NODE).clone())?,
@@ -745,7 +748,7 @@ pub mod ZeroCrossingTree {
 }
 
 pub fn new() -> Result<ZeroCrossingSet> {
-    let mut zc_set: ZeroCrossingSet;
+    let mut zc_set: ZeroCrossingSet = <ZeroCrossingSet as ::std::default::Default>::default();
     zc_set = ZeroCrossingSet { zc: DoubleEnded::fromList(metamodelica::nil())?, tree: arrayCreate(1, ZeroCrossingTree::new()) };
     Ok(zc_set)
 }
@@ -822,7 +825,7 @@ pub fn contains(mut zc_set: ZeroCrossingSet, mut zc: ZeroCrossing) -> Result<boo
 }
 
 pub fn get(mut zc_set: ZeroCrossingSet, mut zc: ZeroCrossing) -> Result<ZeroCrossing> {
-    let mut outZc: ZeroCrossing;
+    let mut outZc: ZeroCrossing = <ZeroCrossing as ::std::default::Default>::default();
     let __pa0 = ::match_deref::match_deref! { match &(ZeroCrossingTree::get(zc_set.tree.clone().borrow()[(1-1) as usize].clone(), zc.clone())?) {
         Deref @ metamodelica::List::Cons { head: __pa0, tail: _ } => __pa0.clone(),
         _ => bail!("pattern mismatch"),

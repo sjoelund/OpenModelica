@@ -55,6 +55,9 @@ pub enum IOStreamType {
     LIST,
     BUFFER,
 }
+impl Default for IOStreamType {
+    fn default() -> Self { Self::LIST }
+}
 pub use self::IOStreamType::{FILE,LIST,BUFFER};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -69,6 +72,13 @@ pub enum IOStreamData {
         data: i32,
     },
 }
+impl Default for IOStreamData {
+    fn default() -> Self {
+        Self::FILE_DATA {
+            data: Default::default(),
+        }
+    }
+}
 pub use self::IOStreamData::{FILE_DATA,LIST_DATA,BUFFER_DATA};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -76,6 +86,16 @@ pub struct IOStream {
     pub name: ArcStr,
     pub ty: IOStreamType,
     pub data: IOStreamData,
+}
+
+impl Default for IOStream {
+    fn default() -> Self {
+        Self {
+            name: Default::default(),
+            ty: Default::default(),
+            data: Default::default(),
+        }
+    }
 }
 
 pub type IOSTREAM = IOStream;
@@ -90,7 +110,7 @@ pub const stdError: i32 = 2;
 pub static emptyStreamOfTypeList: std::sync::LazyLock<IOStream> = std::sync::LazyLock::new(|| { IOStream { name: (literal!("emptyStreamOfTypeList")).clone(), ty: crate::IOStream::IOStreamType::LIST, data: IOStreamData::LIST_DATA { data: metamodelica::nil() } } });
 
 pub fn create(mut streamName: ArcStr, mut streamType: IOStreamType) -> Result<IOStream> {
-    let mut outStream: IOStream;
+    let mut outStream: IOStream = <IOStream as ::std::default::Default>::default();
     outStream = (match (streamName.clone(), streamType.clone()) {
         (_, IOStreamType::FILE { name: mut fileName }) => {
             let mut fileID: i32 = 0;
@@ -111,7 +131,7 @@ pub fn create(mut streamName: ArcStr, mut streamType: IOStreamType) -> Result<IO
 }
 
 pub fn append(mut inStream: IOStream, mut inString: ArcStr) -> Result<IOStream> {
-    let mut outStream: IOStream;
+    let mut outStream: IOStream = <IOStream as ::std::default::Default>::default();
     outStream = (match (inStream.clone(), inString.clone()) {
         (ref fStream @ IOStream { data: IOStreamData::FILE_DATA { data: ref fileID }, .. }, _) => {
             IOStreamExt::appendFile(fileID.clone(), (inString.clone()).clone())?;
@@ -130,7 +150,7 @@ pub fn append(mut inStream: IOStream, mut inString: ArcStr) -> Result<IOStream> 
 }
 
 pub fn appendList(mut inStream: IOStream, mut inStringList: Arc<metamodelica::List<ArcStr>>) -> IOStream {
-    let mut outStream: IOStream;
+    let mut outStream: IOStream = <IOStream as ::std::default::Default>::default();
     outStream = List::foldr(inStringList.clone(), (std::sync::Arc::new(append) as std::sync::Arc<dyn ::std::ops::Fn(IOStream, ArcStr) -> Result<IOStream> + 'static>), inStream.clone());
     outStream
 }
@@ -176,7 +196,7 @@ pub fn appendListStream(mut srcStream: IOStream, mut dstStream: IOStream) -> Res
 }
 
 pub fn close(mut inStream: IOStream) -> Result<IOStream> {
-    let mut outStream: IOStream;
+    let mut outStream: IOStream = <IOStream as ::std::default::Default>::default();
     outStream = 'mc: {
         let __mc_input = inStream.clone();
         if let Ok(__v) = (|| -> Result<_> {
@@ -212,7 +232,7 @@ pub fn delete(mut inStream: IOStream) -> Result<()> {
 }
 
 pub fn clear(mut inStream: IOStream) -> Result<IOStream> {
-    let mut outStream: IOStream;
+    let mut outStream: IOStream = <IOStream as ::std::default::Default>::default();
     outStream = 'mc: {
         let __mc_input = inStream.clone();
         if let Ok(__v) = (|| -> Result<_> {

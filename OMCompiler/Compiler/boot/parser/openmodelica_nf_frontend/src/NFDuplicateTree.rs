@@ -62,6 +62,9 @@ impl PartialOrd for EntryType {
 impl Ord for EntryType {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering { (*self as i32).cmp(&(*other as i32)) }
 }
+impl Default for EntryType {
+    fn default() -> Self { Self::DUPLICATE }
+}
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Entry {
@@ -69,6 +72,17 @@ pub struct Entry {
     pub node: Option<Arc<NFInstNode::InstNode::InstNode>>,
     pub children: Arc<metamodelica::List<Arc<Entry>>>,
     pub ty: EntryType,
+}
+
+impl Default for Entry {
+    fn default() -> Self {
+        Self {
+            entry: Default::default(),
+            node: Default::default(),
+            children: Default::default(),
+            ty: Default::default(),
+        }
+    }
 }
 
 pub type ENTRY = Entry;
@@ -177,7 +191,7 @@ pub fn add(mut inTree: Arc<Tree>, mut inKey: Key, mut inValue: Value, mut confli
             Arc::new(Tree::LEAF { key: (inKey.clone()).clone(), value: inValue.clone() })
         },
         Deref @ Tree::NODE { key, .. } => {
-            let mut value: Value;
+            let mut value: Value = Arc::new(<Entry as ::std::default::Default>::default());
             let mut key_comp: i32 = 0;
             key_comp = keyCompare((inKey.clone()).clone(), (key.clone()).clone());
             if key_comp.clone() == -1 {
@@ -193,7 +207,7 @@ pub fn add(mut inTree: Arc<Tree>, mut inKey: Key, mut inValue: Value, mut confli
             if (key_comp.clone() == 0) {tree.clone()} else {balance(tree.clone())?}
         },
         Deref @ Tree::LEAF { .. } => {
-            let mut value: Value;
+            let mut value: Value = Arc::new(<Entry as ::std::default::Default>::default());
             let mut key_comp: i32 = 0;
             let mut outTree: Arc<Tree> = Arc::new(Tree::EMPTY);
             key_comp = keyCompare((inKey.clone()).clone(), (var_field!((*tree).key, Tree::LEAF).clone()).clone());
@@ -218,7 +232,7 @@ pub fn add(mut inTree: Arc<Tree>, mut inKey: Key, mut inValue: Value, mut confli
 pub use addConflictFail as addConflictDefault;
 
 pub fn addConflictFail(mut newValue: Value, mut oldValue: Value, mut key: Key) -> Result<Value> {
-    let mut value: Value;
+    let mut value: Value = Arc::new(<Entry as ::std::default::Default>::default());
     bail!("fail");
     Ok(value)
 }
@@ -236,7 +250,7 @@ pub fn addConflictReplace(mut newValue: Value, mut oldValue: Value, mut key: Key
 pub fn addList(mut tree: Arc<Tree>, mut inValues: Arc<metamodelica::List<(ArcStr, Arc<Entry>)>>, mut conflictFunc: Arc<dyn ::std::ops::Fn(Arc<Entry>, Arc<Entry>, ArcStr) -> Result<Arc<Entry>> + 'static>) -> Result<Arc<Tree>> {
     let mut tree: Arc<Tree> = tree;
     let mut key: Key = arcstr::literal!("");
-    let mut value: Value;
+    let mut value: Value = Arc::new(<Entry as ::std::default::Default>::default());
     for mut t in &*inValues.clone() {
         let mut t = t.clone();
         (key, value) = t.clone();
@@ -418,7 +432,7 @@ pub fn forEach(mut tree: Arc<Tree>, mut func: Arc<dyn ::std::ops::Fn(ArcStr, Arc
 pub fn fromList(mut inValues: Arc<metamodelica::List<(ArcStr, Arc<Entry>)>>, mut conflictFunc: Arc<dyn ::std::ops::Fn(Arc<Entry>, Arc<Entry>, ArcStr) -> Result<Arc<Entry>> + 'static>) -> Result<Arc<Tree>> {
     let mut tree: Arc<Tree> = Arc::new(crate::NFDuplicateTree::Tree::EMPTY);
     let mut key: Key = arcstr::literal!("");
-    let mut value: Value;
+    let mut value: Value = Arc::new(<Entry as ::std::default::Default>::default());
     for mut t in &*inValues.clone() {
         let mut t = t.clone();
         (key, value) = t.clone();
@@ -428,7 +442,7 @@ pub fn fromList(mut inValues: Arc<metamodelica::List<(ArcStr, Arc<Entry>)>>, mut
 }
 
 pub fn get(mut tree: Arc<Tree>, mut key: Key) -> Result<Value> {
-    let mut value: Value;
+    let mut value: Value = Arc::new(<Entry as ::std::default::Default>::default());
     let mut k: Key = arcstr::literal!("");
     k = ((::match_deref::match_deref! { match &(tree.clone()) {
         Deref @ Tree::NODE { .. } => var_field!((*tree).key, Tree::NODE).clone(),
@@ -596,7 +610,7 @@ pub fn map(mut inTree: Arc<Tree>, mut inFunc: Arc<dyn ::std::ops::Fn(ArcStr, Arc
     let mut outTree: Arc<Tree> = inTree.clone();
     outTree = (::match_deref::match_deref! { match &(outTree.clone()) {
         Deref @ Tree::NODE { value, key, .. } => {
-            let mut new_value: Value;
+            let mut new_value: Value = Arc::new(<Entry as ::std::default::Default>::default());
             let mut new_left: Arc<Tree> = Arc::new(Tree::EMPTY);
             let mut new_right: Arc<Tree> = Arc::new(Tree::EMPTY);
             new_left = map(var_field!((*outTree).left, Tree::NODE).clone(), inFunc.clone());
@@ -608,7 +622,7 @@ pub fn map(mut inTree: Arc<Tree>, mut inFunc: Arc<dyn ::std::ops::Fn(ArcStr, Arc
             outTree.clone()
         },
         Deref @ Tree::LEAF { value, key } => {
-            let mut new_value: Value;
+            let mut new_value: Value = Arc::new(<Entry as ::std::default::Default>::default());
             new_value = inFunc((key.clone()).clone(), value.clone()).unwrap();
             if !(referenceEq(&value.clone(),&new_value.clone())) {
                 assign_variant_field!(outTree => Tree::LEAF; value = new_value.clone());
@@ -630,7 +644,7 @@ pub fn mapFold<FT: Clone + 'static>(mut inTree: Arc<Tree>, mut inFunc: Arc<dyn :
     let mut outResult: FT = inStartValue.clone();
     outTree = (::match_deref::match_deref! { match &(outTree.clone()) {
         Deref @ Tree::NODE { value, key, .. } => {
-            let mut new_value: Value;
+            let mut new_value: Value = Arc::new(<Entry as ::std::default::Default>::default());
             let mut new_left: Arc<Tree> = Arc::new(Tree::EMPTY);
             let mut new_right: Arc<Tree> = Arc::new(Tree::EMPTY);
             (new_left, outResult) = mapFold(var_field!((*outTree).left, Tree::NODE).clone(), inFunc.clone(), outResult.clone());
@@ -642,7 +656,7 @@ pub fn mapFold<FT: Clone + 'static>(mut inTree: Arc<Tree>, mut inFunc: Arc<dyn :
             outTree.clone()
         },
         Deref @ Tree::LEAF { value, key } => {
-            let mut new_value: Value;
+            let mut new_value: Value = Arc::new(<Entry as ::std::default::Default>::default());
             (new_value, outResult) = inFunc((key.clone()).clone(), value.clone(), outResult.clone()).unwrap();
             if !(referenceEq(&value.clone(),&new_value.clone())) {
                 assign_variant_field!(outTree => Tree::LEAF; value = new_value.clone());

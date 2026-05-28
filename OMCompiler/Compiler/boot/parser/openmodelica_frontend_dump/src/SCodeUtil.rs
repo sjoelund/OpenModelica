@@ -1973,7 +1973,7 @@ fn mapFoldElseWhenExps<ArgT: Clone + 'static>(mut inElseWhen: (Arc<Absyn::Exp>, 
 fn mapFoldForIteratorExps<ArgT: Clone + 'static>(mut inIterator: Arc<Absyn::ForIterator>, mut inFunc: Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>, ArgT) -> Result<(Arc<Absyn::Exp>, ArgT)> + 'static>, mut inArg: ArgT) -> Result<(Arc<Absyn::ForIterator>, ArgT)> {
     pub type TraverseFunc<ArgT: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(Arc<Absyn::Exp>, ArgT) -> Result<(Arc<Absyn::Exp>, ArgT)> + 'static>;
 
-    let mut outIterator: Arc<Absyn::ForIterator>;
+    let mut outIterator: Arc<Absyn::ForIterator> = Arc::new(<Absyn::ForIterator as ::std::default::Default>::default());
     let mut outArg: ArgT;
     (outIterator, outArg) = (::match_deref::match_deref! { match &((inIterator.clone(), inFunc.clone(), inArg.clone())) {
         (Deref @ Absyn::ForIterator { name: ident, guardExp: None, range: None }, _, arg) => {
@@ -2607,10 +2607,10 @@ pub fn boolStream(mut inBoolStream: bool) -> SCode::ConnectorType {
 }
 
 pub fn mergeAttributesFromClass(mut inAttributes: SCode::Attributes, mut inClass: Arc<SCode::Element>) -> Result<SCode::Attributes> {
-    let mut outAttributes: SCode::Attributes;
+    let mut outAttributes: SCode::Attributes = <SCode::Attributes as ::std::default::Default>::default();
     outAttributes = (::match_deref::match_deref! { match &((inAttributes.clone(), inClass.clone())) {
         (_, Deref @ SCode::Element::CLASS { classDef: Deref @ SCode::ClassDef::DERIVED { attributes: cls_attr, .. }, .. }) => {
-            let mut attr: SCode::Attributes;
+            let mut attr: SCode::Attributes = <SCode::Attributes as ::std::default::Default>::default();
             let Some(__pa0) = (mergeAttributes(inAttributes.clone(), Some(cls_attr.clone()))?) else { bail!("pattern mismatch") };
             attr = __pa0.clone();
             attr.clone()
@@ -2735,7 +2735,7 @@ pub fn prefixesReplaceable(mut prefixes: Arc<SCode::Prefixes>) -> Result<Arc<SCo
 }
 
 pub fn elementPrefixes(mut inElement: Arc<SCode::Element>) -> Result<Arc<SCode::Prefixes>> {
-    let mut outPrefixes: Arc<SCode::Prefixes>;
+    let mut outPrefixes: Arc<SCode::Prefixes> = Arc::new(<SCode::Prefixes as ::std::default::Default>::default());
     outPrefixes = (::match_deref::match_deref! { match &(inElement.clone()) {
         Deref @ SCode::Element::CLASS { .. } => var_field!((*inElement).prefixes, SCode::Element::CLASS).clone(),
         Deref @ SCode::Element::COMPONENT { .. } => var_field!((*inElement).prefixes, SCode::Element::COMPONENT).clone(),
@@ -2762,7 +2762,7 @@ pub fn setElementPrefixes(mut prefixes: Arc<SCode::Prefixes>, mut element: Arc<S
 
 pub fn isElementReplaceable(mut inElement: Arc<SCode::Element>) -> Result<bool> {
     let mut isReplaceable: bool = false;
-    let mut pf: Arc<SCode::Prefixes>;
+    let mut pf: Arc<SCode::Prefixes> = Arc::new(<SCode::Prefixes as ::std::default::Default>::default());
     pf = elementPrefixes(inElement.clone())?;
     isReplaceable = replaceableBool(prefixesReplaceable(pf.clone())?)?;
     Ok(isReplaceable)
@@ -2770,7 +2770,7 @@ pub fn isElementReplaceable(mut inElement: Arc<SCode::Element>) -> Result<bool> 
 
 pub fn isElementRedeclare(mut inElement: Arc<SCode::Element>) -> Result<bool> {
     let mut isRedeclare: bool = false;
-    let mut pf: Arc<SCode::Prefixes>;
+    let mut pf: Arc<SCode::Prefixes> = Arc::new(<SCode::Prefixes as ::std::default::Default>::default());
     pf = elementPrefixes(inElement.clone())?;
     isRedeclare = redeclareBool(prefixesRedeclare(pf.clone())?)?;
     Ok(isRedeclare)
@@ -3218,7 +3218,7 @@ pub fn isInnerComponent(mut inElement: Arc<SCode::Element>) -> bool {
 
 pub fn makeElementProtected(mut element: Arc<SCode::Element>) -> Arc<SCode::Element> {
     let mut element: Arc<SCode::Element> = element;
-    let mut prefixes: Arc<SCode::Prefixes>;
+    let mut prefixes: Arc<SCode::Prefixes> = Arc::new(<SCode::Prefixes as ::std::default::Default>::default());
     let () = (::match_deref::match_deref! { match &(element.clone()) {
         Deref @ SCode::Element::COMPONENT { prefixes: prefixes @ Deref @ SCode::Prefixes { visibility: SCode::Visibility::PUBLIC, .. }, .. } => {
             let mut prefixes = (*prefixes).clone();
@@ -4118,7 +4118,7 @@ pub fn mergeComponentModifiers(mut newComp: Arc<SCode::Element>, mut oldComp: Ar
 }
 
 pub fn propagateAttributes(mut inOriginalAttributes: SCode::Attributes, mut inNewAttributes: SCode::Attributes, mut inNewTypeIsArray: bool) -> Result<SCode::Attributes> {
-    let mut outNewAttributes: SCode::Attributes;
+    let mut outNewAttributes: SCode::Attributes = <SCode::Attributes as ::std::default::Default>::default();
     let mut dims1: Arc<metamodelica::List<Arc<Absyn::Subscript>>> = metamodelica::nil();
     let mut dims2: Arc<metamodelica::List<Arc<Absyn::Subscript>>> = metamodelica::nil();
     let mut ct1: SCode::ConnectorType = SCode::ConnectorType::FLOW;
@@ -4663,7 +4663,7 @@ pub fn stripCommentsFromComment(mut cmt: Arc<SCode::Comment>, mut stripAnn: bool
 
 pub fn stripCommentsFromExternalDecl(mut extDecl: Option<Arc<SCode::ExternalDecl>>, mut stripAnn: bool, mut stripCmt: bool) -> Result<Option<Arc<SCode::ExternalDecl>>> {
     let mut extDecl: Option<Arc<SCode::ExternalDecl>> = extDecl;
-    let mut ext_decl: Arc<SCode::ExternalDecl>;
+    let mut ext_decl: Arc<SCode::ExternalDecl> = Arc::new(<SCode::ExternalDecl as ::std::default::Default>::default());
     if isSome(extDecl.clone()) && stripAnn.clone() {
         let __pa0 = ::match_deref::match_deref! { match &(extDecl.clone()) {
             Some(__pa0) => __pa0.clone(),

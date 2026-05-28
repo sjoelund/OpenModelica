@@ -57,10 +57,19 @@ pub struct SBPWAtomicLinearMap {
     pub lmap: Arc<SBLinearMap::SBLinearMap>,
 }
 
+impl Default for SBPWAtomicLinearMap {
+    fn default() -> Self {
+        Self {
+            dom: Default::default(),
+            lmap: Default::default(),
+        }
+    }
+}
+
 pub type PW_ATOMIC_LINEAR_MAP = SBPWAtomicLinearMap;
 
 pub fn new(mut dom: Arc<SBAtomicSet::SBAtomicSet>, mut lmap: Arc<SBLinearMap::SBLinearMap>) -> Arc<SBPWAtomicLinearMap> {
-    let mut map: Arc<SBPWAtomicLinearMap>;
+    let mut map: Arc<SBPWAtomicLinearMap> = Arc::new(<SBPWAtomicLinearMap as ::std::default::Default>::default());
     let mut compatible: bool = true;
     let mut ints: metamodelica::Array<Arc<SBInterval::SBInterval>>;
     let mut g: metamodelica::Array<metamodelica::Real>;
@@ -110,7 +119,7 @@ pub fn new(mut dom: Arc<SBAtomicSet::SBAtomicSet>, mut lmap: Arc<SBLinearMap::SB
 }
 
 pub fn newEmpty() -> Arc<SBPWAtomicLinearMap> {
-    let mut map: Arc<SBPWAtomicLinearMap>;
+    let mut map: Arc<SBPWAtomicLinearMap> = Arc::new(<SBPWAtomicLinearMap as ::std::default::Default>::default());
     map = Arc::new(SBPWAtomicLinearMap { dom: SBAtomicSet::newEmpty(), lmap: SBLinearMap::newEmpty() });
     map
 }
@@ -194,7 +203,7 @@ pub fn preImage(mut map: Arc<SBPWAtomicLinearMap>, mut set: Arc<SBAtomicSet::SBA
     let mut full_im: Arc<SBAtomicSet::SBAtomicSet> = Arc::new(<SBAtomicSet::SBAtomicSet as ::std::default::Default>::default());
     let mut actual_im: Arc<SBAtomicSet::SBAtomicSet> = Arc::new(<SBAtomicSet::SBAtomicSet as ::std::default::Default>::default());
     let mut aux: Arc<SBAtomicSet::SBAtomicSet> = Arc::new(<SBAtomicSet::SBAtomicSet as ::std::default::Default>::default());
-    let mut inv: Arc<SBPWAtomicLinearMap>;
+    let mut inv: Arc<SBPWAtomicLinearMap> = Arc::new(<SBPWAtomicLinearMap as ::std::default::Default>::default());
     full_im = image(map.clone(), map.dom.clone())?;
     actual_im = SBAtomicSet::intersection(full_im.clone(), set.clone())?;
     inv = new(actual_im.clone(), SBLinearMap::inverse(map.lmap.clone()));

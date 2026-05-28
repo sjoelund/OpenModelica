@@ -182,7 +182,7 @@ pub fn detect(mut eqn: Arc<Equation::Equation>, mut cref_to_solve: Arc<Component
     let mut local_subs: Arc<metamodelica::List<Arc<Subscript::NFSubscript>>> = metamodelica::nil();
     let mut sub_to_solve: Arc<Subscript::NFSubscript> = Arc::new(Subscript::WHOLE);
     let mut iter: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
-    let mut args: Arc<DifferentiationArguments::DifferentiationArguments>;
+    let mut args: Arc<DifferentiationArguments::DifferentiationArguments> = Arc::new(<DifferentiationArguments::DifferentiationArguments as ::std::default::Default>::default());
     let mut opt_factor: Option<i32> = None;
     let mut factor: i32 = 0;
     let mut shift: Arc<Expression::NFExpression> = Arc::new(Expression::END);
@@ -522,7 +522,7 @@ fn findOptimalValue(mut eqn: Arc<Equation::Equation>, mut occs: Arc<UnorderedMap
     let mut range: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut target: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut local_parameters: Arc<UnorderedSet::UnorderedSet<Arc<ComponentRef::NFComponentRef>>>;
-    let mut args: Arc<DifferentiationArguments::DifferentiationArguments>;
+    let mut args: Arc<DifferentiationArguments::DifferentiationArguments> = Arc::new(<DifferentiationArguments::DifferentiationArguments as ::std::default::Default>::default());
     for mut cref in &*UnorderedMap::keyList(occs.clone()) {
         let mut cref = cref.clone();
         range = UnorderedMap::getSafe(cref.clone(), resizables.clone(), metamodelica::sourceInfo!())?;
@@ -670,7 +670,7 @@ fn addConstraint(mut old_const: Arc<Expression::NFExpression>, mut replacements:
     let mut parameters: Arc<UnorderedSet::UnorderedSet<Arc<ComponentRef::NFComponentRef>>>;
     let mut params: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
     let mut redundant: bool = false;
-    let mut args: Arc<DifferentiationArguments::DifferentiationArguments>;
+    let mut args: Arc<DifferentiationArguments::DifferentiationArguments> = Arc::new(<DifferentiationArguments::DifferentiationArguments as ::std::default::Default>::default());
     let mut zero_replacements: Arc<UnorderedMap::UnorderedMap<Arc<ComponentRef::NFComponentRef>, Arc<Expression::NFExpression>>>;
     if Util::isSome(replacements.clone()) {
         r#const = Expression::map(old_const.clone(), Arc::new({ let __pe_b1 = Util::getOption(replacements.clone())?; move |__pe_a0| Replacements::applySimpleExp(__pe_a0, __pe_b1.clone()) }))?;

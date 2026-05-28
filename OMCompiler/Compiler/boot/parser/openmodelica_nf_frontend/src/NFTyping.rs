@@ -377,9 +377,9 @@ pub fn makeRecordType(mut constructor: Arc<InstNode::InstNode>) -> Result<Arc<Co
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ CachedData::FUNCTION { .. } => {
-                    let mut indexMap: Arc<UnorderedMap::UnorderedMap<ArcStr, i32>>;
                     let mut r#fn: Arc<Function::Function> = r#fn.clone();
                     let mut fields: metamodelica::Array<Arc<Record::Field::Field>>;
+                    let mut indexMap: Arc<UnorderedMap::UnorderedMap<ArcStr, i32>>;
                     r#fn = List::find(var_field!((*cache).funcs, CachedData::CachedData::FUNCTION).clone(), (std::sync::Arc::new(fnptr!(Function::isDefaultRecordConstructor, Arc<Function::Function>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Function::Function>) -> Result<bool> + 'static>))?;
                     (fields, indexMap) = Record::collectRecordFields(r#fn.node.clone())?;
                     Ok(Arc::new(ComplexType::NFComplexType::RECORD { constructor: constructor.clone(), fields: fields.clone(), indexMap: indexMap.clone() }))
@@ -476,6 +476,7 @@ pub fn checkComponentStreamAttribute(mut cty: i32, mut ty: Arc<Type::NFType>, mu
         ety = Type::arrayElementType(ty.clone());
         if !(Type::isReal(ety.clone()) || Type::isComplex(ety.clone())) {
             Error::addSourceMessageAndFail(Error::NON_REAL_FLOW_OR_STREAM.clone(), list![(Prefixes::ConnectorType::toString(cty.clone())).clone(), (InstNode::name(component.clone())?).clone()], InstNode::info(component.clone())?)?;
+            unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
         }
     }
     Ok(())
@@ -494,9 +495,11 @@ pub fn typeIterator(mut iterator: Arc<InstNode::InstNode>, mut range: Arc<Expres
             (exp, ty, var, purity) = typeExp(range.clone(), InstContext::set(context.clone(), InstContext::ITERATION_RANGE.clone()), info.clone(), false)?;
             if structural.clone() && var.clone() > Variability::PARAMETER.clone() && (!(var.clone() == Variability::NON_STRUCTURAL_PARAMETER.clone()) || Flags::isSet(Flags::NF_SCALARIZE.clone())?) {
                 Error::addSourceMessageAndFail(Error::NON_PARAMETER_ITERATOR_RANGE.clone(), list![(Expression::toString(exp.clone())?).clone()], info.clone())?;
+                unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
             }
             if !(Type::isVector(ty.clone())) {
                 Error::addSourceMessageAndFail(Error::FOR_EXPRESSION_TYPE_ERROR.clone(), list![(Expression::toString(exp.clone())?).clone(), (Type::toString(ty.clone())?).clone()], info.clone())?;
+                unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
             }
             c = Arc::new(Component::NFComponent::ITERATOR { ty: Type::arrayElementType(ty.clone()), variability: var.clone(), info: info.clone() });
             InstNode::updateComponent(c.clone(), iterator.clone())?;
@@ -538,7 +541,7 @@ pub fn typeDimension(mut dimensions: metamodelica::Array<Arc<Dimension::NFDimens
             let mut var: Variability = Variability::CONSTANT;
             let mut dim: Arc<Dimension::NFDimension> = Arc::new(Dimension::BOOLEAN);
             let mut ty: Arc<Type::NFType> = Arc::new(Type::ANY);
-            let mut target: Arc<Ceval::EvalTarget::EvalTarget>;
+            let mut target: Arc<Ceval::EvalTarget::EvalTarget> = Arc::new(<Ceval::EvalTarget::EvalTarget as ::std::default::Default>::default());
             {let _arr = dimensions.clone(); _arr.borrow_mut()[(index.clone()-1) as usize] = Arc::new(Dimension::NFDimension::UNTYPED { dimension: var_field!((*dimension).dimension, Dimension::NFDimension::UNTYPED).clone(), isProcessing: true }); _arr};
             (exp, ty, var, _) = typeExp(var_field!((*dimension).dimension, Dimension::NFDimension::UNTYPED).clone(), InstContext::set(context.clone(), InstContext::DIMENSION.clone()), info.clone(), false)?;
             TypeCheck::checkDimensionType(exp.clone(), ty.clone(), info.clone())?;
@@ -576,7 +579,7 @@ pub fn typeDimension(mut dimensions: metamodelica::Array<Arc<Dimension::NFDimens
             let mut b: Arc<Binding::NFBinding> = Arc::new(Binding::UNBOUND);
             let mut ty_err: Arc<TypingError::TypingError> = Arc::new(TypingError::NO_ERROR);
             let mut parent_dims: i32 = 0;
-            let mut target: Arc<Ceval::EvalTarget::EvalTarget>;
+            let mut target: Arc<Ceval::EvalTarget::EvalTarget> = Arc::new(<Ceval::EvalTarget::EvalTarget as ::std::default::Default>::default());
             b = binding.clone();
             parent_dims = 0;
             {let _arr = dimensions.clone(); _arr.borrow_mut()[(index.clone()-1) as usize] = Arc::new(Dimension::NFDimension::UNTYPED { dimension: WHOLEDIM_CREF().clone(), isProcessing: true }); _arr};
@@ -1928,6 +1931,7 @@ pub fn typeMatrixComma(mut elements: Arc<metamodelica::List<Arc<Expression::NFEx
             (e, ty3, mk) = TypeCheck::matchTypes(ty1.clone(), ty2.clone(), e.clone(), TypeCheck::DEFAULT_OPTIONS.clone())?;
             if TypeCheck::isIncompatibleMatch(mk.clone()) {
                 Error::addSourceMessageAndFail(Error::ARG_TYPE_MISMATCH.clone(), list![ArcStr::from(::std::format!("{}", pos.clone())), (literal!("matrix constructor ")).clone(), (literal!("arg")).clone(), (Expression::toString(e.clone())?).clone(), (Type::toString(ty1.clone())?).clone(), (Type::toString(ty2.clone())?).clone()], info.clone())?;
+                unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
             }
             res = cons(e.clone(), res.clone());
             tys2 = cons(ty3.clone(), tys2.clone());
@@ -2251,7 +2255,7 @@ pub fn typeFunctionSections(mut classNode: Arc<InstNode::InstNode>, mut context:
     let mut typed_cls: Arc<Class::NFClass> = Arc::new(Class::NOT_INSTANTIATED);
     let mut sections: Arc<Sections::NFSections> = Arc::new(Sections::EMPTY);
     let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
-    let mut alg: Arc<Algorithm::NFAlgorithm>;
+    let mut alg: Arc<Algorithm::NFAlgorithm> = Arc::new(<Algorithm::NFAlgorithm as ::std::default::Default>::default());
     cls = InstNode::getClass(classNode.clone())?;
     let _ = (::match_deref::match_deref! { match &(cls.clone()) {
         Deref @ Class::INSTANCED_CLASS { sections, .. } => {
@@ -2568,9 +2572,11 @@ pub fn checkConnector(mut connExp: Arc<Expression::NFExpression>, mut info: Sour
         Deref @ Expression::CREF { cref: cr @ Deref @ ComponentRef::CREF { origin: ComponentRef::Origin::CREF { .. }, .. }, .. } => {
             if !(InstNode::isConnector(var_field!((**cr).node, ComponentRef::NFComponentRef::CREF).clone())?) {
                 Error::addSourceMessageAndFail(Error::INVALID_CONNECTOR_TYPE.clone(), list![(ComponentRef::toString(cr.clone())?).clone()], info.clone())?;
+                unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
             }
             if !(checkConnectorForm(cr.clone(), true)?) {
                 Error::addSourceMessageAndFail(Error::INVALID_CONNECTOR_FORM.clone(), list![(ComponentRef::toString(cr.clone())?).clone()], info.clone())?;
+                unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
             }
             if ComponentRef::subscriptsVariability(cr.clone(), Prefixes::Variability::CONSTANT.clone())? > Variability::PARAMETER.clone() {
                 subs = ComponentRef::subscriptsAllFlat(cr.clone());

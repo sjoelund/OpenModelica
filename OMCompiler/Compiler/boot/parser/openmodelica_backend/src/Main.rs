@@ -114,7 +114,7 @@ fn parseCommand(mut inCommand: ArcStr) -> Result<(Option<GlobalScript::Statement
         let __mc_input = inCommand.clone();
         if let Ok(__v) = (|| -> Result<_> {
             let _ = __mc_input.clone() else { bail!("nomatch") };
-            let mut stmts: GlobalScript::Statements;
+            let mut stmts: GlobalScript::Statements = <GlobalScript::Statements as ::std::default::Default>::default();
             ErrorExt::setCheckpoint((literal!("parsestring")).clone());
             stmts = Parser::parsestringexp((inCommand.clone()).clone(), (literal!("<interactive>")).clone())?;
             ErrorExt::delCheckpoint((literal!("parsestring")).clone());
@@ -394,7 +394,7 @@ fn loadLib(mut inLib: ArcStr) -> Result<()> {
 fn translateFile(mut inStringLst: Arc<metamodelica::List<ArcStr>>) -> Result<()> {
     let mut p: Absyn::Program = <Absyn::Program as ::std::default::Default>::default();
     let mut pLibs: Absyn::Program = <Absyn::Program as ::std::default::Default>::default();
-    let mut d: DAE::DAElist;
+    let mut d: DAE::DAElist = <DAE::DAElist as ::std::default::Default>::default();
     let mut flatString: ArcStr = arcstr::literal!("");
     let mut r#str: ArcStr = arcstr::literal!("");
     let mut f: ArcStr = arcstr::literal!("");
@@ -402,12 +402,12 @@ fn translateFile(mut inStringLst: Arc<metamodelica::List<ArcStr>>) -> Result<()>
     let mut cname: Arc<Absyn::Path>;
     let mut runBackend: bool = false;
     let mut runSilent: bool = false;
-    let mut stmts: GlobalScript::Statements;
+    let mut stmts: GlobalScript::Statements = <GlobalScript::Statements as ::std::default::Default>::default();
     let mut cache: FCore::Cache = FCore::Cache::NO_CACHE;
     let mut env: FCore::Graph;
     let mut cls: ArcStr = arcstr::literal!("");
     let mut fileNamePrefix: ArcStr = arcstr::literal!("");
-    let mut sim_settings: SimCode::SimulationSettings;
+    let mut sim_settings: SimCode::SimulationSettings = <SimCode::SimulationSettings as ::std::default::Default>::default();
     if !(stringEmpty((Flags::getConfigString(Flags::EXECUTE_COMMAND.clone())?).clone())) {
         stmts = Parser::parsestringexp((Flags::getConfigString(Flags::EXECUTE_COMMAND.clone())?).clone(), (literal!("<interactive>")).clone())?;
         showErrors((Print::getErrorString()?).clone(), (ErrorExt::printMessagesStr(false)).clone());
@@ -421,11 +421,11 @@ fn translateFile(mut inStringLst: Arc<metamodelica::List<ArcStr>>) -> Result<()>
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 libs => {
-                    let mut runBackend: bool = runBackend.clone();
-                    let mut runSilent: bool = runSilent.clone();
-                    let mut cname: Arc<Absyn::Path>;
                     let mut cls: ArcStr = cls.clone();
+                    let mut runSilent: bool = runSilent.clone();
                     let mut fileNamePrefix: ArcStr = fileNamePrefix.clone();
+                    let mut runBackend: bool = runBackend.clone();
+                    let mut cname: Arc<Absyn::Path>;
                     isEmptyOrFirstIsModelicaFile(libs.clone())?;
                     execStatReset()?;
                     for mut lib in &*libs.clone() {
@@ -690,7 +690,7 @@ pub fn init(mut args: Arc<metamodelica::List<ArcStr>>) -> Result<Arc<metamodelic
 
 pub fn main(mut args: Arc<metamodelica::List<ArcStr>>) -> Result<()> {
     let mut args_1: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
-    let mut stats: GCExt::ProfStats;
+    let mut stats: GCExt::ProfStats = <GCExt::ProfStats as ::std::default::Default>::default();
     let mut seconds: i32 = 0;
     execStatReset()?;
     if '__try0: {

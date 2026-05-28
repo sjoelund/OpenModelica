@@ -76,7 +76,7 @@ pub fn check(mut tms: Arc<metamodelica::List<Arc<UnitAbsyn::UnitTerm>>>, mut ist
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ metamodelica::List::Cons { head: tm1, tail: rest1 }, UnitAbsyn::InstStore::INSTSTORE { store: st1, ht, checkResult: _ }) => {
-                    let mut st2: UnitAbsyn::Store;
+                    let mut st2: UnitAbsyn::Store = <UnitAbsyn::Store as ::std::default::Default>::default();
                     let mut st: UnitAbsyn::InstStore = UnitAbsyn::InstStore::NOSTORE;
                     let (UnitAbsyn::CONSISTENT { .. }, _, __pa0) = (checkTerm(tm1.clone(), st1.clone())?) else { bail!("pattern mismatch") };
                     st2 = __pa0.clone();
@@ -89,8 +89,8 @@ pub fn check(mut tms: Arc<metamodelica::List<Arc<UnitAbsyn::UnitTerm>>>, mut ist
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ metamodelica::List::Cons { head: tm1, tail: _ }, UnitAbsyn::InstStore::INSTSTORE { store: st1, ht, checkResult: _ }) => {
-                    let mut su1: UnitAbsyn::SpecUnit;
-                    let mut su2: UnitAbsyn::SpecUnit;
+                    let mut su1: UnitAbsyn::SpecUnit = <UnitAbsyn::SpecUnit as ::std::default::Default>::default();
+                    let mut su2: UnitAbsyn::SpecUnit = <UnitAbsyn::SpecUnit as ::std::default::Default>::default();
                     let mut s1: ArcStr = arcstr::literal!("");
                     let mut s2: ArcStr = arcstr::literal!("");
                     let mut s3: ArcStr = arcstr::literal!("");
@@ -124,12 +124,12 @@ pub fn check(mut tms: Arc<metamodelica::List<Arc<UnitAbsyn::UnitTerm>>>, mut ist
 
 pub fn isComplete(mut st: UnitAbsyn::Store) -> Result<(bool, UnitAbsyn::Store)> {
     let mut complete: bool = false;
-    let mut stout: UnitAbsyn::Store;
+    let mut stout: UnitAbsyn::Store = <UnitAbsyn::Store as ::std::default::Default>::default();
     (complete, stout) = (match st.clone() {
         UnitAbsyn::Store { storeVector: mut vector, numElts: mut indx } => {
             let mut lst: Arc<metamodelica::List<Option<UnitAbsyn::Unit>>> = metamodelica::nil();
             let mut comp: bool = false;
-            let mut st2: UnitAbsyn::Store;
+            let mut st2: UnitAbsyn::Store = <UnitAbsyn::Store as ::std::default::Default>::default();
             lst = Arc::new(vector.clone().borrow().iter().cloned().collect::<metamodelica::List<_>>());
             (comp, st2) = completeCheck(lst.clone(), 1, UnitAbsyn::Store { storeVector: vector.clone(), numElts: indx.clone() })?;
             (comp.clone(), st2.clone())
@@ -141,7 +141,7 @@ pub fn isComplete(mut st: UnitAbsyn::Store) -> Result<(bool, UnitAbsyn::Store)> 
 
 fn completeCheck(mut ilst: Arc<metamodelica::List<Option<UnitAbsyn::Unit>>>, mut indx: i32, mut st: UnitAbsyn::Store) -> Result<(bool, UnitAbsyn::Store)> {
     let mut isComplete: bool = false;
-    let mut stout: UnitAbsyn::Store;
+    let mut stout: UnitAbsyn::Store = <UnitAbsyn::Store as ::std::default::Default>::default();
     (isComplete, stout) = 'mc: {
         let __mc_input = (ilst.clone(), indx.clone(), st.clone());
         if let Ok(__v) = (|| -> Result<_> {
@@ -157,7 +157,7 @@ fn completeCheck(mut ilst: Arc<metamodelica::List<Option<UnitAbsyn::Unit>>>, mut
                 (Deref @ metamodelica::List::Cons { head: Some(_), tail: lst }, _, st2) => {
                     let mut u2: UnitAbsyn::Unit = UnitAbsyn::Unit::UNSPECIFIED;
                     let mut comp1: bool = false;
-                    let mut st3: UnitAbsyn::Store;
+                    let mut st3: UnitAbsyn::Store = <UnitAbsyn::Store as ::std::default::Default>::default();
                     (u2, st3) = normalize(indx.clone(), st2.clone())?;
                     let false = (unitHasUnknown(u2.clone())?) else { bail!("pattern mismatch") };
                     (comp1, _) = completeCheck(lst.clone(), indx.clone() + 1, st3.clone())?;
@@ -192,22 +192,22 @@ fn completeCheck(mut ilst: Arc<metamodelica::List<Option<UnitAbsyn::Unit>>>, mut
 
 pub fn checkTerm(mut tm: Arc<UnitAbsyn::UnitTerm>, mut st: UnitAbsyn::Store) -> Result<(UnitAbsyn::UnitCheckResult, UnitAbsyn::SpecUnit, UnitAbsyn::Store)> {
     let mut result: UnitAbsyn::UnitCheckResult = UnitAbsyn::UnitCheckResult::CONSISTENT;
-    let mut outUnit: UnitAbsyn::SpecUnit;
-    let mut outSt: UnitAbsyn::Store;
+    let mut outUnit: UnitAbsyn::SpecUnit = <UnitAbsyn::SpecUnit as ::std::default::Default>::default();
+    let mut outSt: UnitAbsyn::Store = <UnitAbsyn::Store as ::std::default::Default>::default();
     (result, outUnit, outSt) = 'mc: {
         let __mc_input = (tm.clone(), st.clone());
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ UnitAbsyn::UnitTerm::ADD { ut1, ut2, origExp: _ }, st1) => {
-                    let mut st2: UnitAbsyn::Store;
-                    let mut st3: UnitAbsyn::Store;
-                    let mut st4: UnitAbsyn::Store;
+                    let mut st2: UnitAbsyn::Store = <UnitAbsyn::Store as ::std::default::Default>::default();
+                    let mut st3: UnitAbsyn::Store = <UnitAbsyn::Store as ::std::default::Default>::default();
+                    let mut st4: UnitAbsyn::Store = <UnitAbsyn::Store as ::std::default::Default>::default();
                     let mut res1: UnitAbsyn::UnitCheckResult = UnitAbsyn::UnitCheckResult::CONSISTENT;
                     let mut res2: UnitAbsyn::UnitCheckResult = UnitAbsyn::UnitCheckResult::CONSISTENT;
                     let mut res3: UnitAbsyn::UnitCheckResult = UnitAbsyn::UnitCheckResult::CONSISTENT;
                     let mut res4: UnitAbsyn::UnitCheckResult = UnitAbsyn::UnitCheckResult::CONSISTENT;
-                    let mut su1: UnitAbsyn::SpecUnit;
-                    let mut su2: UnitAbsyn::SpecUnit;
+                    let mut su1: UnitAbsyn::SpecUnit = <UnitAbsyn::SpecUnit as ::std::default::Default>::default();
+                    let mut su2: UnitAbsyn::SpecUnit = <UnitAbsyn::SpecUnit as ::std::default::Default>::default();
                     (res1, su1, st2) = checkTerm(ut1.clone(), st1.clone())?;
                     (res2, su2, st3) = checkTerm(ut2.clone(), st2.clone())?;
                     (res3, st4) = unify(su1.clone(), su2.clone(), st3.clone())?;
@@ -220,15 +220,15 @@ pub fn checkTerm(mut tm: Arc<UnitAbsyn::UnitTerm>, mut st: UnitAbsyn::Store) -> 
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ UnitAbsyn::UnitTerm::SUB { ut1, ut2, origExp: _ }, st1) => {
-                    let mut st2: UnitAbsyn::Store;
-                    let mut st3: UnitAbsyn::Store;
-                    let mut st4: UnitAbsyn::Store;
+                    let mut st2: UnitAbsyn::Store = <UnitAbsyn::Store as ::std::default::Default>::default();
+                    let mut st3: UnitAbsyn::Store = <UnitAbsyn::Store as ::std::default::Default>::default();
+                    let mut st4: UnitAbsyn::Store = <UnitAbsyn::Store as ::std::default::Default>::default();
                     let mut res1: UnitAbsyn::UnitCheckResult = UnitAbsyn::UnitCheckResult::CONSISTENT;
                     let mut res2: UnitAbsyn::UnitCheckResult = UnitAbsyn::UnitCheckResult::CONSISTENT;
                     let mut res3: UnitAbsyn::UnitCheckResult = UnitAbsyn::UnitCheckResult::CONSISTENT;
                     let mut res4: UnitAbsyn::UnitCheckResult = UnitAbsyn::UnitCheckResult::CONSISTENT;
-                    let mut su1: UnitAbsyn::SpecUnit;
-                    let mut su2: UnitAbsyn::SpecUnit;
+                    let mut su1: UnitAbsyn::SpecUnit = <UnitAbsyn::SpecUnit as ::std::default::Default>::default();
+                    let mut su2: UnitAbsyn::SpecUnit = <UnitAbsyn::SpecUnit as ::std::default::Default>::default();
                     (res1, su1, st2) = checkTerm(ut1.clone(), st1.clone())?;
                     (res2, su2, st3) = checkTerm(ut2.clone(), st2.clone())?;
                     (res3, st4) = unify(su1.clone(), su2.clone(), st3.clone())?;
@@ -241,14 +241,14 @@ pub fn checkTerm(mut tm: Arc<UnitAbsyn::UnitTerm>, mut st: UnitAbsyn::Store) -> 
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ UnitAbsyn::UnitTerm::MUL { ut1, ut2, origExp: _ }, st1) => {
-                    let mut st2: UnitAbsyn::Store;
-                    let mut st3: UnitAbsyn::Store;
+                    let mut st2: UnitAbsyn::Store = <UnitAbsyn::Store as ::std::default::Default>::default();
+                    let mut st3: UnitAbsyn::Store = <UnitAbsyn::Store as ::std::default::Default>::default();
                     let mut res1: UnitAbsyn::UnitCheckResult = UnitAbsyn::UnitCheckResult::CONSISTENT;
                     let mut res2: UnitAbsyn::UnitCheckResult = UnitAbsyn::UnitCheckResult::CONSISTENT;
                     let mut res4: UnitAbsyn::UnitCheckResult = UnitAbsyn::UnitCheckResult::CONSISTENT;
-                    let mut su1: UnitAbsyn::SpecUnit;
-                    let mut su2: UnitAbsyn::SpecUnit;
-                    let mut su3: UnitAbsyn::SpecUnit;
+                    let mut su1: UnitAbsyn::SpecUnit = <UnitAbsyn::SpecUnit as ::std::default::Default>::default();
+                    let mut su2: UnitAbsyn::SpecUnit = <UnitAbsyn::SpecUnit as ::std::default::Default>::default();
+                    let mut su3: UnitAbsyn::SpecUnit = <UnitAbsyn::SpecUnit as ::std::default::Default>::default();
                     (res1, su1, st2) = checkTerm(ut1.clone(), st1.clone())?;
                     (res2, su2, st3) = checkTerm(ut2.clone(), st2.clone())?;
                     su3 = mulSpecUnit(su1.clone(), su2.clone())?;
@@ -261,14 +261,14 @@ pub fn checkTerm(mut tm: Arc<UnitAbsyn::UnitTerm>, mut st: UnitAbsyn::Store) -> 
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ UnitAbsyn::UnitTerm::DIV { ut1, ut2, origExp: _ }, st1) => {
-                    let mut st2: UnitAbsyn::Store;
-                    let mut st3: UnitAbsyn::Store;
+                    let mut st2: UnitAbsyn::Store = <UnitAbsyn::Store as ::std::default::Default>::default();
+                    let mut st3: UnitAbsyn::Store = <UnitAbsyn::Store as ::std::default::Default>::default();
                     let mut res1: UnitAbsyn::UnitCheckResult = UnitAbsyn::UnitCheckResult::CONSISTENT;
                     let mut res2: UnitAbsyn::UnitCheckResult = UnitAbsyn::UnitCheckResult::CONSISTENT;
                     let mut res4: UnitAbsyn::UnitCheckResult = UnitAbsyn::UnitCheckResult::CONSISTENT;
-                    let mut su1: UnitAbsyn::SpecUnit;
-                    let mut su2: UnitAbsyn::SpecUnit;
-                    let mut su3: UnitAbsyn::SpecUnit;
+                    let mut su1: UnitAbsyn::SpecUnit = <UnitAbsyn::SpecUnit as ::std::default::Default>::default();
+                    let mut su2: UnitAbsyn::SpecUnit = <UnitAbsyn::SpecUnit as ::std::default::Default>::default();
+                    let mut su3: UnitAbsyn::SpecUnit = <UnitAbsyn::SpecUnit as ::std::default::Default>::default();
                     (res1, su1, st2) = checkTerm(ut1.clone(), st1.clone())?;
                     (res2, su2, st3) = checkTerm(ut2.clone(), st2.clone())?;
                     su3 = divSpecUnit(su1.clone(), su2.clone())?;
@@ -281,15 +281,15 @@ pub fn checkTerm(mut tm: Arc<UnitAbsyn::UnitTerm>, mut st: UnitAbsyn::Store) -> 
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ UnitAbsyn::UnitTerm::EQN { ut1, ut2, origExp: _ }, st1) => {
-                    let mut st2: UnitAbsyn::Store;
-                    let mut st3: UnitAbsyn::Store;
-                    let mut st4: UnitAbsyn::Store;
+                    let mut st2: UnitAbsyn::Store = <UnitAbsyn::Store as ::std::default::Default>::default();
+                    let mut st3: UnitAbsyn::Store = <UnitAbsyn::Store as ::std::default::Default>::default();
+                    let mut st4: UnitAbsyn::Store = <UnitAbsyn::Store as ::std::default::Default>::default();
                     let mut res1: UnitAbsyn::UnitCheckResult = UnitAbsyn::UnitCheckResult::CONSISTENT;
                     let mut res2: UnitAbsyn::UnitCheckResult = UnitAbsyn::UnitCheckResult::CONSISTENT;
                     let mut res3: UnitAbsyn::UnitCheckResult = UnitAbsyn::UnitCheckResult::CONSISTENT;
                     let mut res4: UnitAbsyn::UnitCheckResult = UnitAbsyn::UnitCheckResult::CONSISTENT;
-                    let mut su1: UnitAbsyn::SpecUnit;
-                    let mut su2: UnitAbsyn::SpecUnit;
+                    let mut su1: UnitAbsyn::SpecUnit = <UnitAbsyn::SpecUnit as ::std::default::Default>::default();
+                    let mut su2: UnitAbsyn::SpecUnit = <UnitAbsyn::SpecUnit as ::std::default::Default>::default();
                     (res1, su1, st2) = checkTerm(ut1.clone(), st1.clone())?;
                     (res2, su2, st3) = checkTerm(ut2.clone(), st2.clone())?;
                     (res3, st4) = unify(su1.clone(), su2.clone(), st3.clone())?;
@@ -311,7 +311,7 @@ pub fn checkTerm(mut tm: Arc<UnitAbsyn::UnitTerm>, mut st: UnitAbsyn::Store) -> 
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ UnitAbsyn::UnitTerm::LOC { loc, origExp: _ }, st1) => {
-                    let mut su1: UnitAbsyn::SpecUnit;
+                    let mut su1: UnitAbsyn::SpecUnit = <UnitAbsyn::SpecUnit as ::std::default::Default>::default();
                     let UnitAbsyn::SPECIFIED { specified: __pa0 } = (UnitAbsynBuilder::find(loc.clone(), st1.clone())?) else { bail!("pattern mismatch") };
                     su1 = __pa0.clone();
                     Ok((crate::UnitAbsyn::UnitCheckResult::CONSISTENT, su1.clone(), st1.clone()))
@@ -322,10 +322,10 @@ pub fn checkTerm(mut tm: Arc<UnitAbsyn::UnitTerm>, mut st: UnitAbsyn::Store) -> 
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ UnitAbsyn::UnitTerm::POW { ut1, exponent: expo1, origExp: _ }, st1) => {
-                    let mut st2: UnitAbsyn::Store;
+                    let mut st2: UnitAbsyn::Store = <UnitAbsyn::Store as ::std::default::Default>::default();
                     let mut res1: UnitAbsyn::UnitCheckResult = UnitAbsyn::UnitCheckResult::CONSISTENT;
-                    let mut su1: UnitAbsyn::SpecUnit;
-                    let mut su2: UnitAbsyn::SpecUnit;
+                    let mut su1: UnitAbsyn::SpecUnit = <UnitAbsyn::SpecUnit as ::std::default::Default>::default();
+                    let mut su2: UnitAbsyn::SpecUnit = <UnitAbsyn::SpecUnit as ::std::default::Default>::default();
                     (res1, su1, st2) = checkTerm(ut1.clone(), st1.clone())?;
                     su2 = powSpecUnit(su1.clone(), expo1.clone())?;
                     Ok((res1.clone(), su2.clone(), st2.clone()))
@@ -367,11 +367,11 @@ fn chooseResult(mut res1: UnitAbsyn::UnitCheckResult, mut res2: UnitAbsyn::UnitC
 
 fn unify(mut insu1: UnitAbsyn::SpecUnit, mut insu2: UnitAbsyn::SpecUnit, mut st: UnitAbsyn::Store) -> Result<(UnitAbsyn::UnitCheckResult, UnitAbsyn::Store)> {
     let mut outresult: UnitAbsyn::UnitCheckResult = UnitAbsyn::UnitCheckResult::CONSISTENT;
-    let mut outSt: UnitAbsyn::Store;
-    let mut su1: UnitAbsyn::SpecUnit;
-    let mut su2: UnitAbsyn::SpecUnit;
-    let mut st1: UnitAbsyn::Store;
-    let mut st2: UnitAbsyn::Store;
+    let mut outSt: UnitAbsyn::Store = <UnitAbsyn::Store as ::std::default::Default>::default();
+    let mut su1: UnitAbsyn::SpecUnit = <UnitAbsyn::SpecUnit as ::std::default::Default>::default();
+    let mut su2: UnitAbsyn::SpecUnit = <UnitAbsyn::SpecUnit as ::std::default::Default>::default();
+    let mut st1: UnitAbsyn::Store = <UnitAbsyn::Store as ::std::default::Default>::default();
+    let mut st2: UnitAbsyn::Store = <UnitAbsyn::Store as ::std::default::Default>::default();
     let (UnitAbsyn::SPECIFIED { specified: __pa0 }, __pa1) = (normalizeOnUnit(UnitAbsyn::Unit::SPECIFIED { specified: insu1.clone() }, st.clone())?) else { bail!("pattern mismatch") };
     su1 = __pa0.clone();
     st1 = __pa1.clone();
@@ -443,7 +443,7 @@ fn isSpecUnitEq(mut insu1: UnitAbsyn::SpecUnit, mut insu2: UnitAbsyn::SpecUnit) 
 
 fn unifyunits(mut insu1: UnitAbsyn::SpecUnit, mut insu2: UnitAbsyn::SpecUnit, mut st: UnitAbsyn::Store) -> Result<(UnitAbsyn::UnitCheckResult, UnitAbsyn::Store)> {
     let mut outresult: UnitAbsyn::UnitCheckResult = UnitAbsyn::UnitCheckResult::CONSISTENT;
-    let mut outSt: UnitAbsyn::Store;
+    let mut outSt: UnitAbsyn::Store = <UnitAbsyn::Store as ::std::default::Default>::default();
     (outresult, outSt) = 'mc: {
         let __mc_input = (insu1.clone(), insu2.clone(), st.clone());
         if let Ok(__v) = (|| -> Result<_> {
@@ -461,9 +461,9 @@ fn unifyunits(mut insu1: UnitAbsyn::SpecUnit, mut insu2: UnitAbsyn::SpecUnit, mu
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             let (mut su1, mut su2, mut st1) = __mc_input.clone() else { bail!("nomatch") };
-            let mut su3: UnitAbsyn::SpecUnit;
-            let mut su4: UnitAbsyn::SpecUnit;
-            let mut st2: UnitAbsyn::Store;
+            let mut su3: UnitAbsyn::SpecUnit = <UnitAbsyn::SpecUnit as ::std::default::Default>::default();
+            let mut su4: UnitAbsyn::SpecUnit = <UnitAbsyn::SpecUnit as ::std::default::Default>::default();
+            let mut st2: UnitAbsyn::Store = <UnitAbsyn::Store as ::std::default::Default>::default();
             let mut loc1: i32 = 0;
             su3 = divSpecUnit(su2.clone(), su1.clone())?;
             (loc1, su4) = getUnknown(su3.clone())?;
@@ -480,7 +480,7 @@ fn unifyunits(mut insu1: UnitAbsyn::SpecUnit, mut insu2: UnitAbsyn::SpecUnit, mu
 }
 
 pub fn newDimlessSpecUnit() -> Result<UnitAbsyn::SpecUnit> {
-    let mut su: UnitAbsyn::SpecUnit;
+    let mut su: UnitAbsyn::SpecUnit = <UnitAbsyn::SpecUnit as ::std::default::Default>::default();
     let UnitAbsyn::SPECIFIED { specified: __pa0 } = (UnitAbsynBuilder::str2unit((literal!("1")).clone(), None)?) else { bail!("pattern mismatch") };
     su = __pa0.clone();
     Ok(su)
@@ -488,15 +488,15 @@ pub fn newDimlessSpecUnit() -> Result<UnitAbsyn::SpecUnit> {
 
 pub fn getUnknown(mut suin: UnitAbsyn::SpecUnit) -> Result<(i32, UnitAbsyn::SpecUnit)> {
     let mut loc: i32 = 0;
-    let mut suout: UnitAbsyn::SpecUnit;
+    let mut suout: UnitAbsyn::SpecUnit = <UnitAbsyn::SpecUnit as ::std::default::Default>::default();
     (loc, suout) = 'mc: {
         let __mc_input = suin.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 UnitAbsyn::SpecUnit { typeParameters: Deref @ metamodelica::List::Cons { head: (expo1, UnitAbsyn::TypeParameter { name: _, indx: loc1 }), tail: rest1 }, units: unitvec1 } => {
-                    let mut su1: UnitAbsyn::SpecUnit;
-                    let mut su2: UnitAbsyn::SpecUnit;
-                    let mut expo2: MMath::Rational;
+                    let mut su1: UnitAbsyn::SpecUnit = <UnitAbsyn::SpecUnit as ::std::default::Default>::default();
+                    let mut su2: UnitAbsyn::SpecUnit = <UnitAbsyn::SpecUnit as ::std::default::Default>::default();
+                    let mut expo2: MMath::Rational = <MMath::Rational as ::std::default::Default>::default();
                     su1 = divSpecUnit(newDimlessSpecUnit()?, UnitAbsyn::SpecUnit { typeParameters: rest1.clone(), units: unitvec1.clone() })?;
                     expo2 = MMath::divRational(MMath::Rational { nom: 1, denom: 1 }, expo1.clone())?;
                     su2 = powSpecUnit(su1.clone(), expo2.clone())?;
@@ -571,7 +571,7 @@ pub fn unitHasUnknown(mut u: UnitAbsyn::Unit) -> Result<bool> {
 }
 
 pub fn mulSpecUnit(mut u1: UnitAbsyn::SpecUnit, mut u2: UnitAbsyn::SpecUnit) -> Result<UnitAbsyn::SpecUnit> {
-    let mut u: UnitAbsyn::SpecUnit;
+    let mut u: UnitAbsyn::SpecUnit = <UnitAbsyn::SpecUnit as ::std::default::Default>::default();
     u = 'mc: {
         let __mc_input = (u1.clone(), u2.clone());
         if let Ok(__v) = (|| -> Result<_> {
@@ -610,7 +610,7 @@ pub fn mulUnitVec(mut inunitvec1: Arc<metamodelica::List<MMath::Rational>>, mut 
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ metamodelica::List::Cons { head: expo1, tail: rest1 }, Deref @ metamodelica::List::Cons { head: expo2, tail: rest2 }) => {
-                    let mut expo3: MMath::Rational;
+                    let mut expo3: MMath::Rational = <MMath::Rational as ::std::default::Default>::default();
                     let mut rest3: Arc<metamodelica::List<MMath::Rational>> = metamodelica::nil();
                     expo3 = MMath::addRational(expo1.clone(), expo2.clone())?;
                     rest3 = mulUnitVec(rest1.clone(), rest2.clone())?;
@@ -655,7 +655,7 @@ pub fn mulUnitVec(mut inunitvec1: Arc<metamodelica::List<MMath::Rational>>, mut 
 }
 
 pub fn divSpecUnit(mut u1: UnitAbsyn::SpecUnit, mut u2: UnitAbsyn::SpecUnit) -> Result<UnitAbsyn::SpecUnit> {
-    let mut u: UnitAbsyn::SpecUnit;
+    let mut u: UnitAbsyn::SpecUnit = <UnitAbsyn::SpecUnit as ::std::default::Default>::default();
     u = 'mc: {
         let __mc_input = (u1.clone(), u2.clone());
         if let Ok(__v) = (|| -> Result<_> {
@@ -696,7 +696,7 @@ pub fn divUnitVec(mut inunitvec1: Arc<metamodelica::List<MMath::Rational>>, mut 
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ metamodelica::List::Cons { head: expo1, tail: rest1 }, Deref @ metamodelica::List::Cons { head: expo2, tail: rest2 }) => {
-                    let mut expo3: MMath::Rational;
+                    let mut expo3: MMath::Rational = <MMath::Rational as ::std::default::Default>::default();
                     let mut rest3: Arc<metamodelica::List<MMath::Rational>> = metamodelica::nil();
                     expo3 = MMath::subRational(expo1.clone(), expo2.clone())?;
                     rest3 = divUnitVec(rest1.clone(), rest2.clone())?;
@@ -718,7 +718,7 @@ pub fn divUnitVec(mut inunitvec1: Arc<metamodelica::List<MMath::Rational>>, mut 
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ metamodelica::List::Nil, Deref @ metamodelica::List::Cons { head: expo1, tail: rest1 }) => {
-                    let mut expo2: MMath::Rational;
+                    let mut expo2: MMath::Rational = <MMath::Rational as ::std::default::Default>::default();
                     let mut rest3: Arc<metamodelica::List<MMath::Rational>> = metamodelica::nil();
                     expo2 = MMath::subRational(MMath::Rational { nom: 0, denom: 1 }, expo1.clone())?;
                     rest3 = divUnitVec(metamodelica::nil(), rest1.clone())?;
@@ -743,7 +743,7 @@ pub fn divUnitVec(mut inunitvec1: Arc<metamodelica::List<MMath::Rational>>, mut 
 }
 
 pub fn powSpecUnit(mut suin: UnitAbsyn::SpecUnit, mut expo: MMath::Rational) -> Result<UnitAbsyn::SpecUnit> {
-    let mut uout: UnitAbsyn::SpecUnit;
+    let mut uout: UnitAbsyn::SpecUnit = <UnitAbsyn::SpecUnit as ::std::default::Default>::default();
     uout = 'mc: {
         let __mc_input = (suin.clone(), expo.clone());
         if let Ok(__v) = (|| -> Result<_> {
@@ -780,7 +780,7 @@ pub fn powUnitParams(mut inparams: Arc<metamodelica::List<(MMath::Rational, Unit
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ metamodelica::List::Cons { head: (expo1, param), tail: rest1 }, expo2) => {
-                    let mut expo3: MMath::Rational;
+                    let mut expo3: MMath::Rational = <MMath::Rational as ::std::default::Default>::default();
                     let mut rest2: Arc<metamodelica::List<(MMath::Rational, UnitAbsyn::TypeParameter)>> = metamodelica::nil();
                     expo3 = MMath::multRational(expo1.clone(), expo2.clone())?;
                     rest2 = powUnitParams(rest1.clone(), expo2.clone())?;
@@ -819,7 +819,7 @@ pub fn powUnitVec(mut inunitvec: Arc<metamodelica::List<MMath::Rational>>, mut e
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ metamodelica::List::Cons { head: expo1, tail: rest1 }, expo2) => {
-                    let mut expo3: MMath::Rational;
+                    let mut expo3: MMath::Rational = <MMath::Rational as ::std::default::Default>::default();
                     let mut rest2: Arc<metamodelica::List<MMath::Rational>> = metamodelica::nil();
                     expo3 = MMath::multRational(expo1.clone(), expo2.clone())?;
                     rest2 = powUnitVec(rest1.clone(), expo2.clone())?;
@@ -860,7 +860,7 @@ fn negParamList(mut ine: Arc<metamodelica::List<(MMath::Rational, UnitAbsyn::Typ
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ metamodelica::List::Cons { head: (MMath::Rational { nom: i1, denom: i2 }, UnitAbsyn::TypeParameter { name, indx }), tail: rest }, ac2) => {
-                    let mut qr: MMath::Rational;
+                    let mut qr: MMath::Rational = <MMath::Rational as ::std::default::Default>::default();
                     let mut pres: Arc<metamodelica::List<(MMath::Rational, UnitAbsyn::TypeParameter)>> = metamodelica::nil();
                     qr = MMath::multRational(MMath::Rational { nom: -1, denom: 1 }, MMath::Rational { nom: i1.clone(), denom: i2.clone() })?;
                     pres = negParamList(rest.clone(), cons((qr.clone(), UnitAbsyn::TypeParameter { name: (name.clone()).clone(), indx: indx.clone() }), ac2.clone()))?;
@@ -886,10 +886,10 @@ fn negParamList(mut ine: Arc<metamodelica::List<(MMath::Rational, UnitAbsyn::Typ
 
 pub fn normalize(mut loc: i32, mut st: UnitAbsyn::Store) -> Result<(UnitAbsyn::Unit, UnitAbsyn::Store)> {
     let mut unit: UnitAbsyn::Unit = UnitAbsyn::Unit::UNSPECIFIED;
-    let mut outSt: UnitAbsyn::Store;
+    let mut outSt: UnitAbsyn::Store = <UnitAbsyn::Store as ::std::default::Default>::default();
     let mut u1: UnitAbsyn::Unit = UnitAbsyn::Unit::UNSPECIFIED;
     let mut u2: UnitAbsyn::Unit = UnitAbsyn::Unit::UNSPECIFIED;
-    let mut st2: UnitAbsyn::Store;
+    let mut st2: UnitAbsyn::Store = <UnitAbsyn::Store as ::std::default::Default>::default();
     u1 = UnitAbsynBuilder::find(loc.clone(), st.clone())?;
     (u2, st2) = normalizeOnUnit(u1.clone(), st.clone())?;
     outSt = UnitAbsynBuilder::update(u2.clone(), loc.clone(), st2.clone())?;
@@ -899,7 +899,7 @@ pub fn normalize(mut loc: i32, mut st: UnitAbsyn::Store) -> Result<(UnitAbsyn::U
 
 pub fn normalizeOnUnit(mut u: UnitAbsyn::Unit, mut st: UnitAbsyn::Store) -> Result<(UnitAbsyn::Unit, UnitAbsyn::Store)> {
     let mut unit: UnitAbsyn::Unit = UnitAbsyn::Unit::UNSPECIFIED;
-    let mut outSt: UnitAbsyn::Store;
+    let mut outSt: UnitAbsyn::Store = <UnitAbsyn::Store as ::std::default::Default>::default();
     (unit, outSt) = 'mc: {
         let __mc_input = (u.clone(), st.clone());
         if let Ok(__v) = (|| -> Result<_> {
@@ -911,7 +911,7 @@ pub fn normalizeOnUnit(mut u: UnitAbsyn::Unit, mut st: UnitAbsyn::Store) -> Resu
             let mut params2: Arc<metamodelica::List<(MMath::Rational, UnitAbsyn::TypeParameter)>> = metamodelica::nil();
             let mut params3: Arc<metamodelica::List<(MMath::Rational, UnitAbsyn::TypeParameter)>> = metamodelica::nil();
             let mut unitvec2: Arc<metamodelica::List<MMath::Rational>> = metamodelica::nil();
-            let mut st2: UnitAbsyn::Store;
+            let mut st2: UnitAbsyn::Store = <UnitAbsyn::Store as ::std::default::Default>::default();
             let (UnitAbsyn::SPECUNIT { typeParameters: __pa0, units: __pa1 }, __pa2) = (normalizeParamsValues(params1.clone(), UnitAbsyn::SpecUnit { typeParameters: metamodelica::nil(), units: unitvec1.clone() }, st.clone())?) else { bail!("pattern mismatch") };
             params2 = __pa0.clone();
             unitvec2 = __pa1.clone();
@@ -949,8 +949,8 @@ fn normalizeParamsExponents(mut inparams: Arc<metamodelica::List<(MMath::Rationa
                 Deref @ metamodelica::List::Cons { head: (expo1, UnitAbsyn::TypeParameter { name, indx: loc1 }), tail: rest1 } => {
                     let mut rest2: Arc<metamodelica::List<(MMath::Rational, UnitAbsyn::TypeParameter)>> = metamodelica::nil();
                     let mut rest3: Arc<metamodelica::List<(MMath::Rational, UnitAbsyn::TypeParameter)>> = metamodelica::nil();
-                    let mut expo2: MMath::Rational;
-                    let mut expo3: MMath::Rational;
+                    let mut expo2: MMath::Rational = <MMath::Rational as ::std::default::Default>::default();
+                    let mut expo3: MMath::Rational = <MMath::Rational as ::std::default::Default>::default();
                     let (__pa0, __pa1) = ::match_deref::match_deref! { match &(getParam(rest1.clone(), loc1.clone())?) {
                         (true, __pa0, __pa1) => (__pa0.clone(), __pa1.clone()),
                         _ => bail!("pattern mismatch"),
@@ -1001,7 +1001,7 @@ fn normalizeParamsExponents(mut inparams: Arc<metamodelica::List<(MMath::Rationa
 
 fn getParam(mut inparams: Arc<metamodelica::List<(MMath::Rational, UnitAbsyn::TypeParameter)>>, mut loc: i32) -> Result<(bool, MMath::Rational, Arc<metamodelica::List<(MMath::Rational, UnitAbsyn::TypeParameter)>>)> {
     let mut found: bool = false;
-    let mut outexpo: MMath::Rational;
+    let mut outexpo: MMath::Rational = <MMath::Rational as ::std::default::Default>::default();
     let mut outparams: Arc<metamodelica::List<(MMath::Rational, UnitAbsyn::TypeParameter)>> = metamodelica::nil();
     (found, outexpo, outparams) = 'mc: {
         let __mc_input = (inparams.clone(), loc.clone());
@@ -1026,7 +1026,7 @@ fn getParam(mut inparams: Arc<metamodelica::List<(MMath::Rational, UnitAbsyn::Ty
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ metamodelica::List::Cons { head: param, tail: rest }, _) => {
                     let mut rest2: Arc<metamodelica::List<(MMath::Rational, UnitAbsyn::TypeParameter)>> = metamodelica::nil();
-                    let mut expo: MMath::Rational;
+                    let mut expo: MMath::Rational = <MMath::Rational as ::std::default::Default>::default();
                     let mut found2: bool = false;
                     (found2, expo, rest2) = getParam(rest.clone(), loc.clone())?;
                     Ok((found2.clone(), expo.clone(), cons(param.clone(), rest2.clone())))
@@ -1050,8 +1050,8 @@ fn getParam(mut inparams: Arc<metamodelica::List<(MMath::Rational, UnitAbsyn::Ty
 }
 
 fn normalizeParamsValues(mut inparams: Arc<metamodelica::List<(MMath::Rational, UnitAbsyn::TypeParameter)>>, mut suin: UnitAbsyn::SpecUnit, mut st: UnitAbsyn::Store) -> Result<(UnitAbsyn::SpecUnit, UnitAbsyn::Store)> {
-    let mut uout: UnitAbsyn::SpecUnit;
-    let mut outSt: UnitAbsyn::Store;
+    let mut uout: UnitAbsyn::SpecUnit = <UnitAbsyn::SpecUnit as ::std::default::Default>::default();
+    let mut outSt: UnitAbsyn::Store = <UnitAbsyn::Store as ::std::default::Default>::default();
     (uout, outSt) = 'mc: {
         let __mc_input = (inparams.clone(), suin.clone(), st.clone());
         if let Ok(__v) = (|| -> Result<_> {
@@ -1065,11 +1065,11 @@ fn normalizeParamsValues(mut inparams: Arc<metamodelica::List<(MMath::Rational, 
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ metamodelica::List::Cons { head: (expo, UnitAbsyn::TypeParameter { name, indx: loc }), tail: rest }, _, _) => {
-                    let mut st2: UnitAbsyn::Store;
-                    let mut st3: UnitAbsyn::Store;
+                    let mut st2: UnitAbsyn::Store = <UnitAbsyn::Store as ::std::default::Default>::default();
+                    let mut st3: UnitAbsyn::Store = <UnitAbsyn::Store as ::std::default::Default>::default();
                     let mut u2: UnitAbsyn::Unit = UnitAbsyn::Unit::UNSPECIFIED;
-                    let mut su2: UnitAbsyn::SpecUnit;
-                    let mut su3: UnitAbsyn::SpecUnit;
+                    let mut su2: UnitAbsyn::SpecUnit = <UnitAbsyn::SpecUnit as ::std::default::Default>::default();
+                    let mut su3: UnitAbsyn::SpecUnit = <UnitAbsyn::SpecUnit as ::std::default::Default>::default();
                     (u2, st2) = normalize(loc.clone(), st.clone())?;
                     su2 = mulSpecUnitWithNorm(suin.clone(), u2.clone(), (name.clone()).clone(), loc.clone(), expo.clone())?;
                     (su3, st3) = normalizeParamsValues(rest.clone(), su2.clone(), st2.clone())?;
@@ -1094,7 +1094,7 @@ fn normalizeParamsValues(mut inparams: Arc<metamodelica::List<(MMath::Rational, 
 }
 
 fn mulSpecUnitWithNorm(mut suin: UnitAbsyn::SpecUnit, mut normunit: UnitAbsyn::Unit, mut name: ArcStr, mut loc: i32, mut expo: MMath::Rational) -> Result<UnitAbsyn::SpecUnit> {
-    let mut suout: UnitAbsyn::SpecUnit;
+    let mut suout: UnitAbsyn::SpecUnit = <UnitAbsyn::SpecUnit as ::std::default::Default>::default();
     suout = 'mc: {
         let __mc_input = (suin.clone(), normunit.clone(), name.clone(), loc.clone(), expo.clone());
         if let Ok(__v) = (|| -> Result<_> {
@@ -1103,8 +1103,8 @@ fn mulSpecUnitWithNorm(mut suin: UnitAbsyn::SpecUnit, mut normunit: UnitAbsyn::U
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             let (mut su2, UnitAbsyn::Unit::SPECIFIED { specified: mut sunorm }, _, _, _) = __mc_input.clone() else { bail!("nomatch") };
-            let mut su3: UnitAbsyn::SpecUnit;
-            let mut su4: UnitAbsyn::SpecUnit;
+            let mut su3: UnitAbsyn::SpecUnit = <UnitAbsyn::SpecUnit as ::std::default::Default>::default();
+            let mut su4: UnitAbsyn::SpecUnit = <UnitAbsyn::SpecUnit as ::std::default::Default>::default();
             su3 = powSpecUnit(sunorm.clone(), expo.clone())?;
             su4 = mulSpecUnit(su2.clone(), su3.clone())?;
             Ok(su4.clone())

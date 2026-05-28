@@ -71,6 +71,7 @@ use crate::NFStatement as Statement;
 use crate::NFType as Type;
 use crate::NFVariable as Variable;
 use openmodelica_ast::Absyn;
+use openmodelica_frontend_dump::AvlTreePathFunction;
 use openmodelica_frontend_dump::ComponentReferenceBasics;
 use openmodelica_frontend_dump::ElementSource;
 use openmodelica_frontend_types::DAE;
@@ -81,8 +82,19 @@ use openmodelica_util::Flags;
 use openmodelica_util::UnorderedSet;
 use openmodelica_util::Util;
 
+pub fn convert(mut flatModel: Arc<FlatModel::NFFlatModel>, mut functions: Arc<Flatten::FunctionTreeImpl::Tree>) -> Result<(DAE::DAElist, Arc<AvlTreePathFunction::Tree>)> {
+    let mut dae: DAE::DAElist = <DAE::DAElist as ::std::default::Default>::default();
+    let mut daeFunctions: Arc<AvlTreePathFunction::Tree> = Arc::new(AvlTreePathFunction::Tree::EMPTY);
+    let mut elems: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
+    let mut class_elem: Arc<DAE::Element>;
+    daeFunctions = convertFunctionTree(functions.clone())?;
+    dae = convertModel(flatModel.clone())?;
+    execStat((literal!("NFConvertDAE.convert")).clone())?;
+    Ok((dae, daeFunctions))
+}
+
 pub fn convertModel(mut flatModel: Arc<FlatModel::NFFlatModel>) -> Result<DAE::DAElist> {
-    let mut dae: DAE::DAElist;
+    let mut dae: DAE::DAElist = <DAE::DAElist as ::std::default::Default>::default();
     let mut elems: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
     let mut class_elem: Arc<DAE::Element>;
     elems = convertVariables(flatModel.variables.clone(), metamodelica::nil())?;
@@ -114,6 +126,15 @@ pub struct VariableConversionSettings {
     pub addTypeToSource: bool,
 }
 
+impl Default for VariableConversionSettings {
+    fn default() -> Self {
+        Self {
+            isFunctionParameter: Default::default(),
+            addTypeToSource: Default::default(),
+        }
+    }
+}
+
 pub type VARIABLE_CONVERSION_SETTINGS = VariableConversionSettings;
 
 
@@ -121,7 +142,7 @@ pub static FUNCTION_VARIABLE_CONVERSION_SETTINGS: VariableConversionSettings = V
 
 fn convertVariables(mut variables: Arc<metamodelica::List<Arc<Variable::NFVariable>>>, mut elements: Arc<metamodelica::List<Arc<DAE::Element>>>) -> Result<Arc<metamodelica::List<Arc<DAE::Element>>>> {
     let mut elements: Arc<metamodelica::List<Arc<DAE::Element>>> = elements;
-    let mut settings: VariableConversionSettings;
+    let mut settings: VariableConversionSettings = <VariableConversionSettings as ::std::default::Default>::default();
     settings = VariableConversionSettings { addTypeToSource: Flags::isSet(Flags::INFO_XML_OPERATIONS.clone())? || Flags::isSet(Flags::VISUAL_XML.clone())?, isFunctionParameter: false };
     for mut var in &*variables.clone().reverse() {
         let mut var = var.clone();
@@ -776,7 +797,7 @@ fn convertAlgorithms(mut algorithms: Arc<metamodelica::List<Arc<Algorithm::NFAlg
 fn convertAlgorithm(mut alg: Arc<Algorithm::NFAlgorithm>, mut elements: Arc<metamodelica::List<Arc<DAE::Element>>>) -> Result<Arc<metamodelica::List<Arc<DAE::Element>>>> {
     let mut elements: Arc<metamodelica::List<Arc<DAE::Element>>> = elements;
     let mut stmts: Arc<metamodelica::List<Arc<DAE::Statement>>> = metamodelica::nil();
-    let mut dalg: Arc<DAE::Algorithm>;
+    let mut dalg: Arc<DAE::Algorithm> = Arc::new(<DAE::Algorithm as ::std::default::Default>::default());
     let mut src: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
     stmts = convertStatements(alg.statements.clone())?;
     dalg = Arc::new(DAE::Algorithm { statementLst: stmts.clone() });
@@ -1047,11 +1068,36 @@ fn convertInitialAlgorithms(mut algorithms: Arc<metamodelica::List<Arc<Algorithm
 fn convertInitialAlgorithm(mut alg: Arc<Algorithm::NFAlgorithm>, mut elements: Arc<metamodelica::List<Arc<DAE::Element>>>) -> Result<Arc<metamodelica::List<Arc<DAE::Element>>>> {
     let mut elements: Arc<metamodelica::List<Arc<DAE::Element>>> = elements;
     let mut stmts: Arc<metamodelica::List<Arc<DAE::Statement>>> = metamodelica::nil();
-    let mut dalg: Arc<DAE::Algorithm>;
+    let mut dalg: Arc<DAE::Algorithm> = Arc::new(<DAE::Algorithm as ::std::default::Default>::default());
     stmts = convertStatements(alg.statements.clone())?;
     dalg = Arc::new(DAE::Algorithm { statementLst: stmts.clone() });
     elements = cons(Arc::new(DAE::Element::INITIALALGORITHM { algorithm_: dalg.clone(), source: alg.source.clone() }), elements.clone());
     Ok(elements)
+}
+
+pub fn convertFunctionTree(mut funcs: Arc<Flatten::FunctionTreeImpl::Tree>) -> Result<Arc<AvlTreePathFunction::Tree>> {
+    let mut dfuncs: Arc<AvlTreePathFunction::Tree> = Arc::new(AvlTreePathFunction::Tree::EMPTY);
+    dfuncs = (::match_deref::match_deref! { match &(funcs.clone()) {
+        Deref @ Flatten::FunctionTreeImpl::Tree::NODE { .. } => {
+            let mut left: Arc<AvlTreePathFunction::Tree> = Arc::new(AvlTreePathFunction::Tree::EMPTY);
+            let mut right: Arc<AvlTreePathFunction::Tree> = Arc::new(AvlTreePathFunction::Tree::EMPTY);
+            let mut r#fn: DAE::Function;
+            r#fn = convertFunction(var_field!((*funcs).value, Flatten::FunctionTreeImpl::Tree::NODE).clone())?;
+            left = convertFunctionTree(var_field!((*funcs).left, Flatten::FunctionTreeImpl::Tree::NODE).clone())?;
+            right = convertFunctionTree(var_field!((*funcs).right, Flatten::FunctionTreeImpl::Tree::NODE).clone())?;
+            Arc::new(AvlTreePathFunction::Tree::NODE { key: var_field!((*funcs).key, Flatten::FunctionTreeImpl::Tree::NODE).clone(), value: Some(r#fn.clone()), height: var_field!((*funcs).height, Flatten::FunctionTreeImpl::Tree::NODE).clone(), left: left.clone(), right: right.clone() })
+        },
+        Deref @ Flatten::FunctionTreeImpl::Tree::LEAF { .. } => {
+            let mut r#fn: DAE::Function;
+            r#fn = convertFunction(var_field!((*funcs).value, Flatten::FunctionTreeImpl::Tree::LEAF).clone())?;
+            Arc::new(AvlTreePathFunction::Tree::LEAF { key: var_field!((*funcs).key, Flatten::FunctionTreeImpl::Tree::LEAF).clone(), value: Some(r#fn.clone()) })
+        },
+        Deref @ Flatten::FunctionTreeImpl::Tree::EMPTY => {
+            Arc::new(openmodelica_frontend_dump::AvlTreePathFunction::Tree::EMPTY)
+        },
+        _ => bail!("match: no arm matched"),
+    } });
+    Ok(dfuncs)
 }
 
 fn convertFunction(mut func: Arc<Function::Function>) -> Result<DAE::Function> {
@@ -1139,7 +1185,7 @@ fn convertFunctionParam(mut node: Arc<InstNode::InstNode>) -> Result<Arc<DAE::El
 
 fn convertExternalDecl(mut extDecl: Arc<Sections::NFSections>, mut parameters: Arc<metamodelica::List<Arc<DAE::Element>>>) -> Result<DAE::FunctionDefinition> {
     let mut funcDef: DAE::FunctionDefinition;
-    let mut decl: DAE::ExternalDecl;
+    let mut decl: DAE::ExternalDecl = <DAE::ExternalDecl as ::std::default::Default>::default();
     let mut args: Arc<metamodelica::List<DAE::ExtArg>> = metamodelica::nil();
     let mut ret_arg: DAE::ExtArg = DAE::ExtArg::NOEXTARG;
     funcDef = (::match_deref::match_deref! { match &(extDecl.clone()) {
@@ -1199,7 +1245,7 @@ fn convertExternalDeclOutput(mut cref: Arc<ComponentRef::NFComponentRef>) -> Res
 pub fn makeTypeVars(mut complexCls: Arc<InstNode::InstNode>) -> Result<Arc<metamodelica::List<Arc<DAE::Var>>>> {
     let mut typeVars: Arc<metamodelica::List<Arc<DAE::Var>>> = metamodelica::nil();
     let mut comp: Arc<Component::NFComponent> = Arc::new(Component::WILD);
-    let mut type_var: Arc<DAE::Var>;
+    let mut type_var: Arc<DAE::Var> = Arc::new(<DAE::Var as ::std::default::Default>::default());
     typeVars = { let cls = InstNode::getClass(complexCls.clone())?; (::match_deref::match_deref! { match &(cls) {
         Deref @ Class::INSTANCED_CLASS { restriction: Deref @ Restriction::RECORD { .. }, .. } => {
         let mut __acc: Arc<metamodelica::List<Arc<DAE::Var>>> = metamodelica::nil();
@@ -1234,7 +1280,7 @@ pub fn makeTypeVars(mut complexCls: Arc<InstNode::InstNode>) -> Result<Arc<metam
 }
 
 pub fn makeTypeVar(mut component: Arc<InstNode::InstNode>) -> Result<Arc<DAE::Var>> {
-    let mut typeVar: Arc<DAE::Var>;
+    let mut typeVar: Arc<DAE::Var> = Arc::new(<DAE::Var as ::std::default::Default>::default());
     let mut comp: Arc<Component::NFComponent> = Arc::new(Component::WILD);
     let mut attr: Arc<Attributes::NFAttributes> = Arc::new(<Attributes::NFAttributes as ::std::default::Default>::default());
     comp = InstNode::component(InstNode::resolveOuter(component.clone()))?;
@@ -1244,7 +1290,7 @@ pub fn makeTypeVar(mut component: Arc<InstNode::InstNode>) -> Result<Arc<DAE::Va
 }
 
 pub fn makeTypeRecordVar(mut component: Arc<InstNode::InstNode>) -> Result<Arc<DAE::Var>> {
-    let mut typeVar: Arc<DAE::Var>;
+    let mut typeVar: Arc<DAE::Var> = Arc::new(<DAE::Var as ::std::default::Default>::default());
     let mut comp: Arc<Component::NFComponent> = Arc::new(Component::WILD);
     let mut attr: Arc<Attributes::NFAttributes> = Arc::new(<Attributes::NFAttributes as ::std::default::Default>::default());
     let mut vis: Visibility = Visibility::PUBLIC;

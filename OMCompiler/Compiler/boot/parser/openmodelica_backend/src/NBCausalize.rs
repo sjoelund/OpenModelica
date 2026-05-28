@@ -162,7 +162,7 @@ pub fn simple(mut vars: Arc<VariablePointers::VariablePointers>, mut eqns: Arc<E
     Ok((matching, comps))
 }
 
-pub fn getModule() -> Result<Module::causalizeInterface> {
+pub fn getModule() -> Result<Arc<dyn ::std::ops::Fn(Arc<Partition::Partition>, Arc<VarData::VarData>, Arc<EqData::EqData>, Arc<UnorderedMap::UnorderedMap<Arc<Path>, Arc<Function::Function>>>) -> Result<(Arc<Partition::Partition>, Arc<VarData::VarData>, Arc<EqData::EqData>)> + 'static>> {
     let mut func: Module::causalizeInterface;
     let mut flag: ArcStr = Flags::getConfigString(Flags::MATCHING_ALGORITHM.clone())?;
     func = (::match_deref::match_deref! { match &(flag.clone()) {

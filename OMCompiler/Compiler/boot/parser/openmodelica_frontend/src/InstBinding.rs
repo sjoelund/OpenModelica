@@ -536,7 +536,7 @@ fn getUncertainFromExpOption(mut expOption: Option<Arc<DAE::Exp>>) -> Option<DAE
 }
 
 pub fn instModEquation(mut inComponentRef: Arc<DAE::ComponentRef>, mut inType: Arc<DAE::Type>, mut inMod: Arc<DAE::Mod>, mut inSource: Arc<DAE::ElementSource>, mut inImpl: bool) -> Result<DAE::DAElist> {
-    let mut outDae: DAE::DAElist;
+    let mut outDae: DAE::DAElist = <DAE::DAElist as ::std::default::Default>::default();
     outDae = 'mc: {
         let __mc_input = (inType.clone(), inMod.clone());
         if let Ok(__v) = (|| -> Result<_> {
@@ -563,7 +563,7 @@ pub fn instModEquation(mut inComponentRef: Arc<DAE::ComponentRef>, mut inType: A
             ::match_deref::match_deref! { match &__mc_input {
                 (_, Deref @ DAE::Mod::MOD { info, binding: Some(DAE::EqMod::TYPED { modifierAsExp: e, modifierAsValue: _, properties: prop2, modifierAsAbsynExp: aexp2, .. }), .. }) => {
                     let mut t: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
-                    let mut dae: DAE::DAElist;
+                    let mut dae: DAE::DAElist = <DAE::DAElist as ::std::default::Default>::default();
                     let mut lhs: Arc<DAE::Exp>;
                     let mut aexp1: Arc<Absyn::Exp> = Arc::new(Absyn::Exp::BREAK);
                     let mut scode: Arc<SCode::Equation>;
@@ -941,20 +941,16 @@ pub fn makeVariableBinding(mut inType: Arc<DAE::Type>, mut inMod: Arc<DAE::Mod>,
         outBinding = None;
     } else {
         info = Mod::getModInfo(inMod.clone());
-        if '__try2: {
-            let (__pa3, __pa4) = ::match_deref::match_deref! { match &(unwrap_break_err!(Types::matchProp(e.clone(), p.clone(), DAE::Properties::PROP { type_: inType.clone(), constFlag: inConst.clone() }, true), '__try2)) {
-                (__pa3, DAE::Properties::PROP { constFlag: __pa4, .. }) => (__pa3.clone(), __pa4.clone()),
-                _ => break '__try2 Err::<_, _>(anyhow::anyhow!("pattern mismatch")),
-            } };
-            e2 = __pa3.clone();
-            c = __pa4.clone();
-            Ok::<(), anyhow::Error>(())
-        }.is_err() {
+        if let Ok((__pa2, DAE::PROP { constFlag: __pa3, .. })) = Types::matchProp(e.clone(), p.clone(), DAE::Properties::PROP { type_: inType.clone(), constFlag: inConst.clone() }, true) {
+            e2 = __pa2.clone();
+            c = __pa3.clone();
+        } else {
             e_str = (ExpressionBasics::printExpStr(e.clone())?).clone();
             et_str = (TypesDump::unparseTypeNoAttr(inType.clone())?).clone();
             bt_str = (TypesDump::unparseTypeNoAttr(Types::getPropType(p.clone())?)?).clone();
             Types::typeErrorSanityCheck((et_str.clone()).clone(), (bt_str.clone()).clone(), info.clone())?;
             Error::addSourceMessageAndFail(Error::VARIABLE_BINDING_TYPE_MISMATCH.clone(), list![(inName.clone()).clone(), (e_str.clone()).clone(), (et_str.clone()).clone(), (bt_str.clone()).clone()], info.clone())?;
+            unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
         }
         InstUtil::checkHigherVariability(inConst.clone(), c.clone(), inPrefix.clone(), (inName.clone()).clone(), e.clone(), info.clone())?;
         outBinding = Some(e2.clone());

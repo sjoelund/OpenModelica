@@ -799,7 +799,7 @@ pub fn typeAttrsToFlatStream(mut typeAttrs: Arc<metamodelica::List<(ArcStr, Arc<
 
 pub fn toFlatString(mut name: ArcStr, mut component: Arc<NFComponent>, mut format: BaseModelica::OutputFormat, mut indent: ArcStr) -> Result<ArcStr> {
     let mut r#str: ArcStr = arcstr::literal!("");
-    let mut s: IOStream::IOStream;
+    let mut s: IOStream::IOStream = <IOStream::IOStream as ::std::default::Default>::default();
     s = IOStream::create((name.clone()).clone(), openmodelica_util::IOStream::IOStreamType::LIST)?;
     s = toFlatStream((name.clone()).clone(), component.clone(), format.clone(), (indent.clone()).clone(), s.clone())?;
     r#str = (IOStream::string(s.clone())?).clone();

@@ -1708,7 +1708,7 @@ pub fn hasEvaluableBinding(mut var_ptr: Pointer::Pointer<Arc<Variable::NFVariabl
     Ok(b)
 }
 
-pub fn mapExp(mut var_ptr: Pointer::Pointer<Arc<Variable::NFVariable>>, mut funcExp: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>, mut mapFunc: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, BEquation::MapFuncExp) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Result<()> {
+pub fn mapExp(mut var_ptr: Pointer::Pointer<Arc<Variable::NFVariable>>, mut funcExp: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>, mut mapFunc: Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Result<()> {
     let mut var: Arc<Variable::NFVariable> = Pointer::access(var_ptr.clone());
     let mut opt_start: Option<Arc<Expression::NFExpression>> = None;
     let mut binding: Arc<Expression::NFExpression> = Arc::new(Expression::END);
@@ -2450,6 +2450,9 @@ pub mod VarData {
             lambdaVars: Option<Arc<VariablePointers::VariablePointers>>,
         },
         VAR_DATA_EMPTY,
+    }
+    impl Default for VarData {
+        fn default() -> Self { Self::VAR_DATA_EMPTY }
     }
     pub use self::VarData::{VAR_DATA_SIM,VAR_DATA_JAC,VAR_DATA_HES,VAR_DATA_EMPTY};
     pub fn size(mut varData: Arc<VarData>) -> Result<i32> {

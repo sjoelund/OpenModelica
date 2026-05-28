@@ -1416,6 +1416,7 @@ pub fn addStrictMessage(mut errorMsg: ErrorTypes::Message, mut tokens: Arc<metam
     if Flags::getConfigBool(Flags::STRICT.clone())? {
         msg.severity = crate::ErrorTypes::Severity::ERROR;
         addSourceMessageAndFail(msg.clone(), tokens.clone(), info.clone())?;
+        unreachable!("addSourceMessageAndFail always fails — caller-side flow-analysis hint");
     } else {
         addSourceMessage(msg.clone(), tokens.clone(), info.clone())?;
     }

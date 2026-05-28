@@ -117,6 +117,9 @@ pub enum StringToken {
         blockType: Arc<BlockType>,
     },
 }
+impl Default for StringToken {
+    fn default() -> Self { Self::ST_NEW_LINE }
+}
 pub use self::StringToken::{ST_NEW_LINE,ST_STRING,ST_LINE,ST_STRING_LIST,ST_BLOCK};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -155,6 +158,21 @@ pub struct IterOptions {
     /// Number of chars on a line, after that the wrapping can occur. When 0, no wrapping.
     pub wrapWidth: i32,
     pub wrapSeparator: Arc<StringToken>,
+}
+
+impl Default for IterOptions {
+    fn default() -> Self {
+        Self {
+            startIndex0: Default::default(),
+            empty: Default::default(),
+            separator: Default::default(),
+            alignNum: Default::default(),
+            alignOfset: Default::default(),
+            alignSeparator: Default::default(),
+            wrapWidth: Default::default(),
+            wrapSeparator: Default::default(),
+        }
+    }
 }
 
 pub type ITER_OPTIONS = IterOptions;
@@ -1781,7 +1799,7 @@ fn getTextOpaqueFile(mut text: Text) -> Result<Option<i32>> {
 fn stringFile(mut inText: Text, mut r#str: ArcStr, mut line: bool, mut recurseSeparator: bool) -> Result<()> {
     let mut file: File::File = File::File(getTextOpaqueFile(inText.clone())?)?;
     let mut nchars: i32 = 0;
-    let mut iopts: Arc<IterOptions>;
+    let mut iopts: Arc<IterOptions> = Arc::new(<IterOptions as ::std::default::Default>::default());
     let mut septok: Arc<StringToken> = Arc::new(StringToken::ST_NEW_LINE);
     let _ = (match inText.clone() {
         Text::FILE_TEXT { .. } => {

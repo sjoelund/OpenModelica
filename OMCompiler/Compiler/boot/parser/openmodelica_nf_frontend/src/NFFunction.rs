@@ -245,6 +245,9 @@ pub mod FunctionMatchKind {
         },
         NOT_COMPATIBLE,
     }
+    impl Default for FunctionMatchKind {
+        fn default() -> Self { Self::EXACT }
+    }
     pub use self::FunctionMatchKind::{EXACT,CAST,GENERIC,VECTORIZED,NOT_COMPATIBLE};
     pub fn isValid(mut mk: Arc<FunctionMatchKind>) -> bool {
         let mut b: bool = false;
@@ -307,6 +310,16 @@ pub mod MatchedFunction {
         pub func: Arc<Function::Function>,
         pub args: Arc<metamodelica::List<Arc<TypedArg>>>,
         pub mk: Arc<FunctionMatchKind::FunctionMatchKind>,
+    }
+
+    impl Default for MatchedFunction {
+        fn default() -> Self {
+            Self {
+                func: Default::default(),
+                args: Default::default(),
+                mk: Default::default(),
+            }
+        }
     }
 
     pub type MATCHED_FUNC = MatchedFunction;
@@ -447,11 +460,11 @@ pub mod Function {
         let mut functionPath: Arc<Absyn::Path>;
         let mut prefix: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
         let mut is_class: bool = false;
-        if '__try0: {
-            functionPath = unwrap_break_err!(AbsynUtil::crefToPath(functionName.clone()), '__try0);
-            Ok::<(), anyhow::Error>(())
-        }.is_err() {
+        if let Ok(__iflet0) = AbsynUtil::crefToPath(functionName.clone()) {
+            functionPath = __iflet0;
+        } else {
             Error::addSourceMessageAndFail(Error::SUBSCRIPTED_FUNCTION_CALL.clone(), list![(Dump::printComponentRefStr(functionName.clone())?).clone()], info.clone())?;
+            unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
         }
         (functionRef, found_scope) = Lookup::lookupFunctionName(functionName.clone(), scope.clone(), context.clone(), info.clone())?;
         is_class = InstNode::isClass(ComponentRef::node(functionRef.clone())?);
@@ -989,7 +1002,7 @@ pub mod Function {
 
     pub fn toFlatString(mut r#fn: Arc<Function>, mut format: BaseModelica::OutputFormat, mut indent: ArcStr) -> Result<ArcStr> {
         let mut r#str: ArcStr = arcstr::literal!("");
-        let mut s: IOStream::IOStream;
+        let mut s: IOStream::IOStream = <IOStream::IOStream as ::std::default::Default>::default();
         s = IOStream::create((literal!("NFFunction.Function.toFlatString")).clone(), openmodelica_util::IOStream::IOStreamType::LIST)?;
         s = toFlatStream(r#fn.clone(), format.clone(), (indent.clone()).clone(), s.clone(), (literal!("")).clone())?;
         r#str = (IOStream::string(s.clone())?).clone();
@@ -2480,7 +2493,7 @@ pub mod Function {
 
     pub fn getBody2(mut node: Arc<InstNode::InstNode>) -> Result<Arc<metamodelica::List<Arc<Statement::NFStatement>>>> {
         let mut body: Arc<metamodelica::List<Arc<Statement::NFStatement>>> = metamodelica::nil();
-        let mut fn_body: Arc<Algorithm::NFAlgorithm>;
+        let mut fn_body: Arc<Algorithm::NFAlgorithm> = Arc::new(<Algorithm::NFAlgorithm as ::std::default::Default>::default());
         body = (::match_deref::match_deref! { match &(InstNode::getSections(node.clone())?) {
         Deref @ Sections::SECTIONS { algorithms: Deref @ metamodelica::List::Nil, .. } => metamodelica::nil(),
         Deref @ Sections::SECTIONS { algorithms: Deref @ metamodelica::List::Cons { head: fn_body, tail: Deref @ metamodelica::List::Nil }, .. } => fn_body.statements.clone(),

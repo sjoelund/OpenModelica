@@ -61,6 +61,24 @@ pub struct Info {
     pub fmiNumberOfEventIndicators: Arc<metamodelica::List<i32>>,
 }
 
+impl Default for Info {
+    fn default() -> Self {
+        Self {
+            fmiVersion: Default::default(),
+            fmiType: Default::default(),
+            fmiModelName: Default::default(),
+            fmiModelIdentifier: Default::default(),
+            fmiGuid: Default::default(),
+            fmiDescription: Default::default(),
+            fmiGenerationTool: Default::default(),
+            fmiGenerationDateAndTime: Default::default(),
+            fmiVariableNamingConvention: Default::default(),
+            fmiNumberOfContinuousStates: Default::default(),
+            fmiNumberOfEventIndicators: Default::default(),
+        }
+    }
+}
+
 pub type INFO = Info;
 
 
@@ -91,6 +109,16 @@ pub struct ExperimentAnnotation {
     pub fmiExperimentStartTime: metamodelica::Real,
     pub fmiExperimentStopTime: metamodelica::Real,
     pub fmiExperimentTolerance: metamodelica::Real,
+}
+
+impl Default for ExperimentAnnotation {
+    fn default() -> Self {
+        Self {
+            fmiExperimentStartTime: Default::default(),
+            fmiExperimentStopTime: Default::default(),
+            fmiExperimentTolerance: Default::default(),
+        }
+    }
 }
 
 pub type EXPERIMENTANNOTATION = ExperimentAnnotation;

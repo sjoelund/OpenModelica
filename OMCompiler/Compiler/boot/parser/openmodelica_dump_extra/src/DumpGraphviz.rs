@@ -195,7 +195,7 @@ fn printElementitems(mut inAbsynElementItemLst: Arc<metamodelica::List<Arc<Absyn
 }
 
 fn makeBoolAttr(mut r#str: ArcStr, mut flag: bool) -> Graphviz::Attribute {
-    let mut outAttribute: Graphviz::Attribute;
+    let mut outAttribute: Graphviz::Attribute = <Graphviz::Attribute as ::std::default::Default>::default();
     let mut s: ArcStr = arcstr::literal!("");
     outAttribute = Graphviz::Attribute { name: (r#str.clone()).clone(), value: (boolString(flag.clone())).clone() };
     outAttribute
@@ -211,7 +211,7 @@ fn printElement(mut inElement: Arc<Absyn::Element>) -> Result<Arc<Graphviz::Node
     let mut outNode: Arc<Graphviz::Node>;
     outNode = (::match_deref::match_deref! { match &(inElement.clone()) {
         Deref @ Absyn::Element::ELEMENT { specification: spec, finalPrefix, .. } => {
-            let mut fa: Graphviz::Attribute;
+            let mut fa: Graphviz::Attribute = <Graphviz::Attribute as ::std::default::Default>::default();
             let mut elsp: Arc<Graphviz::Node>;
             fa = makeBoolAttr((literal!("final")).clone(), finalPrefix.clone());
             elsp = printElementspec(spec.clone())?;
@@ -237,7 +237,7 @@ fn printElementspec(mut inElementSpec: Arc<Absyn::ElementSpec>) -> Result<Arc<Gr
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ Absyn::ElementSpec::CLASSDEF { class_: cl, replaceable_: repl } => {
-                    let mut ra: Graphviz::Attribute;
+                    let mut ra: Graphviz::Attribute = <Graphviz::Attribute as ::std::default::Default>::default();
                     let _ = printClass(cl.clone())?;
                     ra = makeBoolAttr((literal!("replaceable")).clone(), repl.clone());
                     Ok(Arc::new(Graphviz::Node::NODE { type_: (literal!("CLASSDEF")).clone(), attributes: list![ra.clone()], children: metamodelica::nil() }))

@@ -181,7 +181,7 @@ pub fn fmiModelDescriptionAttributes(mut in_txt: Tpl::Text, mut in_a_simCode: Si
             let mut ret_13: ArcStr = arcstr::literal!("");
             let mut l_numberOfEventIndicators: Tpl::Text;
             let mut l_variableNamingConvention: Tpl::Text;
-            let mut ret_10: Util::DateTime;
+            let mut ret_10: Util::DateTime = <Util::DateTime as ::std::default::Default>::default();
             let mut l_generationDateAndTime: Tpl::Text;
             let mut ret_8: ArcStr = arcstr::literal!("");
             let mut l_generationTool: Tpl::Text;

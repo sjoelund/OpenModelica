@@ -633,7 +633,7 @@ fn statementOutputsCrefFinder(mut inExp: Arc<DAE::Exp>, mut inTpl: (DAE::Expand,
                     let mut ht = (*ht).clone();
                     cr = ComponentReference::crefStripSubs(cr.clone())?;
                     crlst = ComponentReference::expandCref(cr.clone(), true)?;
-                    (ht, _, _, _, _) = List::fold(crlst.clone(), (std::sync::Arc::new(BaseHashSet::add) as std::sync::Arc<dyn ::std::ops::Fn(_, _) -> Result<_> + 'static>), ht.clone());
+                    ht = List::fold(crlst.clone(), (std::sync::Arc::new(BaseHashSet::add) as std::sync::Arc<dyn ::std::ops::Fn(_, _) -> Result<_> + 'static>), ht.clone());
                     Ok((e.clone(), false, (expand.clone(), ht.clone())))
                 }
                 _ => bail!("nomatch"),
@@ -643,7 +643,7 @@ fn statementOutputsCrefFinder(mut inExp: Arc<DAE::Exp>, mut inTpl: (DAE::Expand,
             ::match_deref::match_deref! { match &__mc_input {
                 (e @ Deref @ DAE::Exp::CREF { componentRef: cr, .. }, (expand @ DAE::Expand::NOT_EXPAND, ht)) => {
                     let mut ht = (*ht).clone();
-                    (ht, _, _, _, _) = List::fold(list![cr.clone()], (std::sync::Arc::new(BaseHashSet::add) as std::sync::Arc<dyn ::std::ops::Fn(_, _) -> Result<_> + 'static>), ht.clone());
+                    ht = List::fold(list![cr.clone()], (std::sync::Arc::new(BaseHashSet::add) as std::sync::Arc<dyn ::std::ops::Fn(_, _) -> Result<_> + 'static>), ht.clone());
                     Ok((e.clone(), false, (expand.clone(), ht.clone())))
                 }
                 _ => bail!("nomatch"),
@@ -660,7 +660,7 @@ fn statementOutputsCrefFinder(mut inExp: Arc<DAE::Exp>, mut inTpl: (DAE::Expand,
                     first_cref = ComponentReference::crefArrayGetFirstCref(cr.clone())?;
                     if !(BaseHashSet::has(first_cref.clone(), ht.clone())?) {
                         crlst = ComponentReference::expandCref(cr.clone(), true)?;
-                        (ht, _, _, _, _) = List::fold(crlst.clone(), (std::sync::Arc::new(BaseHashSet::add) as std::sync::Arc<dyn ::std::ops::Fn(_, _) -> Result<_> + 'static>), ht.clone());
+                        ht = List::fold(crlst.clone(), (std::sync::Arc::new(BaseHashSet::add) as std::sync::Arc<dyn ::std::ops::Fn(_, _) -> Result<_> + 'static>), ht.clone());
                     }
                     Ok((e.clone(), false, (expand.clone(), ht.clone())))
                 }

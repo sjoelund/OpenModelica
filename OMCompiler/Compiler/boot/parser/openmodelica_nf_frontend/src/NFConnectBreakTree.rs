@@ -62,6 +62,15 @@ pub struct Entry {
     pub r#mod: Arc<SCode::Mod>,
 }
 
+impl Default for Entry {
+    fn default() -> Self {
+        Self {
+            hasMatch: Default::default(),
+            r#mod: Default::default(),
+        }
+    }
+}
+
 pub type ENTRY = Entry;
 
 
@@ -837,7 +846,7 @@ pub fn isConnectBroken(mut lhs: Arc<Absyn::ComponentRef>, mut rhs: Arc<Absyn::Co
     let mut opt_entry_tree: Option<Arc<EntryTree::Tree>> = None;
     let mut opt_entry_ptr: Option<Mutable::Mutable<Entry>> = None;
     let mut entry_ptr: Mutable::Mutable<Entry>;
-    let mut entry: Entry;
+    let mut entry: Entry = <Entry as ::std::default::Default>::default();
     opt_entry_tree = getOpt(connectBreaks.clone(), lhs.clone())?;
     if isSome(opt_entry_tree.clone()) {
         opt_entry_ptr = EntryTree::getOpt(Util::getOption(opt_entry_tree.clone())?, rhs.clone())?;
@@ -854,7 +863,7 @@ pub fn isConnectBroken(mut lhs: Arc<Absyn::ComponentRef>, mut rhs: Arc<Absyn::Co
 }
 
 pub fn checkUnmatchedBreaks(mut entries: Arc<metamodelica::List<Mutable::Mutable<Entry>>>) -> Result<()> {
-    let mut entry: Entry;
+    let mut entry: Entry = <Entry as ::std::default::Default>::default();
     let mut lhs: Arc<Absyn::ComponentRef> = Arc::new(Absyn::ComponentRef::ALLWILD);
     let mut rhs: Arc<Absyn::ComponentRef> = Arc::new(Absyn::ComponentRef::ALLWILD);
     let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();

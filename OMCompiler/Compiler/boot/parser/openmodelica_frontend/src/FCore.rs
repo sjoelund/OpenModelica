@@ -47,6 +47,7 @@ use crate::AvlSetCR;
 use crate::DAEUtil;
 use openmodelica_ast::Absyn;
 use openmodelica_frontend_dump::AbsynUtil;
+use openmodelica_frontend_dump::AvlTreePathFunction;
 use openmodelica_frontend_types::DAE;
 use openmodelica_frontend_types::SCode;
 use openmodelica_util::BaseAvlSet;
@@ -82,6 +83,16 @@ pub struct ImportTable {
     pub unqualifiedImports: Arc<metamodelica::List<Absyn::Import>>,
 }
 
+impl Default for ImportTable {
+    fn default() -> Self {
+        Self {
+            hidden: Default::default(),
+            qualifiedImports: Default::default(),
+            unqualifiedImports: Default::default(),
+        }
+    }
+}
+
 pub type IMPORT_TABLE = ImportTable;
 
 
@@ -100,6 +111,18 @@ pub struct Node {
     pub children: Children,
     /// More data for this node, Class, Var, etc
     pub data: Data,
+}
+
+impl Default for Node {
+    fn default() -> Self {
+        Self {
+            name: Default::default(),
+            id: Default::default(),
+            parents: Default::default(),
+            children: Default::default(),
+            data: Default::default(),
+        }
+    }
 }
 
 pub type N = Node;
@@ -261,6 +284,9 @@ pub enum Data {
         isInstantiating: bool,
     },
 }
+impl Default for Data {
+    fn default() -> Self { Self::TOP }
+}
 pub use self::Data::{TOP,IT,IM,CL,CO,EX,DU,FT,AL,EQ,OT,ED,FS,FI,MS,MO,EXP,CR,DIMS,CC,REF,ND,VR,ASSERT,STATUS};
 
 pub type Refs = Arc<metamodelica::List<metamodelica::Array<Node>>>;
@@ -321,6 +347,9 @@ pub mod RefTree {
             value: Value,
         },
         EMPTY,
+    }
+    impl Default for Tree {
+        fn default() -> Self { Self::EMPTY }
     }
     pub use self::Tree::{NODE,LEAF,EMPTY};
 
@@ -1010,6 +1039,15 @@ pub struct Visit {
     pub seq: Seq,
 }
 
+impl Default for Visit {
+    fn default() -> Self {
+        Self {
+            r#ref: Default::default(),
+            seq: Default::default(),
+        }
+    }
+}
+
 pub type VN = Visit;
 
 
@@ -1019,6 +1057,15 @@ pub struct Visited {
     pub tree: Arc<VAvlTree>,
     /// the next visit node id
     pub next: Next,
+}
+
+impl Default for Visited {
+    fn default() -> Self {
+        Self {
+            tree: Default::default(),
+            next: Default::default(),
+        }
+    }
 }
 
 pub type V = Visited;
@@ -1041,6 +1088,17 @@ pub struct VAvlTree {
     pub right: Option<Arc<VAvlTree>>,
 }
 
+impl Default for VAvlTree {
+    fn default() -> Self {
+        Self {
+            value: Default::default(),
+            height: Default::default(),
+            left: Default::default(),
+            right: Default::default(),
+        }
+    }
+}
+
 pub type VAVLTREENODE = VAvlTree;
 
 
@@ -1051,6 +1109,15 @@ pub struct VAvlTreeValue {
     pub key: VAvlKey,
     /// Value
     pub value: VAvlValue,
+}
+
+impl Default for VAvlTreeValue {
+    fn default() -> Self {
+        Self {
+            key: Default::default(),
+            value: Default::default(),
+        }
+    }
 }
 
 pub type VAVLTREEVALUE = VAvlTreeValue;
@@ -1092,6 +1159,14 @@ pub struct Extra {
     pub topModel: Arc<Absyn::Path>,
 }
 
+impl Default for Extra {
+    fn default() -> Self {
+        Self {
+            topModel: Default::default(),
+        }
+    }
+}
+
 pub type EXTRA = Extra;
 
 
@@ -1130,6 +1205,17 @@ pub struct Top {
     pub extra: Extra,
 }
 
+impl Default for Top {
+    fn default() -> Self {
+        Self {
+            graph: Default::default(),
+            name: Default::default(),
+            node: Default::default(),
+            extra: Default::default(),
+        }
+    }
+}
+
 pub type GTOP = Top;
 
 
@@ -1147,7 +1233,7 @@ pub enum Cache {
         /// and the initial environment
         initialGraph: Option<Graph>,
         /// set of Option<DAE.Function>; NONE() means instantiation started; SOME() means it's finished
-        functions: /* ? */,
+        functions: Mutable::Mutable<Arc<AvlTreePathFunction::Tree>>,
         /// ht of prefixed crefs and a stack of evaluated but not yet prefix crefs
         evaluatedParams: StructuralParameters,
         /// name of the model being instantiated
@@ -1155,6 +1241,9 @@ pub enum Cache {
     },
     /// no cache
     NO_CACHE,
+}
+impl Default for Cache {
+    fn default() -> Self { Self::NO_CACHE }
 }
 pub use self::Cache::{CACHE,NO_CACHE};
 
@@ -1171,6 +1260,16 @@ pub fn next(mut inext: Next) -> Next {
     let mut onext: Next = 0;
     onext = inext.clone() + 1;
     onext
+}
+
+pub fn emptyCache() -> Cache {
+    let mut cache: Cache = Cache::NO_CACHE;
+    let mut instFuncs: Mutable::Mutable<Arc<AvlTreePathFunction::Tree>>;
+    let mut ht: StructuralParameters;
+    instFuncs = Mutable::create(Arc::new(openmodelica_frontend_dump::AvlTreePathFunction::Tree::EMPTY));
+    ht = (Arc::new(crate::AvlSetCR::Tree::EMPTY), metamodelica::nil());
+    cache = Cache::CACHE { initialGraph: None, functions: instFuncs.clone(), evaluatedParams: ht.clone(), modelName: Arc::new(Absyn::Path::IDENT { name: (literal!("##UNDEFINED##")).clone() }) };
+    cache
 }
 
 pub fn noCache() -> Cache {
@@ -1266,6 +1365,19 @@ pub fn checkCachedInstFuncGuard(mut inCache: Cache, mut path: Arc<Absyn::Path>) 
     Ok(())
 }
 
+pub fn getFunctionTree(mut cache: Cache) -> Arc<AvlTreePathFunction::Tree> {
+    let mut ft: Arc<AvlTreePathFunction::Tree> = Arc::new(AvlTreePathFunction::Tree::EMPTY);
+    ft = (match cache.clone() {
+        Cache::CACHE { functions: mut ef, .. } => {
+            Mutable::access(ef.clone())
+        },
+        _ => {
+            Arc::new(openmodelica_frontend_dump::AvlTreePathFunction::Tree::EMPTY)
+        },
+    });
+    ft
+}
+
 pub fn addCachedInstFuncGuard(mut cache: Cache, mut func: Arc<Absyn::Path>) -> Result<Cache> {
     let mut outCache: Cache = Cache::NO_CACHE;
     outCache = 'mc: {
@@ -1282,7 +1394,7 @@ pub fn addCachedInstFuncGuard(mut cache: Cache, mut func: Arc<Absyn::Path>) -> R
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (Cache::CACHE { functions: ef, .. }, Deref @ Absyn::Path::FULLYQUALIFIED { path: _ }) => {
-                    Mutable::update(ef.clone(), AvlTreePathFunction::add(Mutable::access(ef.clone()), func.clone(), None)?);
+                    Mutable::update(ef.clone(), AvlTreePathFunction::add(Mutable::access(ef.clone()), func.clone(), None, (std::sync::Arc::new(fnptr!(AvlTreePathFunction::addConflictDefault, _, _, _)) as std::sync::Arc<dyn ::std::ops::Fn(_, _, _) -> Result<_> + 'static>))?);
                     Ok(cache.clone())
                 }
                 _ => bail!("nomatch"),
@@ -1329,6 +1441,17 @@ pub fn addDaeExtFunction(mut inCache: Cache, mut funcs: Arc<metamodelica::List<D
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } });
     Ok(outCache)
+}
+
+pub fn setCachedFunctionTree(mut inCache: Cache, mut inFunctions: Arc<AvlTreePathFunction::Tree>) -> () {
+    let _ = (match inCache.clone() {
+        Cache::CACHE { .. } => {
+            Mutable::update(var_field!(inCache.functions, Cache::CACHE).clone(), inFunctions.clone());
+            ()
+        },
+        _ => (),
+    });
+    ()
 }
 
 pub fn isTyped(mut is: Status) -> bool {

@@ -61,6 +61,15 @@ pub struct PathEntry {
     pub shadowed: bool,
 }
 
+impl Default for PathEntry {
+    fn default() -> Self {
+        Self {
+            tree: Default::default(),
+            shadowed: Default::default(),
+        }
+    }
+}
+
 pub type ENTRY = PathEntry;
 
 
@@ -111,6 +120,9 @@ pub mod PathTree {
         },
         EMPTY,
     }
+    impl Default for Tree {
+        fn default() -> Self { Self::EMPTY }
+    }
     pub use self::Tree::{NODE,LEAF,EMPTY};
 
     pub type ValueNode = ArcStr;
@@ -122,7 +134,7 @@ pub mod PathTree {
             Arc::new(Tree::LEAF { key: (inKey.clone()).clone(), value: inValue.clone() })
         },
         Deref @ Tree::NODE { key, .. } => {
-            let mut value: Value;
+            let mut value: Value = Arc::new(<PathEntry as ::std::default::Default>::default());
             let mut key_comp: i32 = 0;
             key_comp = keyCompare((inKey.clone()).clone(), (key.clone()).clone());
             if key_comp.clone() == -1 {
@@ -138,7 +150,7 @@ pub mod PathTree {
             if (key_comp.clone() == 0) {tree.clone()} else {balance(tree.clone())?}
         },
         Deref @ Tree::LEAF { .. } => {
-            let mut value: Value;
+            let mut value: Value = Arc::new(<PathEntry as ::std::default::Default>::default());
             let mut key_comp: i32 = 0;
             let mut outTree: Arc<Tree> = Arc::new(Tree::EMPTY);
             key_comp = keyCompare((inKey.clone()).clone(), (var_field!((*tree).key, Tree::LEAF).clone()).clone());
@@ -163,7 +175,7 @@ pub mod PathTree {
     pub use addConflictFail as addConflictDefault;
 
     pub fn addConflictFail(mut newValue: Value, mut oldValue: Value, mut key: Key) -> Result<Value> {
-        let mut value: Value;
+        let mut value: Value = Arc::new(<PathEntry as ::std::default::Default>::default());
         bail!("fail");
         Ok(value)
     }
@@ -181,7 +193,7 @@ pub mod PathTree {
     pub fn addList(mut tree: Arc<Tree>, mut inValues: Arc<metamodelica::List<(ArcStr, Arc<PathEntry>)>>, mut conflictFunc: Arc<dyn ::std::ops::Fn(Arc<PathEntry>, Arc<PathEntry>, ArcStr) -> Result<Arc<PathEntry>> + 'static>) -> Result<Arc<Tree>> {
         let mut tree: Arc<Tree> = tree;
         let mut key: Key = arcstr::literal!("");
-        let mut value: Value;
+        let mut value: Value = Arc::new(<PathEntry as ::std::default::Default>::default());
         for mut t in &*inValues.clone() {
             let mut t = t.clone();
             (key, value) = t.clone();
@@ -363,7 +375,7 @@ pub mod PathTree {
     pub fn fromList(mut inValues: Arc<metamodelica::List<(ArcStr, Arc<PathEntry>)>>, mut conflictFunc: Arc<dyn ::std::ops::Fn(Arc<PathEntry>, Arc<PathEntry>, ArcStr) -> Result<Arc<PathEntry>> + 'static>) -> Result<Arc<Tree>> {
         let mut tree: Arc<Tree> = Arc::new(crate::ReverseLookup::PathTree::Tree::EMPTY);
         let mut key: Key = arcstr::literal!("");
-        let mut value: Value;
+        let mut value: Value = Arc::new(<PathEntry as ::std::default::Default>::default());
         for mut t in &*inValues.clone() {
             let mut t = t.clone();
             (key, value) = t.clone();
@@ -373,7 +385,7 @@ pub mod PathTree {
     }
 
     pub fn get(mut tree: Arc<Tree>, mut key: Key) -> Result<Value> {
-        let mut value: Value;
+        let mut value: Value = Arc::new(<PathEntry as ::std::default::Default>::default());
         let mut k: Key = arcstr::literal!("");
         k = ((::match_deref::match_deref! { match &(tree.clone()) {
         Deref @ Tree::NODE { .. } => var_field!((*tree).key, Tree::NODE).clone(),
@@ -541,7 +553,7 @@ pub mod PathTree {
         let mut outTree: Arc<Tree> = inTree.clone();
         outTree = (::match_deref::match_deref! { match &(outTree.clone()) {
         Deref @ Tree::NODE { value, key, .. } => {
-            let mut new_value: Value;
+            let mut new_value: Value = Arc::new(<PathEntry as ::std::default::Default>::default());
             let mut new_left: Arc<Tree> = Arc::new(Tree::EMPTY);
             let mut new_right: Arc<Tree> = Arc::new(Tree::EMPTY);
             new_left = map(var_field!((*outTree).left, Tree::NODE).clone(), inFunc.clone());
@@ -553,7 +565,7 @@ pub mod PathTree {
             outTree.clone()
         },
         Deref @ Tree::LEAF { value, key } => {
-            let mut new_value: Value;
+            let mut new_value: Value = Arc::new(<PathEntry as ::std::default::Default>::default());
             new_value = inFunc((key.clone()).clone(), value.clone()).unwrap();
             if !(referenceEq(&value.clone(),&new_value.clone())) {
                 assign_variant_field!(outTree => Tree::LEAF; value = new_value.clone());
@@ -575,7 +587,7 @@ pub mod PathTree {
         let mut outResult: FT = inStartValue.clone();
         outTree = (::match_deref::match_deref! { match &(outTree.clone()) {
         Deref @ Tree::NODE { value, key, .. } => {
-            let mut new_value: Value;
+            let mut new_value: Value = Arc::new(<PathEntry as ::std::default::Default>::default());
             let mut new_left: Arc<Tree> = Arc::new(Tree::EMPTY);
             let mut new_right: Arc<Tree> = Arc::new(Tree::EMPTY);
             (new_left, outResult) = mapFold(var_field!((*outTree).left, Tree::NODE).clone(), inFunc.clone(), outResult.clone());
@@ -587,7 +599,7 @@ pub mod PathTree {
             outTree.clone()
         },
         Deref @ Tree::LEAF { value, key } => {
-            let mut new_value: Value;
+            let mut new_value: Value = Arc::new(<PathEntry as ::std::default::Default>::default());
             (new_value, outResult) = inFunc((key.clone()).clone(), value.clone(), outResult.clone()).unwrap();
             if !(referenceEq(&value.clone(),&new_value.clone())) {
                 assign_variant_field!(outTree => Tree::LEAF; value = new_value.clone());
@@ -759,6 +771,16 @@ pub mod Paths {
         pub currentPath: Arc<metamodelica::List<ArcStr>>,
     }
 
+    impl Default for Paths {
+        fn default() -> Self {
+            Self {
+                tree: Default::default(),
+                relativePath: Default::default(),
+                currentPath: Default::default(),
+            }
+        }
+    }
+
     pub type PATHS = Paths;
 
     pub fn currentPathStr(mut paths: Arc<Paths>) -> ArcStr {
@@ -794,7 +816,7 @@ pub fn lookup(mut path: Arc<Absyn::Path>, mut scope: Arc<Absyn::Path>, mut progr
     let mut result: ArcStr = arcstr::literal!("");
     let mut tree: Arc<PathTree::Tree> = Arc::new(PathTree::Tree::EMPTY);
     let mut matches: Matches = metamodelica::nil();
-    let mut paths: Arc<Paths::Paths>;
+    let mut paths: Arc<Paths::Paths> = Arc::new(<Paths::Paths as ::std::default::Default>::default());
     let mut cls: Arc<Absyn::Class> = Arc::new(<Absyn::Class as ::std::default::Default>::default());
     let mut opt_path: Option<Arc<Absyn::Path>> = None;
     let mut relative_path: Arc<Absyn::Path>;
@@ -831,7 +853,7 @@ pub fn lookup(mut path: Arc<Absyn::Path>, mut scope: Arc<Absyn::Path>, mut progr
 fn addPath(mut path: Arc<Absyn::Path>, mut tree: Arc<PathTree::Tree>) -> Result<Arc<PathTree::Tree>> {
     let mut tree: Arc<PathTree::Tree> = tree;
     let mut opt_entry: Option<Arc<PathEntry>> = None;
-    let mut entry: Arc<PathEntry>;
+    let mut entry: Arc<PathEntry> = Arc::new(<PathEntry as ::std::default::Default>::default());
     let mut opt_tree: Option<Arc<PathTree::Tree>> = None;
     let mut rest_tree: Arc<PathTree::Tree> = Arc::new(PathTree::Tree::EMPTY);
     tree = (::match_deref::match_deref! { match &(path.clone()) {
@@ -854,13 +876,13 @@ fn addPath(mut path: Arc<Absyn::Path>, mut tree: Arc<PathTree::Tree>) -> Result<
 
 fn lookupPath(mut path: Arc<Absyn::Path>, mut paths: Arc<PathTree::Tree>, mut exactMatch: bool, mut fullyQualified: bool) -> Result<bool> {
     let mut found: bool = false;
-    let mut entry: Arc<PathEntry>;
+    let mut entry: Arc<PathEntry> = Arc::new(<PathEntry as ::std::default::Default>::default());
     found = 'mc: {
         let __mc_input = path.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ Absyn::Path::IDENT { .. } => {
-                    let mut entry: Arc<PathEntry>;
+                    let mut entry: Arc<PathEntry> = entry.clone();
                     entry = PathTree::get(paths.clone(), (var_field!((*path).name, Absyn::Path::IDENT).clone()).clone())?;
                     Ok((fullyQualified.clone() || !(entry.shadowed.clone())) && PathTree::isEmpty(entry.tree.clone()))
                 }
@@ -871,7 +893,7 @@ fn lookupPath(mut path: Arc<Absyn::Path>, mut paths: Arc<PathTree::Tree>, mut ex
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ Absyn::Path::QUALIFIED { .. } => {
                     let mut found: bool = found.clone();
-                    let mut entry: Arc<PathEntry>;
+                    let mut entry: Arc<PathEntry> = entry.clone();
                     entry = PathTree::get(paths.clone(), (var_field!((*path).name, Absyn::Path::QUALIFIED).clone()).clone())?;
                     if entry.shadowed.clone() && !(fullyQualified.clone()) {
                         found = false;
@@ -916,13 +938,13 @@ fn matchPath(mut path: Arc<Absyn::Path>, mut paths: Arc<Paths::Paths>, mut exact
 
 fn lookupCref(mut cref: Arc<Absyn::ComponentRef>, mut paths: Arc<PathTree::Tree>, mut exactMatch: bool, mut fullyQualified: bool) -> Result<bool> {
     let mut found: bool = false;
-    let mut entry: Arc<PathEntry>;
+    let mut entry: Arc<PathEntry> = Arc::new(<PathEntry as ::std::default::Default>::default());
     found = 'mc: {
         let __mc_input = cref.clone();
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ Absyn::ComponentRef::CREF_IDENT { .. } => {
-                    let mut entry: Arc<PathEntry>;
+                    let mut entry: Arc<PathEntry> = entry.clone();
                     entry = PathTree::get(paths.clone(), (var_field!((*cref).name, Absyn::ComponentRef::CREF_IDENT).clone()).clone())?;
                     Ok((fullyQualified.clone() || !(entry.shadowed.clone())) && PathTree::isEmpty(entry.tree.clone()))
                 }
@@ -932,7 +954,7 @@ fn lookupCref(mut cref: Arc<Absyn::ComponentRef>, mut paths: Arc<PathTree::Tree>
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 Deref @ Absyn::ComponentRef::CREF_QUAL { .. } => {
-                    let mut entry: Arc<PathEntry>;
+                    let mut entry: Arc<PathEntry> = entry.clone();
                     let mut found: bool = found.clone();
                     entry = PathTree::get(paths.clone(), (var_field!((*cref).name, Absyn::ComponentRef::CREF_QUAL).clone()).clone())?;
                     if entry.shadowed.clone() && !(fullyQualified.clone()) {
@@ -1018,7 +1040,7 @@ fn shadowLocalNamesInElementSpec(mut spec: Arc<Absyn::ElementSpec>, mut paths: A
 
 fn shadowLocalName(mut name: ArcStr, mut paths: Arc<Paths::Paths>) -> Result<Arc<Paths::Paths>> {
     let mut paths: Arc<Paths::Paths> = paths;
-    let mut entry: Arc<PathEntry>;
+    let mut entry: Arc<PathEntry> = Arc::new(<PathEntry as ::std::default::Default>::default());
     if PathTree::hasKey(paths.tree.clone(), (name.clone()).clone())? {
         entry = PathTree::get(paths.tree.clone(), (name.clone()).clone())?;
         if !(entry.shadowed.clone()) {
@@ -1041,7 +1063,7 @@ fn lookupInProgram(mut program: Absyn::Program, mut paths: Arc<Paths::Paths>, mu
 fn lookupInClass(mut cls: Arc<Absyn::Class>, mut paths: Arc<Paths::Paths>, mut exactMatch: bool, mut matches: Matches) -> Result<Matches> {
     let mut matches: Matches = matches;
     let mut relative_path: Arc<metamodelica::List<ArcStr>> = paths.relativePath.clone();
-    let mut local_paths: Arc<Paths::Paths>;
+    let mut local_paths: Arc<Paths::Paths> = Arc::new(<Paths::Paths as ::std::default::Default>::default());
     local_paths = shadowLocalNames(cls.clone(), paths.clone())?;
     if !(relative_path.clone().is_empty()) && cls.name.clone() == listHead(relative_path.clone())? {
         relative_path = listRest(relative_path.clone())?;

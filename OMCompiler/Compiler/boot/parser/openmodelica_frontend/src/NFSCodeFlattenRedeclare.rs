@@ -190,7 +190,7 @@ fn addRedeclareToEnvExtendsTable2(mut inRedeclaredElement: Item, mut inBaseClass
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (_, Deref @ metamodelica::List::Cons { head: bc1, tail: rest_bc }, Deref @ metamodelica::List::Cons { head: Deref @ NFSCodeEnv::Extends { baseClass: bc2, redeclareModifiers: el, index, info }, tail: exl }) => {
-                    let mut ex: Extends;
+                    let mut ex: Extends = Arc::new(<NFSCodeEnv::Extends as ::std::default::Default>::default());
                     let mut redecl: Arc<NFSCodeEnv::Redeclaration>;
                     let mut exl = (*exl).clone();
                     let true = (AbsynUtil::pathEqual(bc1.clone(), bc2.clone())) else { bail!("pattern mismatch") };
@@ -482,8 +482,8 @@ fn pushRedeclareIntoExtends(mut inName: ArcStr, mut inRedeclare: Item, mut inBas
     let mut exts: Arc<metamodelica::List<Arc<NFSCodeEnv::Extends>>> = metamodelica::nil();
     let mut re: Arc<metamodelica::List<Arc<SCode::Element>>> = metamodelica::nil();
     let mut cei: Option<Arc<SCode::Element>> = None;
-    let mut etNew: Arc<NFSCodeEnv::ExtendsTable>;
-    let mut etOld: Arc<NFSCodeEnv::ExtendsTable>;
+    let mut etNew: Arc<NFSCodeEnv::ExtendsTable> = Arc::new(<NFSCodeEnv::ExtendsTable as ::std::default::Default>::default());
+    let mut etOld: Arc<NFSCodeEnv::ExtendsTable> = Arc::new(<NFSCodeEnv::ExtendsTable as ::std::default::Default>::default());
     let mut name: ArcStr = arcstr::literal!("");
     let mut env: Env = metamodelica::nil();
     let mut repl: Replacements = metamodelica::nil();
@@ -626,10 +626,10 @@ fn propagateItemPrefixes(mut inOriginalItem: Item, mut inNewItem: Item) -> Resul
 pub fn propagateAttributesVar(mut inOriginalVar: Arc<SCode::Element>, mut inNewVar: Arc<SCode::Element>) -> Result<Arc<SCode::Element>> {
     let mut outNewVar: Arc<SCode::Element>;
     let mut name: ArcStr = arcstr::literal!("");
-    let mut pref1: Arc<SCode::Prefixes>;
-    let mut pref2: Arc<SCode::Prefixes>;
-    let mut attr1: SCode::Attributes;
-    let mut attr2: SCode::Attributes;
+    let mut pref1: Arc<SCode::Prefixes> = Arc::new(<SCode::Prefixes as ::std::default::Default>::default());
+    let mut pref2: Arc<SCode::Prefixes> = Arc::new(<SCode::Prefixes as ::std::default::Default>::default());
+    let mut attr1: SCode::Attributes = <SCode::Attributes as ::std::default::Default>::default();
+    let mut attr2: SCode::Attributes = <SCode::Attributes as ::std::default::Default>::default();
     let mut ty: Arc<Absyn::TypeSpec>;
     let mut r#mod: Arc<SCode::Mod> = Arc::new(SCode::Mod::NOMOD);
     let mut cmt: Arc<SCode::Comment> = Arc::new(<SCode::Comment as ::std::default::Default>::default());
@@ -662,8 +662,8 @@ pub fn propagateAttributesVar(mut inOriginalVar: Arc<SCode::Element>, mut inNewV
 pub fn propagateAttributesClass(mut inOriginalClass: Arc<SCode::Element>, mut inNewClass: Arc<SCode::Element>) -> Result<Arc<SCode::Element>> {
     let mut outNewClass: Arc<SCode::Element>;
     let mut name: ArcStr = arcstr::literal!("");
-    let mut pref1: Arc<SCode::Prefixes>;
-    let mut pref2: Arc<SCode::Prefixes>;
+    let mut pref1: Arc<SCode::Prefixes> = Arc::new(<SCode::Prefixes as ::std::default::Default>::default());
+    let mut pref2: Arc<SCode::Prefixes> = Arc::new(<SCode::Prefixes as ::std::default::Default>::default());
     let mut ep: SCode::Encapsulated = SCode::Encapsulated::ENCAPSULATED;
     let mut pp: SCode::Partial = SCode::Partial::NOT_PARTIAL;
     let mut res: SCode::Restriction = SCode::Restriction::R_BLOCK;
@@ -693,7 +693,7 @@ pub fn propagateAttributesClass(mut inOriginalClass: Arc<SCode::Element>, mut in
 }
 
 fn propagatePrefixes(mut inOriginalPrefixes: Arc<SCode::Prefixes>, mut inNewPrefixes: Arc<SCode::Prefixes>) -> Result<Arc<SCode::Prefixes>> {
-    let mut outNewPrefixes: Arc<SCode::Prefixes>;
+    let mut outNewPrefixes: Arc<SCode::Prefixes> = Arc::new(<SCode::Prefixes as ::std::default::Default>::default());
     let mut vis1: SCode::Visibility = SCode::Visibility::PROTECTED;
     let mut vis2: SCode::Visibility = SCode::Visibility::PROTECTED;
     let mut io1: Absyn::InnerOuter = Absyn::InnerOuter::INNER;
@@ -731,7 +731,7 @@ fn propagatePrefixInnerOuter(mut inOriginalIO: Absyn::InnerOuter, mut inIO: Absy
 }
 
 fn propagateAttributes(mut inOriginalAttributes: SCode::Attributes, mut inNewAttributes: SCode::Attributes) -> Result<SCode::Attributes> {
-    let mut outNewAttributes: SCode::Attributes;
+    let mut outNewAttributes: SCode::Attributes = <SCode::Attributes as ::std::default::Default>::default();
     let mut dims1: Arc<metamodelica::List<Arc<Absyn::Subscript>>> = metamodelica::nil();
     let mut dims2: Arc<metamodelica::List<Arc<Absyn::Subscript>>> = metamodelica::nil();
     let mut ct1: SCode::ConnectorType = SCode::ConnectorType::FLOW;

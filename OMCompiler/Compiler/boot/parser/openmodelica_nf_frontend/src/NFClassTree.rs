@@ -800,7 +800,7 @@ pub mod ClassTree {
 
     pub fn lookupElementsPtr(mut name: ArcStr, mut tree: Arc<ClassTree>) -> Result<Arc<metamodelica::List<Mutable::Mutable<Arc<InstNode::InstNode>>>>> {
         let mut elements: Arc<metamodelica::List<Mutable::Mutable<Arc<InstNode::InstNode>>>> = metamodelica::nil();
-        let mut dup_entry: Arc<DuplicateTree::Entry>;
+        let mut dup_entry: Arc<DuplicateTree::Entry> = Arc::new(<DuplicateTree::Entry as ::std::default::Default>::default());
         match '__try0: {
             dup_entry = unwrap_break_err!(DuplicateTree::get(getDuplicates(tree.clone())?, (name.clone()).clone()), '__try0);
             elements = unwrap_break_err!(resolveDuplicateEntriesPtr(dup_entry.clone(), tree.clone(), metamodelica::nil()), '__try0);
@@ -1160,7 +1160,7 @@ pub mod ClassTree {
 
     pub fn getRedeclaredNode(mut name: ArcStr, mut tree: Arc<ClassTree>) -> Result<Arc<InstNode::InstNode>> {
         let mut node: Arc<InstNode::InstNode> = Arc::new(InstNode::EMPTY_NODE);
-        let mut entry: Arc<DuplicateTree::Entry>;
+        let mut entry: Arc<DuplicateTree::Entry> = Arc::new(<DuplicateTree::Entry as ::std::default::Default>::default());
         match '__try0: {
             entry = unwrap_break_err!(DuplicateTree::get(getDuplicates(tree.clone())?, (name.clone()).clone()), '__try0);
             entry = unwrap_break_err!(listHead(entry.children.clone()), '__try0);
@@ -1534,7 +1534,7 @@ pub mod ClassTree {
     }
 
     fn addDuplicateConflict(mut newEntry: Arc<DuplicateTree::Entry>, mut oldEntry: Arc<DuplicateTree::Entry>, mut name: ArcStr) -> Result<Arc<DuplicateTree::Entry>> {
-        let mut entry: Arc<DuplicateTree::Entry>;
+        let mut entry: Arc<DuplicateTree::Entry> = Arc::new(<DuplicateTree::Entry as ::std::default::Default>::default());
         entry = Arc::new(DuplicateTree::Entry { entry: newEntry.entry.clone(), node: None, children: cons(listHead(newEntry.children.clone())?, oldEntry.children.clone()), ty: DuplicateTree::EntryType::DUPLICATE.clone() });
         Ok(entry)
     }
@@ -1732,7 +1732,7 @@ pub mod ClassTree {
         let mut entry: Arc<LookupTree::Entry::Entry>;
         let mut dups: Arc<DuplicateTree::Tree> = Arc::new(DuplicateTree::Tree::EMPTY);
         let mut opt_dup_entry: Option<Arc<DuplicateTree::Entry>> = None;
-        let mut dup_entry: Arc<DuplicateTree::Entry>;
+        let mut dup_entry: Arc<DuplicateTree::Entry> = Arc::new(<DuplicateTree::Entry as ::std::default::Default>::default());
         let mut new_id: i32 = LookupTree::Entry::index(newEntry.clone())?;
         let mut old_id: i32 = LookupTree::Entry::index(oldEntry.clone())?;
         let mut ty: DuplicateTree::EntryType = DuplicateTree::EntryType::DUPLICATE;
@@ -1792,7 +1792,7 @@ pub mod ClassTree {
     }
 
     fn offsetDuplicates(mut name: ArcStr, mut entry: Arc<DuplicateTree::Entry>, mut classOffset: i32, mut componentOffset: i32) -> Result<Arc<DuplicateTree::Entry>> {
-        let mut offsetEntry: Arc<DuplicateTree::Entry>;
+        let mut offsetEntry: Arc<DuplicateTree::Entry> = Arc::new(<DuplicateTree::Entry as ::std::default::Default>::default());
         let mut parent: Arc<LookupTree::Entry::Entry>;
         let mut children: Arc<metamodelica::List<Arc<DuplicateTree::Entry>>> = metamodelica::nil();
         parent = offsetDuplicate(entry.entry.clone(), classOffset.clone(), componentOffset.clone())?;

@@ -89,7 +89,7 @@ pub fn writeAdjacencyMatrix(mut dlow: Arc<BackendDAE::BackendDAE>, mut fileNameP
 
 pub fn getEquations(mut inBackendDAE: Arc<BackendDAE::BackendDAE>) -> Result<ArcStr> {
     let mut strEqs: ArcStr = arcstr::literal!("");
-    let mut syst: Arc<BackendDAE::EqSystem>;
+    let mut syst: Arc<BackendDAE::EqSystem> = Arc::new(<BackendDAE::EqSystem as ::std::default::Default>::default());
     let mut ls1: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
     let __pa0 = ::match_deref::match_deref! { match &(inBackendDAE.clone()) {
         Deref @ DAE { UNIQUEIO: metamodelica::List::Cons { head: __pa0, tail: Deref @ metamodelica::List::Nil }, derivativeNamePrefix: _, .. } => __pa0.clone(),

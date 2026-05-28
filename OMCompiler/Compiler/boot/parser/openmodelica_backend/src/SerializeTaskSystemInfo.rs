@@ -72,8 +72,8 @@ fn serializeParModWork(mut code: SimCode::SimCode, mut withOperations: bool) -> 
     let mut success: bool = false;
     let mut fileName: ArcStr = arcstr::literal!("");
     let mut file: File::File = File::File(File::noReference())?;
-    let mut mi: SimCode::ModelInfo;
-    let mut vars: SimCodeVar::SimVars;
+    let mut mi: SimCode::ModelInfo = <SimCode::ModelInfo as ::std::default::Default>::default();
+    let mut vars: SimCodeVar::SimVars = <SimCodeVar::SimVars as ::std::default::Default>::default();
     match '__try0: {
         let SimCode::SIMCODE { modelInfo: ref __pa2 @ SimCode::MODELINFO { vars: ref __pa1, .. }, .. } = (code.clone()) else { break '__try0 Err::<_, _>(anyhow::anyhow!("pattern mismatch")) };
         vars = __pa1.clone();

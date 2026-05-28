@@ -64,6 +64,16 @@ pub struct Var {
     pub volatile: bool,
 }
 
+impl Default for Var {
+    fn default() -> Self {
+        Self {
+            name: Default::default(),
+            ty: Default::default(),
+            volatile: Default::default(),
+        }
+    }
+}
+
 pub type VAR = Var;
 
 
@@ -72,12 +82,28 @@ pub struct VarBuf {
     pub name: ArcStr,
 }
 
+impl Default for VarBuf {
+    fn default() -> Self {
+        Self {
+            name: Default::default(),
+        }
+    }
+}
+
 pub type VARBUF = VarBuf;
 
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct VarBufPtr {
     pub name: ArcStr,
+}
+
+impl Default for VarBufPtr {
+    fn default() -> Self {
+        Self {
+            name: Default::default(),
+        }
+    }
 }
 
 pub type VARBUFPTR = VarBufPtr;
@@ -111,6 +137,22 @@ pub struct Function {
     pub exitId: i32,
 }
 
+impl Default for Function {
+    fn default() -> Self {
+        Self {
+            name: Default::default(),
+            locals: Default::default(),
+            localBufs: Default::default(),
+            localBufPtrs: Default::default(),
+            inputs: Default::default(),
+            outputs: Default::default(),
+            body: Default::default(),
+            entryId: Default::default(),
+            exitId: Default::default(),
+        }
+    }
+}
+
 pub type FUNCTION = Function;
 
 
@@ -122,6 +164,16 @@ pub struct Block {
     pub id: i32,
     pub stmts: Arc<metamodelica::List<Stmt>>,
     pub terminator: Terminator,
+}
+
+impl Default for Block {
+    fn default() -> Self {
+        Self {
+            id: Default::default(),
+            stmts: Default::default(),
+            terminator: Default::default(),
+        }
+    }
 }
 
 pub type BLOCK = Block;
@@ -176,6 +228,9 @@ pub enum Terminator {
         message: Var,
     },
 }
+impl Default for Terminator {
+    fn default() -> Self { Self::RETURN }
+}
 pub use self::Terminator::{GOTO,BRANCH,CALL,RETURN,SWITCH,LONGJMP,PUSHJMP,POPJMP,ASSERT,TERMINATE};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -185,6 +240,9 @@ pub enum Stmt {
         dest: Var,
         src: RValue,
     },
+}
+impl Default for Stmt {
+    fn default() -> Self { Self::NOP }
 }
 pub use self::Stmt::{NOP,ASSIGN};
 

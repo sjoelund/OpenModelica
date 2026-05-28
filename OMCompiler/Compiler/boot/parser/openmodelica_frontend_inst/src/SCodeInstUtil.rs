@@ -226,7 +226,7 @@ fn removeSelfReferenceFromSubMod(mut inSl: Arc<metamodelica::List<Arc<SCode::Sub
 }
 
 fn expandEnumerationSubMod(mut inSubMod: Arc<SCode::SubMod>, mut inChanged: bool) -> Result<(Arc<SCode::SubMod>, bool)> {
-    let mut outSubMod: Arc<SCode::SubMod>;
+    let mut outSubMod: Arc<SCode::SubMod> = Arc::new(<SCode::SubMod as ::std::default::Default>::default());
     let mut outChanged: bool = false;
     (outSubMod, outChanged) = (::match_deref::match_deref! { match &(inSubMod.clone()) {
         Deref @ SCode::SubMod { r#mod, ident } => {

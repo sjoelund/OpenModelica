@@ -113,8 +113,8 @@ pub fn toDAE(mut fnInv: Arc<NFFunctionInverse>) -> Result<DAE::FunctionDefinitio
 }
 
 pub fn toSubMod(mut fnInv: Arc<NFFunctionInverse>) -> Result<Arc<SCode::SubMod>> {
-    let mut subMod: Arc<SCode::SubMod>;
-    let mut inv_mod: Arc<SCode::SubMod>;
+    let mut subMod: Arc<SCode::SubMod> = Arc::new(<SCode::SubMod as ::std::default::Default>::default());
+    let mut inv_mod: Arc<SCode::SubMod> = Arc::new(<SCode::SubMod as ::std::default::Default>::default());
     let mut call_exp: Arc<Absyn::Exp> = Arc::new(Absyn::Exp::BREAK);
     call_exp = Expression::toAbsyn(fnInv.inverseCall.clone())?;
     inv_mod = Arc::new(SCode::SubMod { ident: (ComponentRef::firstName(fnInv.inputParam.clone(), false)?).clone(), r#mod: Arc::new(SCode::Mod::MOD { finalPrefix: openmodelica_frontend_types::SCode::Final::NOT_FINAL, eachPrefix: openmodelica_frontend_types::SCode::Each::NOT_EACH, subModLst: metamodelica::nil(), binding: Some(call_exp.clone()), comment: None, info: fnInv.info.clone() }) });

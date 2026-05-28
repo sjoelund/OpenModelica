@@ -50,6 +50,7 @@ use openmodelica_ast_collections::AvlSetPath;
 use openmodelica_frontend::FCore;
 use openmodelica_frontend::HashTable3;
 use openmodelica_frontend::HashTableCG;
+use openmodelica_frontend_dump::AvlTreePathFunction;
 use openmodelica_frontend_types::DAE;
 use openmodelica_frontend_types::SCode;
 use openmodelica_util::ExpandableArray;
@@ -70,6 +71,15 @@ pub type Type = Arc<DAE::Type>;
 pub struct BackendDAE {
     pub eqs: EqSystems,
     pub shared: Arc<Shared>,
+}
+
+impl Default for BackendDAE {
+    fn default() -> Self {
+        Self {
+            eqs: Default::default(),
+            shared: Default::default(),
+        }
+    }
 }
 
 pub type DAE = BackendDAE;
@@ -97,6 +107,22 @@ pub struct EqSystem {
     pub removedEqs: EquationArray,
 }
 
+impl Default for EqSystem {
+    fn default() -> Self {
+        Self {
+            orderedVars: Default::default(),
+            orderedEqs: Default::default(),
+            m: Default::default(),
+            mT: Default::default(),
+            mapping: Default::default(),
+            matching: Default::default(),
+            stateSets: Default::default(),
+            partitionKind: Default::default(),
+            removedEqs: Default::default(),
+        }
+    }
+}
+
 pub type EQSYSTEM = EqSystem;
 
 
@@ -108,6 +134,9 @@ pub enum SubClock {
         solver: Option<ArcStr>,
     },
     INFERED_SUBCLOCK,
+}
+impl Default for SubClock {
+    fn default() -> Self { Self::INFERED_SUBCLOCK }
 }
 pub use self::SubClock::{SUBCLOCK,INFERED_SUBCLOCK};
 
@@ -122,6 +151,9 @@ pub enum BaseClockPartitionKind {
     CONTINUOUS_TIME_PARTITION,
     /// treated as CONTINUOUS_TIME_PARTITION
     UNSPECIFIED_PARTITION,
+}
+impl Default for BaseClockPartitionKind {
+    fn default() -> Self { Self::UNKNOWN_PARTITION }
 }
 pub use self::BaseClockPartitionKind::{UNKNOWN_PARTITION,CLOCKED_PARTITION,CONTINUOUS_TIME_PARTITION,UNSPECIFIED_PARTITION};
 
@@ -152,7 +184,7 @@ pub struct Shared {
     pub cache: FCore::Cache,
     pub graph: FCore::Graph,
     /// functions for Backend
-    pub functionTree: /* ? */,
+    pub functionTree: Arc<AvlTreePathFunction::Tree>,
     /// eventInfo
     pub eventInfo: EventInfo,
     /// classes of external objects, contains constructor & destructor
@@ -171,6 +203,33 @@ pub struct Shared {
     pub timeInterval: Option<Arc<DAE::Exp>>,
 }
 
+impl Default for Shared {
+    fn default() -> Self {
+        Self {
+            globalKnownVars: Default::default(),
+            localKnownVars: Default::default(),
+            externalObjects: Default::default(),
+            aliasVars: Default::default(),
+            initialEqs: Default::default(),
+            removedEqs: Default::default(),
+            constraints: Default::default(),
+            classAttrs: Default::default(),
+            cache: Default::default(),
+            graph: Default::default(),
+            functionTree: Default::default(),
+            eventInfo: Default::default(),
+            extObjClasses: Default::default(),
+            backendDAEType: Default::default(),
+            symjacs: Default::default(),
+            info: Default::default(),
+            partitionsInfo: Default::default(),
+            daeModeData: Default::default(),
+            dataReconciliationData: Default::default(),
+            timeInterval: Default::default(),
+        }
+    }
+}
+
 pub type SHARED = Shared;
 
 
@@ -180,6 +239,15 @@ pub struct InlineData {
     pub knownVariables: Variables,
 }
 
+impl Default for InlineData {
+    fn default() -> Self {
+        Self {
+            inlineSystems: Default::default(),
+            knownVariables: Default::default(),
+        }
+    }
+}
+
 pub type INLINE_DATA = InlineData;
 
 
@@ -187,6 +255,15 @@ pub type INLINE_DATA = InlineData;
 pub struct BasePartition {
     pub clock: Arc<DAE::ClockKind>,
     pub nSubClocks: i32,
+}
+
+impl Default for BasePartition {
+    fn default() -> Self {
+        Self {
+            clock: Default::default(),
+            nSubClocks: Default::default(),
+        }
+    }
 }
 
 pub type BASE_PARTITION = BasePartition;
@@ -199,6 +276,16 @@ pub struct SubPartition {
     pub prevVars: Arc<metamodelica::List<Arc<DAE::ComponentRef>>>,
 }
 
+impl Default for SubPartition {
+    fn default() -> Self {
+        Self {
+            clock: Default::default(),
+            holdEvents: Default::default(),
+            prevVars: Default::default(),
+        }
+    }
+}
+
 pub type SUB_PARTITION = SubPartition;
 
 
@@ -206,6 +293,15 @@ pub type SUB_PARTITION = SubPartition;
 pub struct PartitionsInfo {
     pub basePartitions: metamodelica::Array<BasePartition>,
     pub subPartitions: metamodelica::Array<SubPartition>,
+}
+
+impl Default for PartitionsInfo {
+    fn default() -> Self {
+        Self {
+            basePartitions: Default::default(),
+            subPartitions: Default::default(),
+        }
+    }
 }
 
 pub type PARTITIONS_INFO = PartitionsInfo;
@@ -220,6 +316,16 @@ pub struct ExtraInfo {
     pub fileNamePrefix: ArcStr,
     /// simulation settings options needed for data reconciliation to apply start values from csv files
     pub simSettingsOption: Option<SimCode::SimulationSettings>,
+}
+
+impl Default for ExtraInfo {
+    fn default() -> Self {
+        Self {
+            description: Default::default(),
+            fileNamePrefix: Default::default(),
+            simSettingsOption: Default::default(),
+        }
+    }
 }
 
 pub type EXTRA_INFO = ExtraInfo;
@@ -246,6 +352,9 @@ pub enum BackendDAEType {
     /// Type for DAEmode system BackendDAE.DAE
     DAEMODESYSTEM,
 }
+impl Default for BackendDAEType {
+    fn default() -> Self { Self::SIMULATION }
+}
 pub use self::BackendDAEType::{SIMULATION,JACOBIAN,ALGEQSYSTEM,ARRAYSYSTEM,PARAMETERSYSTEM,INITIALSYSTEM,INLINESYSTEM,DAEMODESYSTEM};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -261,6 +370,19 @@ pub struct DataReconciliationData {
     pub symbolicJacobianH: Option<Arc<Jacobian>>,
     /// count number of boundary conditions which failed the extraction algorithm
     pub relatedBoundaryConditions: i32,
+}
+
+impl Default for DataReconciliationData {
+    fn default() -> Self {
+        Self {
+            symbolicJacobian: Default::default(),
+            setcVars: Default::default(),
+            datareconinputs: Default::default(),
+            setBVars: Default::default(),
+            symbolicJacobianH: Default::default(),
+            relatedBoundaryConditions: Default::default(),
+        }
+    }
 }
 
 pub type DATA_RECON = DataReconciliationData;
@@ -281,6 +403,17 @@ pub struct Variables {
     pub numberOfVars: i32,
 }
 
+impl Default for Variables {
+    fn default() -> Self {
+        Self {
+            crefIndices: Default::default(),
+            varArr: Default::default(),
+            bucketSize: Default::default(),
+            numberOfVars: Default::default(),
+        }
+    }
+}
+
 pub type VARIABLES = Variables;
 
 
@@ -289,6 +422,15 @@ pub type VARIABLES = Variables;
 pub struct CrefIndex {
     pub cref: Arc<DAE::ComponentRef>,
     pub index: i32,
+}
+
+impl Default for CrefIndex {
+    fn default() -> Self {
+        Self {
+            cref: Default::default(),
+            index: Default::default(),
+        }
+    }
 }
 
 pub type CREFINDEX = CrefIndex;
@@ -301,6 +443,15 @@ pub struct VariableArray {
     /// no. elements
     pub numberOfElements: i32,
     pub varOptArr: metamodelica::Array<Option<Var>>,
+}
+
+impl Default for VariableArray {
+    fn default() -> Self {
+        Self {
+            numberOfElements: Default::default(),
+            varOptArr: Default::default(),
+        }
+    }
 }
 
 pub type VARIABLE_ARRAY = VariableArray;
@@ -347,6 +498,31 @@ pub struct Var {
     pub initNonlinear: bool,
     /// true if the variable belongs to an encrypted class
     pub encrypted: bool,
+}
+
+impl Default for Var {
+    fn default() -> Self {
+        Self {
+            varName: Default::default(),
+            varKind: Default::default(),
+            varDirection: Default::default(),
+            varParallelism: Default::default(),
+            varType: Default::default(),
+            bindExp: Default::default(),
+            tplExp: Default::default(),
+            arryDim: Default::default(),
+            source: Default::default(),
+            values: Default::default(),
+            tearingSelectOption: Default::default(),
+            hideResult: Default::default(),
+            comment: Default::default(),
+            connectorType: Default::default(),
+            innerOuter: Default::default(),
+            unreplaceable: Default::default(),
+            initNonlinear: Default::default(),
+            encrypted: Default::default(),
+        }
+    }
 }
 
 pub type VAR = Var;
@@ -403,6 +579,9 @@ pub enum VarKind {
     /// used in SIMCODE, inner variables of a torn algebraic loop
     LOOP_SOLVED,
 }
+impl Default for VarKind {
+    fn default() -> Self { Self::VARIABLE }
+}
 pub use self::VarKind::{VARIABLE,STATE,STATE_DER,DUMMY_DER,DUMMY_STATE,CLOCKED_STATE,DISCRETE,PARAM,CONST,EXTOBJ,JAC_VAR,JAC_TMP_VAR,SEED_VAR,OPT_CONSTR,OPT_FCONSTR,OPT_INPUT_WITH_DER,OPT_INPUT_DER,OPT_TGRID,OPT_LOOP_INPUT,ALG_STATE,ALG_STATE_OLD,DAE_RESIDUAL_VAR,DAE_AUX_VAR,LOOP_ITERATION,LOOP_SOLVED};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -412,6 +591,9 @@ pub enum TearingSelect {
     DEFAULT,
     PREFER,
     ALWAYS,
+}
+impl Default for TearingSelect {
+    fn default() -> Self { Self::NEVER }
 }
 pub use self::TearingSelect::{NEVER,AVOID,DEFAULT,PREFER,ALWAYS};
 
@@ -430,6 +612,9 @@ pub enum EquationKind {
     AUX_EQUATION,
     UNKNOWN_EQUATION_KIND,
 }
+impl Default for EquationKind {
+    fn default() -> Self { Self::BINDING_EQUATION }
+}
 pub use self::EquationKind::{BINDING_EQUATION,DYNAMIC_EQUATION,INITIAL_EQUATION,CLOCKED_EQUATION,DISCRETE_EQUATION,AUX_EQUATION,UNKNOWN_EQUATION_KIND};
 
 /// evaluation stages
@@ -439,6 +624,17 @@ pub struct EvaluationStages {
     pub algebraicEval: bool,
     pub zerocrossEval: bool,
     pub discreteEval: bool,
+}
+
+impl Default for EvaluationStages {
+    fn default() -> Self {
+        Self {
+            dynamicEval: Default::default(),
+            algebraicEval: Default::default(),
+            zerocrossEval: Default::default(),
+            discreteEval: Default::default(),
+        }
+    }
 }
 
 pub type EVALUATION_STAGES = EvaluationStages;
@@ -452,6 +648,16 @@ pub struct EquationAttributes {
     pub differentiated: bool,
     pub kind: EquationKind,
     pub evalStages: EvaluationStages,
+}
+
+impl Default for EquationAttributes {
+    fn default() -> Self {
+        Self {
+            differentiated: Default::default(),
+            kind: Default::default(),
+            evalStages: Default::default(),
+        }
+    }
 }
 
 pub type EQUATION_ATTRIBUTES = EquationAttributes;
@@ -563,6 +769,9 @@ pub enum Equation {
     },
     DUMMY_EQUATION,
 }
+impl Default for Equation {
+    fn default() -> Self { Self::DUMMY_EQUATION }
+}
 pub use self::Equation::{EQUATION,ARRAY_EQUATION,SOLVED_EQUATION,RESIDUAL_EQUATION,ALGORITHM,WHEN_EQUATION,COMPLEX_EQUATION,IF_EQUATION,FOR_EQUATION,DUMMY_EQUATION};
 
 /// equation when condition then cr = exp, reinit(...), terminate(...) or assert(...)
@@ -573,6 +782,16 @@ pub struct WhenEquation {
     pub whenStmtLst: Arc<metamodelica::List<WhenOperator>>,
     /// elsewhen equation with the same cref on the left hand side.
     pub elsewhenPart: Option<Arc<WhenEquation>>,
+}
+
+impl Default for WhenEquation {
+    fn default() -> Self {
+        Self {
+            condition: Default::default(),
+            whenStmtLst: Default::default(),
+            elsewhenPart: Default::default(),
+        }
+    }
 }
 
 pub type WHEN_STMTS = WhenEquation;
@@ -620,6 +839,14 @@ pub enum WhenOperator {
         source: Arc<DAE::ElementSource>,
     },
 }
+impl Default for WhenOperator {
+    fn default() -> Self {
+        Self::TERMINATE {
+            message: Default::default(),
+            source: Default::default(),
+        }
+    }
+}
 pub use self::WhenOperator::{ASSIGN,REINIT,ASSERT,TERMINATE,NORETCALL};
 
 /// classes of external objects stored in list
@@ -632,6 +859,15 @@ pub struct ExternalObjectClass {
     pub path: Arc<Absyn::Path>,
     /// origin of equation
     pub source: Arc<DAE::ElementSource>,
+}
+
+impl Default for ExternalObjectClass {
+    fn default() -> Self {
+        Self {
+            path: Default::default(),
+            source: Default::default(),
+        }
+    }
 }
 
 pub type EXTOBJCLASS = ExternalObjectClass;
@@ -652,6 +888,9 @@ pub enum Matching {
         ass2: metamodelica::Array<i32>,
         comps: StrongComponents,
     },
+}
+impl Default for Matching {
+    fn default() -> Self { Self::NO_MATCHING }
 }
 pub use self::Matching::{NO_MATCHING,MATCHING};
 
@@ -697,7 +936,7 @@ pub enum StateOrder {
 impl PartialEq for StateOrder {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Self::STATEORDER { hashTable: __l_hashTable, invHashTable: __l_invHashTable }, Self::STATEORDER { hashTable: __r_hashTable, invHashTable: __r_invHashTable }) => std::sync::Arc::ptr_eq(__l_hashTable, __r_hashTable) && std::sync::Arc::ptr_eq(__l_invHashTable, __r_invHashTable),
+            (Self::STATEORDER { hashTable: __l_hashTable, invHashTable: __l_invHashTable }, Self::STATEORDER { hashTable: __r_hashTable, invHashTable: __r_invHashTable }) => (match (__l_hashTable, __r_hashTable) { ((__lt0, __lt1, __lt2, __lt3), (__rt0, __rt1, __rt2, __rt3)) => (__lt0 == __rt0) && (__lt1 == __rt1) && (__lt2 == __rt2) && (match (__lt3, __rt3) { ((__lt0, __lt1, __lt2, __lt3), (__rt0, __rt1, __rt2, __rt3)) => std::sync::Arc::ptr_eq(__lt0, __rt0) && std::sync::Arc::ptr_eq(__lt1, __rt1) && std::sync::Arc::ptr_eq(__lt2, __rt2) && std::sync::Arc::ptr_eq(__lt3, __rt3) }) }) && (match (__l_invHashTable, __r_invHashTable) { ((__lt0, __lt1, __lt2, __lt3), (__rt0, __rt1, __rt2, __rt3)) => (__lt0 == __rt0) && (__lt1 == __rt1) && (__lt2 == __rt2) && (match (__lt3, __rt3) { ((__lt0, __lt1, __lt2, __lt3), (__rt0, __rt1, __rt2, __rt3)) => std::sync::Arc::ptr_eq(__lt0, __rt0) && std::sync::Arc::ptr_eq(__lt1, __rt1) && std::sync::Arc::ptr_eq(__lt2, __rt2) && std::sync::Arc::ptr_eq(__lt3, __rt3) }) }),
             (Self::NOSTATEORDER, Self::NOSTATEORDER) => true,
             _ => false,
         }
@@ -720,7 +959,7 @@ impl Ord for StateOrder {
             non_eq => return non_eq,
         }
         match (self, other) {
-            (Self::STATEORDER { hashTable: __l_hashTable, invHashTable: __l_invHashTable }, Self::STATEORDER { hashTable: __r_hashTable, invHashTable: __r_invHashTable }) => (std::sync::Arc::as_ptr(__l_hashTable) as *const ()).cmp(&(std::sync::Arc::as_ptr(__r_hashTable) as *const ())).then_with(|| (std::sync::Arc::as_ptr(__l_invHashTable) as *const ()).cmp(&(std::sync::Arc::as_ptr(__r_invHashTable) as *const ()))),
+            (Self::STATEORDER { hashTable: __l_hashTable, invHashTable: __l_invHashTable }, Self::STATEORDER { hashTable: __r_hashTable, invHashTable: __r_invHashTable }) => (match (__l_hashTable, __r_hashTable) { ((__lt0, __lt1, __lt2, __lt3), (__rt0, __rt1, __rt2, __rt3)) => __lt0.cmp(__rt0).then_with(|| __lt1.cmp(__rt1).then_with(|| __lt2.cmp(__rt2).then_with(|| (match (__lt3, __rt3) { ((__lt0, __lt1, __lt2, __lt3), (__rt0, __rt1, __rt2, __rt3)) => (std::sync::Arc::as_ptr(__lt0) as *const ()).cmp(&(std::sync::Arc::as_ptr(__rt0) as *const ())).then_with(|| (std::sync::Arc::as_ptr(__lt1) as *const ()).cmp(&(std::sync::Arc::as_ptr(__rt1) as *const ())).then_with(|| (std::sync::Arc::as_ptr(__lt2) as *const ()).cmp(&(std::sync::Arc::as_ptr(__rt2) as *const ())).then_with(|| (std::sync::Arc::as_ptr(__lt3) as *const ()).cmp(&(std::sync::Arc::as_ptr(__rt3) as *const ()))))) })))) }).then_with(|| (match (__l_invHashTable, __r_invHashTable) { ((__lt0, __lt1, __lt2, __lt3), (__rt0, __rt1, __rt2, __rt3)) => __lt0.cmp(__rt0).then_with(|| __lt1.cmp(__rt1).then_with(|| __lt2.cmp(__rt2).then_with(|| (match (__lt3, __rt3) { ((__lt0, __lt1, __lt2, __lt3), (__rt0, __rt1, __rt2, __rt3)) => (std::sync::Arc::as_ptr(__lt0) as *const ()).cmp(&(std::sync::Arc::as_ptr(__rt0) as *const ())).then_with(|| (std::sync::Arc::as_ptr(__lt1) as *const ()).cmp(&(std::sync::Arc::as_ptr(__rt1) as *const ())).then_with(|| (std::sync::Arc::as_ptr(__lt2) as *const ()).cmp(&(std::sync::Arc::as_ptr(__rt2) as *const ())).then_with(|| (std::sync::Arc::as_ptr(__lt3) as *const ()).cmp(&(std::sync::Arc::as_ptr(__rt3) as *const ()))))) })))) })),
             (Self::NOSTATEORDER, Self::NOSTATEORDER) => std::cmp::Ordering::Equal,
             _ => unreachable!("variant-index equality already implies same variant"),
         }
@@ -731,8 +970,8 @@ impl std::fmt::Debug for StateOrder {
         match self {
             Self::STATEORDER { hashTable: __d_hashTable, invHashTable: __d_invHashTable } => {
                 let mut __ds = __f.debug_struct("STATEORDER");
-                __ds.field("hashTable", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(__d_hashTable)));
-                __ds.field("invHashTable", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(__d_invHashTable)));
+                __ds.field("hashTable", &format_args!("<dyn-fn-container@{:p}>", __d_hashTable as *const _));
+                __ds.field("invHashTable", &format_args!("<dyn-fn-container@{:p}>", __d_invHashTable as *const _));
                 __ds.finish()
             }
             Self::NOSTATEORDER => __f.debug_struct("NOSTATEORDER").finish(),
@@ -804,6 +1043,17 @@ pub struct TearingSet {
     pub jac: Arc<Jacobian>,
 }
 
+impl Default for TearingSet {
+    fn default() -> Self {
+        Self {
+            tearingvars: Default::default(),
+            residualequations: Default::default(),
+            innerEquations: Default::default(),
+            jac: Default::default(),
+        }
+    }
+}
+
 pub type TEARINGSET = TearingSet;
 
 
@@ -820,6 +1070,14 @@ pub enum InnerEquation {
         vars: Arc<metamodelica::List<i32>>,
         cons: Constraints,
     },
+}
+impl Default for InnerEquation {
+    fn default() -> Self {
+        Self::INNEREQUATION {
+            eqn: Default::default(),
+            vars: Default::default(),
+        }
+    }
 }
 pub use self::InnerEquation::{INNEREQUATION,INNEREQUATIONCONSTRAINTS};
 
@@ -843,6 +1101,25 @@ pub struct StateSet {
     pub jacobian: Arc<Jacobian>,
 }
 
+impl Default for StateSet {
+    fn default() -> Self {
+        Self {
+            index: Default::default(),
+            rang: Default::default(),
+            state: Default::default(),
+            crA: Default::default(),
+            varA: Default::default(),
+            statescandidates: Default::default(),
+            ovars: Default::default(),
+            eqns: Default::default(),
+            oeqns: Default::default(),
+            crJ: Default::default(),
+            varJ: Default::default(),
+            jacobian: Default::default(),
+        }
+    }
+}
+
 pub type STATESET = StateSet;
 
 
@@ -863,6 +1140,18 @@ pub struct EventInfo {
     pub numberMathEvents: i32,
 }
 
+impl Default for EventInfo {
+    fn default() -> Self {
+        Self {
+            timeEvents: Default::default(),
+            zeroCrossings: Default::default(),
+            relations: Default::default(),
+            samples: Default::default(),
+            numberMathEvents: Default::default(),
+        }
+    }
+}
+
 pub type EVENT_INFO = EventInfo;
 
 
@@ -870,6 +1159,15 @@ pub type EVENT_INFO = EventInfo;
 pub struct ZeroCrossingSet {
     pub zc: DoubleEnded::MutableList<ZeroCrossing>,
     pub tree: metamodelica::Array<Arc<ZeroCrossings::ZeroCrossingTree::Tree>>,
+}
+
+impl Default for ZeroCrossingSet {
+    fn default() -> Self {
+        Self {
+            zc: Default::default(),
+            tree: Default::default(),
+        }
+    }
 }
 
 pub type ZERO_CROSSING_SET = ZeroCrossingSet;
@@ -885,6 +1183,17 @@ pub struct ZeroCrossing {
     pub occurEquLst: Arc<metamodelica::List<i32>>,
     /// optional iterator for for-loops
     pub iter: Option<Arc<metamodelica::List<SimIterator>>>,
+}
+
+impl Default for ZeroCrossing {
+    fn default() -> Self {
+        Self {
+            index: Default::default(),
+            relation_: Default::default(),
+            occurEquLst: Default::default(),
+            iter: Default::default(),
+        }
+    }
 }
 
 pub type ZERO_CROSSING = ZeroCrossing;
@@ -908,6 +1217,16 @@ pub enum SimIterator {
         sub_iter: Arc<metamodelica::List<(Arc<DAE::ComponentRef>, metamodelica::Array<Arc<DAE::Exp>>)>>,
     },
 }
+impl Default for SimIterator {
+    fn default() -> Self {
+        Self::SIM_ITERATOR_LIST {
+            name: Default::default(),
+            lst: Default::default(),
+            size: Default::default(),
+            sub_iter: Default::default(),
+        }
+    }
+}
 pub use self::SimIterator::{SIM_ITERATOR_RANGE,SIM_ITERATOR_LIST};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -921,6 +1240,9 @@ pub enum TimeEvent {
         startExp: Arc<DAE::Exp>,
         intervalExp: Arc<DAE::Exp>,
     },
+}
+impl Default for TimeEvent {
+    fn default() -> Self { Self::SIMPLE_TIME_EVENT }
 }
 pub use self::TimeEvent::{SIMPLE_TIME_EVENT,SAMPLE_TIME_EVENT};
 
@@ -1004,6 +1326,9 @@ pub enum IndexType {
     /// adjacency matrix as normal, but add for inputs also a value
     SPARSE,
 }
+impl Default for IndexType {
+    fn default() -> Self { Self::ABSOLUTE }
+}
 pub use self::IndexType::{ABSOLUTE,NORMAL,SOLVABLE,BASECLOCK_IDX,SUBCLOCK_IDX,SPARSE};
 
 //
@@ -1067,6 +1392,9 @@ pub enum Jacobian {
     },
     EMPTY_JACOBIAN,
 }
+impl Default for Jacobian {
+    fn default() -> Self { Self::EMPTY_JACOBIAN }
+}
 pub use self::Jacobian::{FULL_JACOBIAN,GENERIC_JACOBIAN,EMPTY_JACOBIAN};
 
 pub type SymbolicJacobians = Arc<metamodelica::List<(Option<(Arc<BackendDAE>, ArcStr, Arc<metamodelica::List<Var>>, Arc<metamodelica::List<Var>>, Arc<metamodelica::List<Var>>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>)>, (Arc<metamodelica::List<(Arc<DAE::ComponentRef>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>)>>, Arc<metamodelica::List<(Arc<DAE::ComponentRef>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>)>>, (Arc<metamodelica::List<Arc<DAE::ComponentRef>>>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>), i32), Arc<metamodelica::List<Arc<metamodelica::List<Arc<DAE::ComponentRef>>>>>, (Arc<metamodelica::List<(Arc<DAE::ComponentRef>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>)>>, Arc<metamodelica::List<(Arc<DAE::ComponentRef>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>)>>, (Arc<metamodelica::List<Arc<DAE::ComponentRef>>>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>), i32))>>;
@@ -1117,13 +1445,28 @@ pub struct DifferentiateInputData {
     pub diffedFunctions: Arc<AvlSetPath::Tree>,
 }
 
+impl Default for DifferentiateInputData {
+    fn default() -> Self {
+        Self {
+            independenentVars: Default::default(),
+            dependenentVars: Default::default(),
+            knownVars: Default::default(),
+            allVars: Default::default(),
+            controlVars: Default::default(),
+            diffCrefs: Default::default(),
+            matrixName: Default::default(),
+            diffedFunctions: Default::default(),
+        }
+    }
+}
+
 pub type DIFFINPUTDATA = DifferentiateInputData;
 
 
 thread_local! { static __emptyInputData_TLS: DifferentiateInputData = DifferentiateInputData { independenentVars: None, dependenentVars: None, knownVars: None, allVars: None, controlVars: metamodelica::nil(), diffCrefs: metamodelica::nil(), matrixName: None, diffedFunctions: Arc::new(openmodelica_ast_collections::AvlSetPath::Tree::EMPTY) }; }
 pub fn emptyInputData() -> DifferentiateInputData { __emptyInputData_TLS.with(|__t| __t.clone()) }
 
-pub type DifferentiateInputArguments = /* ? */;
+pub type DifferentiateInputArguments = (Arc<DAE::ComponentRef>, DifferentiateInputData, DifferentiationType, Arc<AvlTreePathFunction::Tree>);
 
 /// Define the behaviour of differentiation method for (e.g. index reduction, ...)
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -1190,6 +1533,17 @@ pub struct BackendDAEModeData {
     pub algStateVars: Arc<metamodelica::List<Var>>,
     pub numResVars: i32,
     pub modelVars: Option<Variables>,
+}
+
+impl Default for BackendDAEModeData {
+    fn default() -> Self {
+        Self {
+            stateVars: Default::default(),
+            algStateVars: Default::default(),
+            numResVars: Default::default(),
+            modelVars: Default::default(),
+        }
+    }
 }
 
 pub type BDAE_MODE_DATA = BackendDAEModeData;

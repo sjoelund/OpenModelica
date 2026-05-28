@@ -644,7 +644,7 @@ pub fn parse_value_check_empty(mut inTokens: Arc<metamodelica::List<Token>>) -> 
 pub fn parse_value(mut inTokens: Arc<metamodelica::List<Token>>) -> Result<(Arc<JSON>, Arc<metamodelica::List<Token>>)> {
     let mut value: Arc<JSON> = Arc::new(JSON::FALSE);
     let mut tokens: Arc<metamodelica::List<Token>> = inTokens.clone();
-    let mut tok: Token;
+    let mut tok: Token = <Token as ::std::default::Default>::default();
     not_eof(tokens.clone())?;
     let (__pa0, __pa1) = ::match_deref::match_deref! { match &(tokens.clone()) {
         Deref @ metamodelica::List::Cons { head: __pa0, tail: __pa1 } => (__pa0.clone(), __pa1.clone()),
@@ -687,7 +687,7 @@ pub fn parse_value(mut inTokens: Arc<metamodelica::List<Token>>) -> Result<(Arc<
 pub fn parse_string(mut inTokens: Arc<metamodelica::List<Token>>) -> Result<(Arc<JSON>, Arc<metamodelica::List<Token>>)> {
     let mut value: Arc<JSON> = Arc::new(JSON::FALSE);
     let mut tokens: Arc<metamodelica::List<Token>> = inTokens.clone();
-    let mut tok: Token;
+    let mut tok: Token = <Token as ::std::default::Default>::default();
     let mut values: Arc<metamodelica::List<Arc<JSON>>> = metamodelica::nil();
     let mut cont: bool = false;
     let mut content: ArcStr = arcstr::literal!("");
@@ -714,7 +714,7 @@ pub fn parse_string(mut inTokens: Arc<metamodelica::List<Token>>) -> Result<(Arc
 pub fn parse_integer(mut inTokens: Arc<metamodelica::List<Token>>) -> Result<(Arc<JSON>, Arc<metamodelica::List<Token>>)> {
     let mut value: Arc<JSON> = Arc::new(JSON::FALSE);
     let mut tokens: Arc<metamodelica::List<Token>> = inTokens.clone();
-    let mut tok: Token;
+    let mut tok: Token = <Token as ::std::default::Default>::default();
     let mut values: Arc<metamodelica::List<Arc<JSON>>> = metamodelica::nil();
     let mut cont: bool = false;
     let mut content: ArcStr = arcstr::literal!("");
@@ -736,7 +736,7 @@ pub fn parse_integer(mut inTokens: Arc<metamodelica::List<Token>>) -> Result<(Ar
 pub fn parse_number(mut inTokens: Arc<metamodelica::List<Token>>) -> Result<(Arc<JSON>, Arc<metamodelica::List<Token>>)> {
     let mut value: Arc<JSON> = Arc::new(JSON::FALSE);
     let mut tokens: Arc<metamodelica::List<Token>> = inTokens.clone();
-    let mut tok: Token;
+    let mut tok: Token = <Token as ::std::default::Default>::default();
     let mut values: Arc<metamodelica::List<Arc<JSON>>> = metamodelica::nil();
     let mut cont: bool = false;
     let mut content: ArcStr = arcstr::literal!("");
@@ -758,7 +758,7 @@ pub fn parse_number(mut inTokens: Arc<metamodelica::List<Token>>) -> Result<(Arc
 pub fn parse_array(mut inTokens: Arc<metamodelica::List<Token>>) -> Result<(Arc<JSON>, Arc<metamodelica::List<Token>>)> {
     let mut value: Arc<JSON> = Arc::new(JSON::FALSE);
     let mut tokens: Arc<metamodelica::List<Token>> = inTokens.clone();
-    let mut tok: Token;
+    let mut tok: Token = <Token as ::std::default::Default>::default();
     let mut values: Arc<Vector::Vector<Arc<JSON>>> = Vector::new(0);
     let mut cont: bool = false;
     value = emptyObject();
@@ -777,7 +777,7 @@ pub fn parse_array(mut inTokens: Arc<metamodelica::List<Token>>) -> Result<(Arc<
 pub fn parse_object(mut inTokens: Arc<metamodelica::List<Token>>) -> Result<(Arc<JSON>, Arc<metamodelica::List<Token>>)> {
     let mut value: Arc<JSON> = Arc::new(JSON::FALSE);
     let mut tokens: Arc<metamodelica::List<Token>> = inTokens.clone();
-    let mut tok: Token;
+    let mut tok: Token = <Token as ::std::default::Default>::default();
     let mut values: Arc<UnorderedMap::UnorderedMap<ArcStr, Arc<JSON>>>;
     let mut key: ArcStr = arcstr::literal!("");
     let mut cont: bool = false;
@@ -828,7 +828,7 @@ fn not_eof(mut tokens: Arc<metamodelica::List<Token>>) -> Result<Arc<metamodelic
 
 fn peek_id(mut tokens: Arc<metamodelica::List<Token>>) -> Result<TokenId> {
     let mut nextToken: TokenId = TokenId::_NO_TOKEN;
-    let mut tok: Token;
+    let mut tok: Token = <Token as ::std::default::Default>::default();
     if tokens.clone().is_empty() {
         nextToken = TokenId::_NO_TOKEN.clone();
     }
@@ -840,7 +840,7 @@ fn peek_id(mut tokens: Arc<metamodelica::List<Token>>) -> Result<TokenId> {
 fn eat_if_next_token_matches(mut tokens: Arc<metamodelica::List<Token>>, mut expectedToken: TokenId) -> Result<(Arc<metamodelica::List<Token>>, bool)> {
     let mut tokens: Arc<metamodelica::List<Token>> = tokens;
     let mut matched: bool = false;
-    let mut tok: Token;
+    let mut tok: Token = <Token as ::std::default::Default>::default();
     if tokens.clone().is_empty() {
         return Ok((tokens, matched));
     }
@@ -859,7 +859,7 @@ fn eat_if_next_token_matches(mut tokens: Arc<metamodelica::List<Token>>, mut exp
 
 fn parse_expected_token(mut tokens: Arc<metamodelica::List<Token>>, mut expectedToken: TokenId) -> Result<Arc<metamodelica::List<Token>>> {
     let mut tokens: Arc<metamodelica::List<Token>> = tokens;
-    let mut tok: Token;
+    let mut tok: Token = <Token as ::std::default::Default>::default();
     not_eof(tokens.clone())?;
     let (__pa0, __pa1) = ::match_deref::match_deref! { match &(tokens.clone()) {
         Deref @ metamodelica::List::Cons { head: __pa0, tail: __pa1 } => (__pa0.clone(), __pa1.clone()),
@@ -875,7 +875,7 @@ fn parse_expected_token(mut tokens: Arc<metamodelica::List<Token>>, mut expected
 }
 
 fn check_empty(mut tokens: Arc<metamodelica::List<Token>>) -> Result<()> {
-    let mut tok: Token;
+    let mut tok: Token = <Token as ::std::default::Default>::default();
     if tokens.clone().is_empty() {
         return Ok(());
     }

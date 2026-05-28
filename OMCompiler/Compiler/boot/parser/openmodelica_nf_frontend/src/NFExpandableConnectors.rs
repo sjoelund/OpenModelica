@@ -83,7 +83,7 @@ pub fn elaborate(mut flatModel: Arc<FlatModel::NFFlatModel>, mut connections: Ar
     let mut undeclared_conns: Arc<metamodelica::List<Arc<Connection::NFConnection>>> = metamodelica::nil();
     let mut conns: Arc<metamodelica::List<Arc<Connection::NFConnection>>> = metamodelica::nil();
     let mut vars: Arc<metamodelica::List<Arc<Variable::NFVariable>>> = metamodelica::nil();
-    let mut csets: ConnectionSets::Sets;
+    let mut csets: ConnectionSets::Sets = <ConnectionSets::Sets as ::std::default::Default>::default();
     let mut csets_array: metamodelica::Array<Arc<metamodelica::List<Arc<Connector::NFConnector>>>>;
     (expandable_conns, undeclared_conns, conns) = sortConnections(connections.connections.clone())?;
     if expandable_conns.clone().is_empty() && undeclared_conns.clone().is_empty() {
@@ -141,10 +141,12 @@ fn sortConnections(mut conns: Arc<metamodelica::List<Arc<Connection::NFConnectio
                 expandableConnections = cons(conn.clone(), expandableConnections.clone());
             } else {
                 Error::addSourceMessageAndFail(Error::EXPANDABLE_NON_EXPANDABLE_CONNECTION.clone(), list![(Connector::toString(if (is_expandable1.clone()) {c1.clone()} else {c2.clone()})).clone(), (Connector::toString(if (is_expandable1.clone()) {c2.clone()} else {c1.clone()})).clone()], Connector::getInfo(c1.clone()))?;
+                unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
             }
         } else if is_undeclared1.clone() || is_undeclared2.clone() {
             if is_undeclared1.clone() && is_undeclared2.clone() {
                 Error::addSourceMessageAndFail(Error::UNDECLARED_CONNECTION.clone(), list![(Connector::toString(c1.clone())).clone(), (Connector::toString(c2.clone())).clone()], Connector::getInfo(c1.clone()))?;
+                unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
             } else {
                 undeclaredConnections = cons(conn.clone(), undeclaredConnections.clone());
             }
@@ -430,6 +432,7 @@ fn updateExpandableConnection(mut conn: Arc<Connection::NFConnection>, mut conns
     (_, _, _, mk) = TypeCheck::matchExpressions(e1.clone(), ty1.clone(), e2.clone(), ty2.clone(), TypeCheck::ALLOW_UNKNOWN.clone())?;
     if TypeCheck::isIncompatibleMatch(mk.clone()) {
         Error::addSourceMessageAndFail(Error::CONNECT_TYPE_MISMATCH.clone(), list![(Expression::toString(e1.clone())?).clone(), (Expression::toString(e2.clone())?).clone()], Connector::getInfo(c1.clone()))?;
+        unreachable!("Error.addSourceMessageAndFail always fails — caller-side flow-analysis hint");
     }
     conns = cons(Arc::new(Connection::NFConnection { lhs: c1.clone(), rhs: c2.clone() }), conns.clone());
     Ok(conns)

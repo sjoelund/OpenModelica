@@ -183,7 +183,7 @@ pub fn applyMutable<T: Clone + 'static>(mut slice: Arc<NBSlice<T>>, mut func: Ar
     ()
 }
 
-pub fn check<T2: Clone + 'static, T: Clone + 'static>(mut slice: Arc<NBSlice<T>>, mut func: Arc<dyn ::std::ops::Fn(T) -> Result<T2> + 'static>) -> T2 {
+pub fn check<T: Clone + 'static, T2: Clone + 'static>(mut slice: Arc<NBSlice<T>>, mut func: Arc<dyn ::std::ops::Fn(T) -> Result<T2> + 'static>) -> T2 {
     let mut t2: T2 = func(slice.t.clone()).unwrap();
     t2
 }
@@ -809,8 +809,8 @@ fn resolveEqualInertia(mut frame_inertia_lst: Arc<metamodelica::List<(i32, (meta
         ((inertia1, (loc1, (name1, _, _))), (inertia2, (loc2, (name2, _, _)))) if (inertia1.clone() == inertia2.clone()) => {
             let mut m: i32 = 0;
             let mut b: i32 = 0;
-            let mut addOp: Arc<Operator::NFOperator>;
-            let mut mulOp: Arc<Operator::NFOperator>;
+            let mut addOp: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
+            let mut mulOp: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
             let mut linMap: Arc<Expression::NFExpression> = Arc::new(Expression::END);
             addOp = Operator::fromClassification((Operator::MathClassification::ADDITION.clone(), Operator::SizeClassification::SCALAR.clone()), Arc::new(openmodelica_nf_frontend::NFType::INTEGER))?;
             mulOp = Operator::fromClassification((Operator::MathClassification::MULTIPLICATION.clone(), Operator::SizeClassification::SCALAR.clone()), Arc::new(openmodelica_nf_frontend::NFType::INTEGER))?;

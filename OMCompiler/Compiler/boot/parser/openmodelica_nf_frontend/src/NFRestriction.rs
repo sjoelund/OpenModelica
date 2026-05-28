@@ -297,7 +297,7 @@ pub fn assertNoEquations(mut equations: Arc<metamodelica::List<Arc<SCode::Equati
 
 pub fn assertNoAlgorithms(mut algorithms: Arc<metamodelica::List<Arc<SCode::AlgorithmSection>>>, mut initialAlgorithms: Arc<metamodelica::List<Arc<SCode::AlgorithmSection>>>, mut res: Arc<NFRestriction>, mut onlyDeprecated: bool) -> Result<()> {
     let mut alg_opt: Option<Arc<SCode::AlgorithmSection>> = None;
-    let mut alg: Arc<SCode::AlgorithmSection>;
+    let mut alg: Arc<SCode::AlgorithmSection> = Arc::new(<SCode::AlgorithmSection as ::std::default::Default>::default());
     let mut info: SourceInfo = <SourceInfo as ::std::default::Default>::default();
     alg_opt = List::findOption(algorithms.clone(), (std::sync::Arc::new(fnptr!(SCodeUtil::isNonEmptyAlgorithm, Arc<SCode::AlgorithmSection>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<SCode::AlgorithmSection>) -> Result<bool> + 'static>));
     if isNone(alg_opt.clone()) {

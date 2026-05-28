@@ -732,7 +732,7 @@ pub mod Block {
             (tmp.clone(), getIndex(tmp.clone())?)
         },
         Deref @ StrongComponent::ALGEBRAIC_LOOP { strict, .. } => {
-            let mut system: Arc<NonlinearSystem::NonlinearSystem>;
+            let mut system: Arc<NonlinearSystem::NonlinearSystem> = Arc::new(<NonlinearSystem::NonlinearSystem as ::std::default::Default>::default());
             let mut tmp: Arc<Block>;
             let mut var: Arc<Variable::NFVariable> = Arc::new(<Variable::NFVariable as ::std::default::Default>::default());
             let mut jacobian: Option<Arc<SimJacobian::SimJacobian>> = None;
@@ -1421,6 +1421,22 @@ pub mod NonlinearSystem {
         pub torn: bool,
     }
 
+    impl Default for NonlinearSystem {
+        fn default() -> Self {
+            Self {
+                index: Default::default(),
+                blcks: Default::default(),
+                crefs: Default::default(),
+                indexSystem: Default::default(),
+                size: Default::default(),
+                jacobian: Default::default(),
+                homotopy: Default::default(),
+                mixed: Default::default(),
+                torn: Default::default(),
+            }
+        }
+    }
+
     pub type NONLINEAR_SYSTEM = NonlinearSystem;
 
     pub fn getJacobian(mut syst: Arc<NonlinearSystem>) -> Option<Arc<SimJacobian::SimJacobian>> {
@@ -1441,7 +1457,7 @@ pub mod NonlinearSystem {
     }
 
     pub fn convert(mut system: Arc<NonlinearSystem>) -> Result<Arc<OldSimCode::NonlinearSystem>> {
-        let mut oldSystem: Arc<OldSimCode::NonlinearSystem>;
+        let mut oldSystem: Arc<OldSimCode::NonlinearSystem> = Arc::new(<OldSimCode::NonlinearSystem as ::std::default::Default>::default());
         let mut crefs: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
         for mut cref in &*system.crefs.clone() {
             let mut cref = cref.clone();

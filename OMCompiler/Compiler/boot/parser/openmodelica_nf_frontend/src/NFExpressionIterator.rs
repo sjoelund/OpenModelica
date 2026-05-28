@@ -72,6 +72,9 @@ pub enum NFExpressionIterator {
         all: Arc<metamodelica::List<Arc<Expression::NFExpression>>>,
     },
 }
+impl Default for NFExpressionIterator {
+    fn default() -> Self { Self::NONE_ITERATOR }
+}
 pub use self::NFExpressionIterator::{ARRAY_ITERATOR,SCALAR_ITERATOR,EACH_ITERATOR,NONE_ITERATOR,REPEAT_ITERATOR};
 pub fn toString(mut iter: Arc<NFExpressionIterator>) -> Result<ArcStr> {
     let mut r#str: ArcStr = arcstr::literal!("");

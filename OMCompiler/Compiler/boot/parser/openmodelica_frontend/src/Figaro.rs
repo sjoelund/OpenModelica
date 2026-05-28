@@ -101,6 +101,15 @@ pub struct FigaroClass {
     pub typeName: ArcStr,
 }
 
+impl Default for FigaroClass {
+    fn default() -> Self {
+        Self {
+            className: Default::default(),
+            typeName: Default::default(),
+        }
+    }
+}
+
 pub type FIGAROCLASS = FigaroClass;
 
 
@@ -259,7 +268,7 @@ fn fcElementListExt(mut inFigaroBase: Ident, mut inFigaroType: ArcStr, mut inPro
 fn fcAddFigaroClass(mut inFigaroType: ArcStr, mut inProgram: Arc<SCode::Element>, mut inClassName: Ident, mut inTypeName: ArcStr, mut env: Arc<metamodelica::List<Arc<SCode::Element>>>) -> Result<Arc<metamodelica::List<FigaroClass>>> {
     let mut outFigaroClassList: Arc<metamodelica::List<FigaroClass>> = metamodelica::nil();
     let mut tn: ArcStr = arcstr::literal!("");
-    let mut fc: FigaroClass;
+    let mut fc: FigaroClass = <FigaroClass as ::std::default::Default>::default();
     tn = (if (inTypeName.clone() == literal!("")) {inFigaroType.clone()} else {inTypeName.clone()}).clone();
     fc = FigaroClass { className: (inClassName.clone()).clone(), typeName: (tn.clone()).clone() };
     outFigaroClassList = cons(fc.clone(), fcElement((inClassName.clone()).clone(), (tn.clone()).clone(), inProgram.clone(), None, inProgram.clone(), env.clone())?);

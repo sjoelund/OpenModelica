@@ -43,6 +43,7 @@ use metamodelica::*; // Built-in types and functions
 use const_str;
 use arcstr::{ArcStr, literal, format};
 
+use crate::AvlSetCR;
 use crate::BackendCevalInterface;
 use crate::ComponentReference;
 use crate::Expression;
@@ -58,6 +59,7 @@ use crate::Types;
 use crate::ValuesUtil;
 use openmodelica_ast::Absyn;
 use openmodelica_frontend_dump::AbsynUtil;
+use openmodelica_frontend_dump::AvlTreePathFunction;
 use openmodelica_frontend_dump::ComponentReferenceBasics;
 use openmodelica_frontend_dump::ExpressionBasics;
 use openmodelica_frontend_dump::SCodeUtil;
@@ -78,6 +80,7 @@ use openmodelica_util::Print;
 use openmodelica_util::System;
 use openmodelica_util::Util;
 use openmodelica_util_datatypes_basic::List;
+use openmodelica_util_datatypes_basic::Mutable;
 
 // protected imports
 pub fn ceval(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inExp: Arc<DAE::Exp>, mut inBoolean: bool, mut inMsg: Absyn::Msg, mut numIter: i32) -> Result<(FCore::Cache, Arc<Values::Value>)> {
@@ -1433,8 +1436,8 @@ pub fn cevalIfConstant(mut cache: FCore::Cache, mut inEnv: FCore::Graph, mut exp
         if let Ok(__v) = (|| -> Result<_> {
             let DAE::Properties::PROP { type_: ref tp, constFlag: DAE::Const::C_CONST } = __mc_input.clone() else { bail!("nomatch") };
             let mut v: Arc<Values::Value> = Arc::new(Values::Value::META_FAIL);
-            let mut exp: Arc<DAE::Exp> = exp.clone();
             let mut cache: FCore::Cache = cache.clone();
+            let mut exp: Arc<DAE::Exp> = exp.clone();
             (cache, v) = ceval(cache.clone(), inEnv.clone(), exp.clone(), r#impl.clone(), Absyn::Msg::MSG { info: inInfo.clone() }, 0)?;
             exp = ValuesUtil::valueExp(v.clone(), Some(exp.clone()))?;
             exp = ValuesUtil::fixZeroSizeArray(exp.clone(), tp.clone())?;
@@ -1443,8 +1446,8 @@ pub fn cevalIfConstant(mut cache: FCore::Cache, mut inEnv: FCore::Graph, mut exp
         if let Ok(__v) = (|| -> Result<_> {
             let DAE::Properties::PROP_TUPLE { .. } = __mc_input.clone() else { bail!("nomatch") };
             let mut v: Arc<Values::Value> = Arc::new(Values::Value::META_FAIL);
-            let mut exp: Arc<DAE::Exp> = exp.clone();
             let mut cache: FCore::Cache = cache.clone();
+            let mut exp: Arc<DAE::Exp> = exp.clone();
             let DAE::C_CONST { .. } = (Types::propAllConst(prop.clone())?) else { bail!("pattern mismatch") };
             (cache, v) = ceval(cache.clone(), inEnv.clone(), exp.clone(), false, Absyn::Msg::MSG { info: inInfo.clone() }, 0)?;
             exp = ValuesUtil::valueExp(v.clone(), Some(exp.clone()))?;
@@ -1592,7 +1595,7 @@ fn cevalBuiltin(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inExp: A
     Ok((outCache, outValue))
 }
 
-fn cevalBuiltinHandler(mut inIdent: ArcStr) -> Result<fn(FCore::Cache, FCore::Graph, Arc<metamodelica::List<Arc<DAE::Exp>>>, bool, Absyn::Msg, i32) -> Result<(FCore::Cache, Arc<Values::Value>)>> {
+fn cevalBuiltinHandler(mut inIdent: ArcStr) -> Result<Arc<dyn ::std::ops::Fn(FCore::Cache, FCore::Graph, Arc<metamodelica::List<Arc<DAE::Exp>>>, bool, Absyn::Msg, i32) -> Result<(FCore::Cache, Arc<Values::Value>)> + 'static>> {
     pub type HandlerFunc = std::sync::Arc<dyn ::std::ops::Fn(FCore::Cache, FCore::Graph, Arc<metamodelica::List<Arc<DAE::Exp>>>, bool, Absyn::Msg, i32) -> Result<(FCore::Cache, Arc<Values::Value>)> + 'static>;
 
     let mut handler: Arc<dyn ::std::ops::Fn(FCore::Cache, FCore::Graph, Arc<metamodelica::List<Arc<DAE::Exp>>>, bool, Absyn::Msg, i32) -> Result<(FCore::Cache, Arc<Values::Value>)> + 'static>;
@@ -3977,10 +3980,10 @@ fn cevalBuiltinMod(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inExp
             Arc::new(Values::Value::REAL { real: realMod(rv1.clone(), rv2.clone()) })
         },
         (Deref @ Values::Value::INTEGER { integer: ri }, Deref @ Values::Value::REAL { real: rv2 }, _) => {
-            Arc::new(Values::Value::REAL { real: realMod(ri.clone(), rv2.clone()) })
+            Arc::new(Values::Value::REAL { real: realMod(metamodelica::OrderedFloat((ri.clone()) as f64), rv2.clone()) })
         },
         (Deref @ Values::Value::REAL { real: rv1 }, Deref @ Values::Value::INTEGER { integer: ri }, _) => {
-            Arc::new(Values::Value::REAL { real: realMod(rv1.clone(), ri.clone()) })
+            Arc::new(Values::Value::REAL { real: realMod(rv1.clone(), metamodelica::OrderedFloat((ri.clone()) as f64)) })
         },
         (Deref @ Values::Value::INTEGER { integer: ri1 }, Deref @ Values::Value::INTEGER { integer: ri2 }, _) => {
             Arc::new(Values::Value::INTEGER { integer: intMod(ri1.clone(), ri2.clone()) })
@@ -4954,8 +4957,8 @@ pub fn cevalCref(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inCompo
                     let mut name: ArcStr = arcstr::literal!("");
                     let mut const_for_range: Option<DAE::Const> = None;
                     let mut ty: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
-                    let mut attr: Arc<DAE::Attributes>;
-                    let mut splicedExpData: InstTypes::SplicedExpData;
+                    let mut attr: Arc<DAE::Attributes> = Arc::new(<DAE::Attributes as ::std::default::Default>::default());
+                    let mut splicedExpData: InstTypes::SplicedExpData = <InstTypes::SplicedExpData as ::std::default::Default>::default();
                     let mut cache = (*cache).clone();
                     (cache, attr, ty, binding, const_for_range, splicedExpData, classEnv, componentEnv, name) = Lookup::lookupVar(cache.clone(), env.clone(), c.clone())?;
                     (cache, v) = cevalCref_dispatch(cache.clone(), env.clone(), c.clone(), attr.clone(), ty.clone(), binding.clone(), const_for_range.clone(), splicedExpData.clone(), classEnv.clone(), componentEnv.clone(), (name.clone()).clone(), r#impl.clone(), msg.clone(), numIter.clone())?;
@@ -5705,6 +5708,20 @@ pub fn cevalSimple(mut exp: Arc<DAE::Exp>) -> Result<Arc<Values::Value>> {
     Ok(val)
 }
 
+pub fn cevalSimpleWithFunctionTreeReturnExp(mut exp: Arc<DAE::Exp>, mut functions: Arc<AvlTreePathFunction::Tree>) -> Result<Arc<DAE::Exp>> {
+    let mut oexp: Arc<DAE::Exp>;
+    let mut val: Arc<Values::Value> = Arc::new(Values::Value::META_FAIL);
+    let mut cache: FCore::Cache = FCore::Cache::NO_CACHE;
+    let mut structuralParameters: (Arc<AvlSetCR::Tree>, Arc<metamodelica::List<Arc<metamodelica::List<Arc<DAE::ComponentRef>>>>>);
+    let mut functionTree: Mutable::Mutable<Arc<AvlTreePathFunction::Tree>>;
+    structuralParameters = (Arc::new(crate::AvlSetCR::Tree::EMPTY), metamodelica::nil());
+    functionTree = Mutable::create(functions.clone());
+    cache = FCore::Cache::CACHE { initialGraph: None, functions: functionTree.clone(), evaluatedParams: structuralParameters.clone(), modelName: Arc::new(Absyn::Path::IDENT { name: (literal!("")).clone() }) };
+    (_, val) = ceval(cache.clone(), FGraph::empty(), exp.clone(), false, Absyn::Msg::MSG { info: Absyn::dummyInfo.clone() }, 0)?;
+    oexp = ValuesUtil::valueExp(val.clone(), Some(exp.clone()))?;
+    Ok(oexp)
+}
+
 pub fn cevalAstExp(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inExp: Arc<Absyn::Exp>, mut inBoolean: bool, mut inMsg: Absyn::Msg, mut info: SourceInfo) -> Result<(FCore::Cache, Arc<Absyn::Exp>)> {
     let mut outCache: FCore::Cache = FCore::Cache::NO_CACHE;
     let mut outExp: Arc<Absyn::Exp> = Arc::new(Absyn::Exp::BREAK);
@@ -6038,7 +6055,7 @@ fn cevalAstModopt(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inAbsy
     let mut outAbsynModificationOption: Option<Arc<Absyn::Modification>> = None;
     (outCache, outAbsynModificationOption) = (::match_deref::match_deref! { match &((inCache.clone(), inEnv.clone(), inAbsynModificationOption.clone(), inBoolean.clone(), inMsg.clone(), info.clone())) {
         (cache, env, Some(r#mod), r#impl, msg, _) => {
-            let mut res: Arc<Absyn::Modification>;
+            let mut res: Arc<Absyn::Modification> = Arc::new(<Absyn::Modification as ::std::default::Default>::default());
             let mut cache = (*cache).clone();
             (cache, res) = cevalAstModification(cache.clone(), env.clone(), r#mod.clone(), r#impl.clone(), msg.clone(), info.clone())?;
             (cache.clone(), Some(res.clone()))
@@ -6053,7 +6070,7 @@ fn cevalAstModopt(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inAbsy
 
 fn cevalAstModification(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inModification: Arc<Absyn::Modification>, mut inBoolean: bool, mut inMsg: Absyn::Msg, mut info: SourceInfo) -> Result<(FCore::Cache, Arc<Absyn::Modification>)> {
     let mut outCache: FCore::Cache = FCore::Cache::NO_CACHE;
-    let mut outModification: Arc<Absyn::Modification>;
+    let mut outModification: Arc<Absyn::Modification> = Arc::new(<Absyn::Modification as ::std::default::Default>::default());
     (outCache, outModification) = (::match_deref::match_deref! { match &((inCache.clone(), inEnv.clone(), inModification.clone(), inBoolean.clone(), inMsg.clone(), info.clone())) {
         (cache, env, Deref @ Absyn::Modification { eqMod: Deref @ Absyn::EqMod::EQMOD { exp: e, info: info2 }, elementArgLst: eltargs }, r#impl, msg, _) => {
             let mut e_1: Arc<Absyn::Exp> = Arc::new(Absyn::Exp::BREAK);
@@ -6090,7 +6107,7 @@ fn cevalAstEltargs(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inAbs
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (cache, env, Deref @ metamodelica::List::Cons { head: Deref @ Absyn::ElementArg::MODIFICATION { info: mod_info, comment: stropt, modification: Some(r#mod), path: p, eachPrefix: e, finalPrefix: b }, tail: args }, r#impl, msg, _) => {
-                    let mut mod_1: Arc<Absyn::Modification>;
+                    let mut mod_1: Arc<Absyn::Modification> = Arc::new(<Absyn::Modification as ::std::default::Default>::default());
                     let mut res: Arc<metamodelica::List<Arc<Absyn::ElementArg>>> = metamodelica::nil();
                     let mut cache = (*cache).clone();
                     (cache, mod_1) = cevalAstModification(cache.clone(), env.clone(), r#mod.clone(), r#impl.clone(), msg.clone(), info.clone())?;

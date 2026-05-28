@@ -4413,7 +4413,7 @@ pub fn createAssignArray(mut txt: Tpl::Text, mut a_sourceOrTargetArrayCref: Arc<
     let mut out_a_extraFuncs: Tpl::Text;
     let mut out_a_extraFuncsDecl: Tpl::Text;
     let mut out_a_extraFuncsNamespace: Tpl::Text;
-    let mut ret_0: SimCodeVar::SimVar;
+    let mut ret_0: SimCodeVar::SimVar = <SimCodeVar::SimVar as ::std::default::Default>::default();
     ret_0 = SimCodeUtil::cref2simvar(a_sourceOrTargetArrayCref.clone(), a_simCode.clone())?;
     out_txt = fun_183(txt.clone(), ret_0.clone(), (a_sourceArrayName.clone()).clone(), (a_targetArrayName.clone()).clone())?;
     out_a_extraFuncs = a_extraFuncs.clone();
@@ -21635,7 +21635,7 @@ fn lm_783(mut in_txt: Tpl::Text, mut in_items: Arc<metamodelica::List<Arc<DAE::C
         },
         (txt, Deref @ metamodelica::List::Cons { head: i_cref, tail: rest }, a_useFlatArrayNotation, a_stateDerVectorName, a_context, a_extraFuncsNamespace, a_extraFuncsDecl, a_extraFuncs, a_varDecls, a_preExp, a_simCode) => {
             let mut x_i0: i32 = 0;
-            let mut ret_1: SimCodeVar::SimVar;
+            let mut ret_1: SimCodeVar::SimVar = <SimCodeVar::SimVar as ::std::default::Default>::default();
             let mut l_initializer: Tpl::Text;
             let mut txt = (*txt).clone();
             let mut a_stateDerVectorName = (*a_stateDerVectorName).clone();
@@ -21831,7 +21831,7 @@ fn fun_789(mut in_txt: Tpl::Text, mut in_a_var: SimCodeVar::SimVar, mut in_a_use
             (txt.clone(), a_stateDerVectorName.clone(), a_extraFuncsNamespace.clone(), a_extraFuncsDecl.clone(), a_extraFuncs.clone(), a_varDecls.clone(), a_preExp.clone())
         },
         (txt, SimCodeVar::SimVar { name: Deref @ DAE::ComponentRef::CREF_QUAL { componentRef: i_stateCref, .. }, varKind: BackendDAE::VarKind::STATE_DER, .. }, a_useFlatArrayNotation, a_stateDerVectorName, a_extraFuncsNamespace, a_extraFuncsDecl, a_extraFuncs, a_simCode, a_varDecls, a_preExp, a_context) => {
-            let mut ret_1: SimCodeVar::SimVar;
+            let mut ret_1: SimCodeVar::SimVar = <SimCodeVar::SimVar as ::std::default::Default>::default();
             let mut txt = (*txt).clone();
             let mut a_stateDerVectorName = (*a_stateDerVectorName).clone();
             let mut a_extraFuncsNamespace = (*a_extraFuncsNamespace).clone();
@@ -36617,7 +36617,7 @@ fn fun_1345(mut in_txt: Tpl::Text, mut in_a_eq: Arc<SimCode::SimEqSystem>, mut i
             let mut txt_4: Tpl::Text;
             let mut l_expPart: Tpl::Text;
             let mut l_preExp: Tpl::Text;
-            let mut ret_1: SimCodeVar::SimVar;
+            let mut ret_1: SimCodeVar::SimVar = <SimCodeVar::SimVar as ::std::default::Default>::default();
             let mut l_startFixedExp: Tpl::Text;
             let mut txt = (*txt).clone();
             let mut a_varDeclsCref = (*a_varDeclsCref).clone();
@@ -36738,7 +36738,7 @@ fn fun_1349(mut in_txt: Tpl::Text, mut in_a_lhs__ecr: Arc<DAE::Exp>, mut in_a_co
     let mut out_a_stateDerVectorName: Tpl::Text;
     (out_txt, out_a_extraFuncs, out_a_extraFuncsDecl, out_a_extraFuncsNamespace, out_a_stateDerVectorName) = (::match_deref::match_deref! { match &((in_txt.clone(), in_a_lhs__ecr.clone(), in_a_context.clone(), in_a_arr.clone(), in_a_simCode.clone(), in_a_extraFuncs.clone(), in_a_extraFuncsDecl.clone(), in_a_extraFuncsNamespace.clone(), in_a_stateDerVectorName.clone(), in_a_useFlatArrayNotation.clone())) {
         (txt, Deref @ DAE::Exp::CREF { ty: i_ty, componentRef: i_c }, a_context, a_arr, a_simCode, a_extraFuncs, a_extraFuncsDecl, a_extraFuncsNamespace, a_stateDerVectorName, a_useFlatArrayNotation) => {
-            let mut ret_2: SimCodeVar::SimVar;
+            let mut ret_2: SimCodeVar::SimVar = <SimCodeVar::SimVar as ::std::default::Default>::default();
             let mut l_lhsStr: Tpl::Text;
             let mut l_varDeclsCref: Tpl::Text;
             let mut txt = (*txt).clone();
@@ -37187,7 +37187,7 @@ fn fun_1364(mut in_txt: Tpl::Text, mut in_mArg: bool, mut in_a_var: Tpl::Text, m
     let mut out_txt: Tpl::Text;
     out_txt = (::match_deref::match_deref! { match &((in_txt.clone(), in_mArg.clone(), in_a_var.clone(), in_a_simCode.clone(), in_a_cr.clone())) {
         (txt, false, a_var, a_simCode, a_cr) => {
-            let mut ret_0: SimCodeVar::SimVar;
+            let mut ret_0: SimCodeVar::SimVar = <SimCodeVar::SimVar as ::std::default::Default>::default();
             let mut txt = (*txt).clone();
             ret_0 = SimCodeUtil::cref2simvar(a_cr.clone(), a_simCode.clone())?;
             txt = fun_1363(txt.clone(), ret_0.clone(), a_var.clone())?;
@@ -38067,7 +38067,7 @@ pub fn equationSimpleAssign(mut in_txt: Tpl::Text, mut in_a_eq: Arc<SimCode::Sim
         (txt, Deref @ SimCode::SimEqSystem::SES_SIMPLE_ASSIGN { exp: i_exp, cref: i_cref, .. }, a_context, a_varDecls, a_simCode, a_extraFuncs, a_extraFuncsDecl, a_extraFuncsNamespace, a_stateDerVectorName, a_useFlatArrayNotation, a_assignToStartValues, a_overwriteOldStartValue) => {
             let mut l_expPart: Tpl::Text;
             let mut l_preExp: Tpl::Text;
-            let mut ret_1: SimCodeVar::SimVar;
+            let mut ret_1: SimCodeVar::SimVar = <SimCodeVar::SimVar as ::std::default::Default>::default();
             let mut l_startFixedExp: Tpl::Text;
             let mut txt = (*txt).clone();
             let mut a_varDecls = (*a_varDecls).clone();
@@ -38758,7 +38758,7 @@ fn fun_1410(mut in_txt: Tpl::Text, mut in_a_eq: Arc<SimCode::SimEqSystem>, mut i
             let mut l_startExp: Tpl::Text;
             let mut l_iterExp: Tpl::Text;
             let mut l_preExp: Tpl::Text;
-            let mut ret_1: SimCodeVar::SimVar;
+            let mut ret_1: SimCodeVar::SimVar = <SimCodeVar::SimVar as ::std::default::Default>::default();
             let mut l_startFixedExp: Tpl::Text;
             let mut txt = (*txt).clone();
             let mut a_varDecls = (*a_varDecls).clone();

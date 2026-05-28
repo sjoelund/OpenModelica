@@ -321,7 +321,7 @@ pub fn inlineRecordTupleArrayEquation(mut eqn: Arc<Equation::Equation>, mut iter
 fn inlineRecordTupleArrayIfEquation(mut eqn: Arc<Equation::Equation>, mut body: Arc<IfEquationBody::IfEquationBody>, mut iter: Arc<Iterator::Iterator>, mut variables: Arc<VariablePointers::VariablePointers>, mut new_eqns: Pointer::Pointer<Arc<metamodelica::List<Pointer::Pointer<Arc<Equation::Equation>>>>>, mut set: Arc<UnorderedSet::UnorderedSet<Pointer::Pointer<Arc<Variable::NFVariable>>>>, mut index: Pointer::Pointer<i32>, mut inlineSimple: bool) -> Result<Arc<Equation::Equation>> {
     let mut eqn: Arc<Equation::Equation> = eqn;
     let mut eqns: Arc<metamodelica::List<Pointer::Pointer<Arc<Equation::Equation>>>> = metamodelica::nil();
-    let mut new_body: Arc<IfEquationBody::IfEquationBody>;
+    let mut new_body: Arc<IfEquationBody::IfEquationBody> = Arc::new(<IfEquationBody::IfEquationBody as ::std::default::Default>::default());
     let mut new_eqn: Pointer::Pointer<Arc<Equation::Equation>>;
     eqns = Pointer::access(new_eqns.clone());
     new_body = inlineRecordTupleArrayIfBody(body.clone(), iter.clone(), variables.clone(), set.clone(), index.clone(), inlineSimple.clone())?;

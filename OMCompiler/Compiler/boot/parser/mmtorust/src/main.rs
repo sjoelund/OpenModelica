@@ -10,6 +10,7 @@ mod codegen;
 mod external_c_calls;
 mod fallibility;
 mod dep_analysis;
+mod unused_functions;
 use rayon::prelude::*;
 
 fn start_compilation(results: Vec<Absyn::Program>) {
@@ -163,6 +164,46 @@ fn run_dep_analysis(programs: Vec<Absyn::Program>) {
     render_dot_if_available(pkg_dot, "dep_analysis_packages.svg");
 }
 
+fn run_unused_functions(programs: Vec<Absyn::Program>) {
+    let t0 = std::time::Instant::now();
+    let mut all_classes: Vec<MM::Class> = Vec::new();
+    let mut failures = 0;
+    for program in &programs {
+        match MM::from_program(program) {
+            Ok(mm_program) => all_classes.extend(mm_program),
+            Err(e) => {
+                eprintln!("MM ERR: {e}");
+                failures += 1;
+            }
+        }
+    }
+    println!(
+        "MM conversion: {} files, {} failures, {:.2}s",
+        programs.len(),
+        failures,
+        t0.elapsed().as_secs_f64()
+    );
+
+    let t0 = std::time::Instant::now();
+    let mut hier = hierarchy::InstanceHierarchy::from_program(&all_classes);
+    hierarchy::flatten_extends(&mut hier);
+    let mut warnings = std::collections::BTreeSet::new();
+    while hierarchy::resolve_pass(&mut hier, &mut warnings) {}
+    println!(
+        "Hierarchy extends+resolve types: {:.2}s",
+        t0.elapsed().as_secs_f64()
+    );
+
+    let t0 = std::time::Instant::now();
+    let report = unused_functions::analyze(&hier);
+    println!(
+        "Unused-function reachability: {:.2}s",
+        t0.elapsed().as_secs_f64()
+    );
+    println!();
+    unused_functions::print_report(&report);
+}
+
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     let subcommand = args.get(1).map(|s| s.as_str());
@@ -213,6 +254,7 @@ fn main() {
     let parsed: Vec<Absyn::Program> = programs.iter().map(|p| p.lock().unwrap().clone()).collect();
     match subcommand {
         Some("dep-analysis") => run_dep_analysis(parsed),
+        Some("unused-functions") => run_unused_functions(parsed),
         _ => start_compilation(parsed),
     }
 }

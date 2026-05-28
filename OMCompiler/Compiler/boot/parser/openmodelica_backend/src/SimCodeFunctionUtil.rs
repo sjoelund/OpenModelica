@@ -58,6 +58,7 @@ use openmodelica_frontend::Mod;
 use openmodelica_frontend::Patternm;
 use openmodelica_frontend::Types;
 use openmodelica_frontend_dump::AbsynUtil;
+use openmodelica_frontend_dump::AvlTreePathFunction;
 use openmodelica_frontend_dump::ComponentReferenceBasics;
 use openmodelica_frontend_dump::ElementSource;
 use openmodelica_frontend_dump::ExpressionBasics;
@@ -572,7 +573,7 @@ fn getRecordDependencies(mut decl: SimCodeFunction::RecordDeclaration, mut allDe
         }
         __acc.reverse()
     };
-            tyss = List::map1(tys.clone(), (std::sync::Arc::new(fnptr!(Types::getAllInnerTypesOfType, Arc<DAE::Type>, fn(Arc<DAE::Type>) -> Result<bool>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Type>, fn(Arc<DAE::Type>) -> Result<bool>) -> Result<Arc<metamodelica::List<Arc<DAE::Type>>>> + 'static>), std::sync::Arc::new(fnptr!(Util::anyReturnTrue, _)));
+            tyss = List::map1(tys.clone(), (std::sync::Arc::new(fnptr!(Types::getAllInnerTypesOfType, Arc<DAE::Type>, Arc<dyn ::std::ops::Fn(Arc<DAE::Type>) -> Result<bool> + 'static>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Type>, Arc<dyn ::std::ops::Fn(Arc<DAE::Type>) -> Result<bool> + 'static>) -> Result<Arc<metamodelica::List<Arc<DAE::Type>>>> + 'static>), std::sync::Arc::new(fnptr!(Util::anyReturnTrue, _)));
             tys = List::flatten(tyss.clone());
             dependencies = List::filterMap1(tys.clone(), (std::sync::Arc::new(getRecordDependenciesFromType) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Type>, Arc<metamodelica::List<SimCodeFunction::RecordDeclaration>>) -> Result<SimCodeFunction::RecordDeclaration> + 'static>), allDecls.clone());
             List::unique(dependencies.clone())
@@ -1473,7 +1474,7 @@ fn replaceLiteralExp2(mut inExp: Arc<DAE::Exp>, mut inTpl: (i32, (metamodelica::
                 (exp, (i, ht, l)) => {
                     let mut nexp: Arc<DAE::Exp>;
                     let mut ht = (*ht).clone();
-                    (ht, _, _, _) = BaseHashTable::add((exp.clone(), i.clone()), ht.clone())?;
+                    ht = BaseHashTable::add((exp.clone(), i.clone()), ht.clone())?;
                     nexp = Arc::new(DAE::Exp::SHARED_LITERAL { index: i.clone(), exp: exp.clone() });
                     Ok((nexp.clone(), (i.clone() + 1, ht.clone(), cons(exp.clone(), l.clone()))))
                 }
@@ -2629,8 +2630,8 @@ fn getLibraryStringInGccFormat(mut exp: Arc<Absyn::Exp>) -> Result<(Arc<metamode
                     let mut names1: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
                     let mut names2: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
                     let mut names3: Arc<metamodelica::List<ArcStr>> = metamodelica::nil();
-                    let mut strs: Arc<metamodelica::List<ArcStr>> = strs.clone();
                     let mut names: Arc<metamodelica::List<ArcStr>> = names.clone();
+                    let mut strs: Arc<metamodelica::List<ArcStr>> = strs.clone();
                     if r#str.clone() == literal!("ModelicaStandardTables") {
                         (strs1, names1) = getLibraryStringInGccFormat(Arc::new(Absyn::Exp::STRING { value: (literal!("ModelicaIO")).clone() }))?;
                         (strs2, names2) = getLibraryStringInGccFormat(Arc::new(Absyn::Exp::STRING { value: (literal!("ModelicaMatIO")).clone() }))?;
@@ -2871,6 +2872,81 @@ pub fn getImplicitRecordConstructors(mut inExpLst: Arc<metamodelica::List<Arc<DA
     Ok(outExpLst)
 }
 
+// NOTE: #[tailcall::tailcall] disabled: function body contains a `match_deref!{…}` match,
+// and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
+fn getCalledFunctionsInFunctions(mut paths: Arc<metamodelica::List<Arc<Absyn::Path>>>, mut inHt: (metamodelica::Array<Arc<metamodelica::List<(ArcStr, i32)>>>, (i32, i32, metamodelica::Array<Option<(ArcStr, Arc<Absyn::Path>)>>), i32, (HashTableStringToPath::FuncHashCref, HashTableStringToPath::FuncCrefEqual, HashTableStringToPath::FuncCrefStr, HashTableStringToPath::FuncExpStr)), mut funcs: Arc<AvlTreePathFunction::Tree>) -> Result<(metamodelica::Array<Arc<metamodelica::List<(ArcStr, i32)>>>, (i32, i32, metamodelica::Array<Option<(ArcStr, Arc<Absyn::Path>)>>), i32, (HashTableStringToPath::FuncHashCref, HashTableStringToPath::FuncCrefEqual, HashTableStringToPath::FuncCrefStr, HashTableStringToPath::FuncExpStr))> {
+    let mut outHt: (metamodelica::Array<Arc<metamodelica::List<(ArcStr, i32)>>>, (i32, i32, metamodelica::Array<Option<(ArcStr, Arc<Absyn::Path>)>>), i32, (HashTableStringToPath::FuncHashCref, HashTableStringToPath::FuncCrefEqual, HashTableStringToPath::FuncCrefStr, HashTableStringToPath::FuncExpStr));
+    outHt = (::match_deref::match_deref! { match &((paths.clone(), inHt.clone(), funcs.clone())) {
+        (Deref @ metamodelica::List::Nil, ht, _) => {
+            ht.clone()
+        },
+        (Deref @ metamodelica::List::Cons { head: path, tail: rest }, ht, _) => {
+            let mut ht = (*ht).clone();
+            ht = getCalledFunctionsInFunction2(path.clone(), AbsynUtil::pathStringNoQual(path.clone(), (literal!(".")).clone(), true, false)?, ht.clone(), funcs.clone())?;
+            ht = getCalledFunctionsInFunctions(rest.clone(), ht.clone(), funcs.clone())?;
+            ht.clone()
+        },
+        _ => bail!("match: no arm matched"),
+    } });
+    Ok(outHt)
+}
+
+pub fn getCalledFunctionsInFunction2(mut inPath: Arc<Absyn::Path>, mut pathstr: ArcStr, mut inHt: (metamodelica::Array<Arc<metamodelica::List<(ArcStr, i32)>>>, (i32, i32, metamodelica::Array<Option<(ArcStr, Arc<Absyn::Path>)>>), i32, (HashTableStringToPath::FuncHashCref, HashTableStringToPath::FuncCrefEqual, HashTableStringToPath::FuncCrefStr, HashTableStringToPath::FuncExpStr)), mut funcs: Arc<AvlTreePathFunction::Tree>) -> Result<(metamodelica::Array<Arc<metamodelica::List<(ArcStr, i32)>>>, (i32, i32, metamodelica::Array<Option<(ArcStr, Arc<Absyn::Path>)>>), i32, (HashTableStringToPath::FuncHashCref, HashTableStringToPath::FuncCrefEqual, HashTableStringToPath::FuncCrefStr, HashTableStringToPath::FuncExpStr))> {
+    let mut outHt: (metamodelica::Array<Arc<metamodelica::List<(ArcStr, i32)>>>, (i32, i32, metamodelica::Array<Option<(ArcStr, Arc<Absyn::Path>)>>), i32, (HashTableStringToPath::FuncHashCref, HashTableStringToPath::FuncCrefEqual, HashTableStringToPath::FuncCrefStr, HashTableStringToPath::FuncExpStr));
+    outHt = 'mc: {
+        let __mc_input = (inPath.clone(), pathstr.clone(), inHt.clone(), funcs.clone());
+        if let Ok(__v) = (|| -> Result<_> {
+            ::match_deref::match_deref! { match &__mc_input {
+                (_, _, ht, _) => {
+                    if !((BaseHashTable::hasKey((pathstr.clone()).clone(), ht.clone()))) { bail!("guard") }
+                    Ok(ht.clone())
+                }
+                _ => bail!("nomatch"),
+            }}
+        })() { break 'mc __v; }
+        if let Ok(__v) = (|| -> Result<_> {
+            ::match_deref::match_deref! { match &__mc_input {
+                (path, _, ht, _) => {
+                    let mut funcelem: DAE::Function;
+                    let mut calledfuncs: Arc<metamodelica::List<Arc<Absyn::Path>>> = metamodelica::nil();
+                    let mut varfuncs: Arc<metamodelica::List<Arc<Absyn::Path>>> = metamodelica::nil();
+                    let mut els: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
+                    let mut ht = (*ht).clone();
+                    funcelem = DAEUtil::getNamedFunction(path.clone(), funcs.clone())?;
+                    els = DAEUtil::getFunctionElements(funcelem.clone())?;
+                    varfuncs = List::fold(els.clone(), (std::sync::Arc::new(fnptr!(DAEUtil::collectFunctionRefVarPaths, Arc<DAE::Element>, Arc<metamodelica::List<Arc<Absyn::Path>>>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Element>, Arc<metamodelica::List<Arc<Absyn::Path>>>) -> Result<Arc<metamodelica::List<Arc<Absyn::Path>>>> + 'static>), metamodelica::nil());
+                    let (_, (_, __pa0)) = DAEUtil::traverseDAEElementList(els.clone(), (std::sync::Arc::new(Expression::traverseSubexpressionsHelper) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, _) -> Result<_> + 'static>), ((std::sync::Arc::new(fnptr!(DAEUtil::collectValueblockFunctionRefVars, Arc<DAE::Exp>, Arc<metamodelica::List<Arc<Absyn::Path>>>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, Arc<metamodelica::List<Arc<Absyn::Path>>>) -> Result<(Arc<DAE::Exp>, Arc<metamodelica::List<Arc<Absyn::Path>>>)> + 'static>), varfuncs.clone()));
+                    varfuncs = __pa0.clone();
+                    let (_, (_, (__pa1, _))) = DAEUtil::traverseDAEElementList(els.clone(), (std::sync::Arc::new(Expression::traverseSubexpressionsHelper) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, _) -> Result<_> + 'static>), ((std::sync::Arc::new(matchNonBuiltinCallsAndFnRefPaths) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, (Arc<metamodelica::List<Arc<Absyn::Path>>>, Arc<metamodelica::List<Arc<Absyn::Path>>>)) -> Result<(Arc<DAE::Exp>, (Arc<metamodelica::List<Arc<Absyn::Path>>>, Arc<metamodelica::List<Arc<Absyn::Path>>>))> + 'static>), (metamodelica::nil(), varfuncs.clone())));
+                    calledfuncs = __pa1.clone();
+                    ht = BaseHashTable::add((pathstr.clone(), path.clone()), ht.clone())?;
+                    ht = addDestructor(funcelem.clone(), ht.clone())?;
+                    ht = getCalledFunctionsInFunctions(calledfuncs.clone(), ht.clone(), funcs.clone())?;
+                    Ok(ht.clone())
+                }
+                _ => bail!("nomatch"),
+            }}
+        })() { break 'mc __v; }
+        if let Ok(__v) = (|| -> Result<_> {
+            ::match_deref::match_deref! { match &__mc_input {
+                (path, _, _, _) => {
+                    let mut r#str: ArcStr = arcstr::literal!("");
+                    if '__try0: {
+                        let _ = unwrap_break_err!(DAEUtil::getNamedFunction(path.clone(), funcs.clone()), '__try0);
+                        Ok::<(), anyhow::Error>(())
+                    }.is_ok() { bail!("failure(): body succeeded") }
+                    r#str = ({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("function getCalledFunctionsInFunction2: Class ")); __mm_s.push_str(&*pathstr.clone()); __mm_s.push_str(&*literal!(" not found in global scope.")); ArcStr::from(__mm_s) }).clone();
+                    Error::addInternalError((r#str.clone()).clone(), metamodelica::sourceInfo!())?;
+                    Ok(bail!("fail"))
+                }
+                _ => bail!("nomatch"),
+            }}
+        })() { break 'mc __v; }
+        bail!("matchcontinue: no arm matched")
+    };
+    Ok(outHt)
+}
+
 fn addDestructor(mut func: DAE::Function, mut inHt: (metamodelica::Array<Arc<metamodelica::List<(ArcStr, i32)>>>, (i32, i32, metamodelica::Array<Option<(ArcStr, Arc<Absyn::Path>)>>), i32, (HashTableStringToPath::FuncHashCref, HashTableStringToPath::FuncCrefEqual, HashTableStringToPath::FuncCrefStr, HashTableStringToPath::FuncExpStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(ArcStr, i32)>>>, (i32, i32, metamodelica::Array<Option<(ArcStr, Arc<Absyn::Path>)>>), i32, (HashTableStringToPath::FuncHashCref, HashTableStringToPath::FuncCrefEqual, HashTableStringToPath::FuncCrefStr, HashTableStringToPath::FuncExpStr))> {
     let mut outHt: (metamodelica::Array<Arc<metamodelica::List<(ArcStr, i32)>>>, (i32, i32, metamodelica::Array<Option<(ArcStr, Arc<Absyn::Path>)>>), i32, (HashTableStringToPath::FuncHashCref, HashTableStringToPath::FuncCrefEqual, HashTableStringToPath::FuncCrefStr, HashTableStringToPath::FuncExpStr));
     outHt = (::match_deref::match_deref! { match &((func.clone(), inHt.clone())) {
@@ -3019,7 +3095,7 @@ fn variableString(mut var: Arc<SimCodeFunction::Variable::Variable>) -> Result<A
 }
 
 pub fn createMakefileParams(mut includes: Arc<metamodelica::List<ArcStr>>, mut libs: Arc<metamodelica::List<ArcStr>>, mut libPaths: Arc<metamodelica::List<ArcStr>>, mut isFunction: bool, mut isFMU: bool) -> Result<SimCodeFunction::MakefileParams> {
-    let mut makefileParams: SimCodeFunction::MakefileParams;
+    let mut makefileParams: SimCodeFunction::MakefileParams = <SimCodeFunction::MakefileParams as ::std::default::Default>::default();
     let mut omhome: ArcStr = arcstr::literal!("");
     let mut ccompiler: ArcStr = arcstr::literal!("");
     let mut cxxcompiler: ArcStr = arcstr::literal!("");

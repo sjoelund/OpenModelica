@@ -53,6 +53,15 @@ pub struct NFConnection {
     pub rhs: Arc<Connector::NFConnector>,
 }
 
+impl Default for NFConnection {
+    fn default() -> Self {
+        Self {
+            lhs: Default::default(),
+            rhs: Default::default(),
+        }
+    }
+}
+
 pub type CONNECTION = NFConnection;
 
 pub fn split(mut conn: Arc<NFConnection>) -> Result<Arc<metamodelica::List<Arc<NFConnection>>>> {

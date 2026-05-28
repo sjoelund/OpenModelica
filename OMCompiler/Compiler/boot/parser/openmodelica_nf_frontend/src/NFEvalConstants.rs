@@ -78,12 +78,20 @@ pub struct EvalSettings {
     pub scalarize: bool,
 }
 
+impl Default for EvalSettings {
+    fn default() -> Self {
+        Self {
+            scalarize: Default::default(),
+        }
+    }
+}
+
 pub type SETTINGS = EvalSettings;
 
 
 pub fn evaluate(mut flatModel: Arc<FlatModel::NFFlatModel>, mut context: i32) -> Result<Arc<FlatModel::NFFlatModel>> {
     let mut flatModel: Arc<FlatModel::NFFlatModel> = flatModel;
-    let mut settings: EvalSettings;
+    let mut settings: EvalSettings = <EvalSettings as ::std::default::Default>::default();
     settings = EvalSettings { scalarize: Flags::isSet(Flags::NF_SCALARIZE.clone())? };
     assign_field!(
         flatModel.variables = {
@@ -568,7 +576,7 @@ pub fn evaluateStmtBranch(mut branch: (Arc<Expression::NFExpression>, Arc<metamo
 pub fn evaluateFunction(mut func: Arc<Function::Function>) -> Result<Arc<Function::Function>> {
     let mut func: Arc<Function::Function> = func;
     let mut cls: Arc<Class::NFClass> = Arc::new(Class::NOT_INSTANTIATED);
-    let mut fn_body: Arc<Algorithm::NFAlgorithm>;
+    let mut fn_body: Arc<Algorithm::NFAlgorithm> = Arc::new(<Algorithm::NFAlgorithm as ::std::default::Default>::default());
     let mut sections: Arc<Sections::NFSections> = Arc::new(Sections::EMPTY);
     let mut is_con: bool = false;
     if !(Function::isEvaluated(func.clone())) {

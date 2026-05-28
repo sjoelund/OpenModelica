@@ -135,6 +135,17 @@ pub struct Graph {
     pub attValues: Arc<metamodelica::List<(i32, ArcStr)>>,
 }
 
+impl Default for Graph {
+    fn default() -> Self {
+        Self {
+            id: Default::default(),
+            directed: Default::default(),
+            nodeIdc: Default::default(),
+            attValues: Default::default(),
+        }
+    }
+}
+
 pub type GRAPH = Graph;
 
 
@@ -172,6 +183,23 @@ pub struct Edge {
     pub attValues: Arc<metamodelica::List<(i32, ArcStr)>>,
 }
 
+impl Default for Edge {
+    fn default() -> Self {
+        Self {
+            id: Default::default(),
+            target: Default::default(),
+            source: Default::default(),
+            color: Default::default(),
+            lineType: Default::default(),
+            lineWidth: Default::default(),
+            smooth: Default::default(),
+            edgeLabels: Default::default(),
+            arrows: Default::default(),
+            attValues: Default::default(),
+        }
+    }
+}
+
 pub type EDGE = Edge;
 
 
@@ -182,6 +210,18 @@ pub struct Attribute {
     pub name: ArcStr,
     pub attType: AttributeType,
     pub attTarget: AttributeTarget,
+}
+
+impl Default for Attribute {
+    fn default() -> Self {
+        Self {
+            attIdx: Default::default(),
+            defaultValue: Default::default(),
+            name: Default::default(),
+            attType: Default::default(),
+            attTarget: Default::default(),
+        }
+    }
 }
 
 pub type ATTRIBUTE = Attribute;
@@ -208,6 +248,16 @@ pub struct EdgeLabel {
     pub text: ArcStr,
     pub backgroundColor: Option<ArcStr>,
     pub fontSize: i32,
+}
+
+impl Default for EdgeLabel {
+    fn default() -> Self {
+        Self {
+            text: Default::default(),
+            backgroundColor: Default::default(),
+            fontSize: Default::default(),
+        }
+    }
 }
 
 pub type EDGELABEL = EdgeLabel;
@@ -243,6 +293,9 @@ pub enum LineType {
     DASHED,
     DASHEDDOTTED,
 }
+impl Default for LineType {
+    fn default() -> Self { Self::LINE }
+}
 pub use self::LineType::{LINE,DASHED,DASHEDDOTTED};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -250,6 +303,9 @@ pub enum ArrowType {
     ARROWSTANDART,
     ARROWNONE,
     ARROWCONCAVE,
+}
+impl Default for ArrowType {
+    fn default() -> Self { Self::ARROWSTANDART }
 }
 pub use self::ArrowType::{ARROWSTANDART,ARROWNONE,ARROWCONCAVE};
 
@@ -260,6 +316,9 @@ pub enum AttributeType {
     TYPE_INTEGER,
     TYPE_DOUBLE,
 }
+impl Default for AttributeType {
+    fn default() -> Self { Self::TYPE_STRING }
+}
 pub use self::AttributeType::{TYPE_STRING,TYPE_BOOLEAN,TYPE_INTEGER,TYPE_DOUBLE};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -267,6 +326,9 @@ pub enum AttributeTarget {
     TARGET_NODE,
     TARGET_EDGE,
     TARGET_GRAPH,
+}
+impl Default for AttributeTarget {
+    fn default() -> Self { Self::TARGET_NODE }
 }
 pub use self::AttributeTarget::{TARGET_NODE,TARGET_EDGE,TARGET_GRAPH};
 
@@ -282,7 +344,7 @@ pub fn createGraphInfo() -> GraphInfo {
 pub fn addGraph(mut id: ArcStr, mut directed: bool, mut iGraphInfo: GraphInfo) -> Result<(GraphInfo, (Graph, i32))> {
     let mut oGraphInfo: GraphInfo;
     let mut oGraph: (Graph, i32);
-    let mut tmpGraph: Graph;
+    let mut tmpGraph: Graph = <Graph as ::std::default::Default>::default();
     let mut graphs: Arc<metamodelica::List<Graph>> = metamodelica::nil();
     let mut graphCount: i32 = 0;
     let mut nodes: Arc<metamodelica::List<Node>> = metamodelica::nil();
@@ -323,7 +385,7 @@ pub fn addNode(mut id: ArcStr, mut backgroundColor: ArcStr, mut borderWidth: met
     let mut attributes: Arc<metamodelica::List<Attribute>> = metamodelica::nil();
     let mut graphNodeKey: ArcStr = arcstr::literal!("");
     let mut graphEdgeKey: ArcStr = arcstr::literal!("");
-    let mut iGraph: Graph;
+    let mut iGraph: Graph = <Graph as ::std::default::Default>::default();
     let mut gid: ArcStr = arcstr::literal!("");
     let mut directed: bool = false;
     let mut nodeIdc: Arc<metamodelica::List<i32>> = metamodelica::nil();
@@ -370,8 +432,8 @@ pub fn addGroupNode(mut id: ArcStr, mut iGraphIdx: i32, mut isFolded: bool, mut 
     let mut attributes: Arc<metamodelica::List<Attribute>> = metamodelica::nil();
     let mut graphNodeKey: ArcStr = arcstr::literal!("");
     let mut graphEdgeKey: ArcStr = arcstr::literal!("");
-    let mut iGraph: Graph;
-    let mut newGraph: Graph;
+    let mut iGraph: Graph = <Graph as ::std::default::Default>::default();
+    let mut newGraph: Graph = <Graph as ::std::default::Default>::default();
     let mut gid: ArcStr = arcstr::literal!("");
     let mut directed: bool = false;
     let mut newGraphIdx: i32 = 0;
@@ -422,7 +484,7 @@ pub fn addGroupNode(mut id: ArcStr, mut iGraphIdx: i32, mut isFolded: bool, mut 
 pub fn addEdge(mut id: ArcStr, mut target: ArcStr, mut source: ArcStr, mut color: ArcStr, mut lineType: LineType, mut lineWidth: metamodelica::Real, mut smooth: bool, mut labels: Arc<metamodelica::List<EdgeLabel>>, mut arrows: (ArrowType, ArrowType), mut attValues: Arc<metamodelica::List<(i32, ArcStr)>>, mut iGraphInfo: GraphInfo) -> Result<(GraphInfo, (Edge, i32))> {
     let mut oGraphInfo: GraphInfo;
     let mut oEdge: (Edge, i32);
-    let mut tmpEdge: Edge;
+    let mut tmpEdge: Edge = <Edge as ::std::default::Default>::default();
     let mut graphs: Arc<metamodelica::List<Graph>> = metamodelica::nil();
     let mut graphCount: i32 = 0;
     let mut nodes: Arc<metamodelica::List<Node>> = metamodelica::nil();
@@ -453,7 +515,7 @@ pub fn addEdge(mut id: ArcStr, mut target: ArcStr, mut source: ArcStr, mut color
 pub fn addAttribute(mut defaultValue: ArcStr, mut name: ArcStr, mut attType: AttributeType, mut attTarget: AttributeTarget, mut iGraphInfo: GraphInfo) -> Result<(GraphInfo, (Attribute, i32))> {
     let mut oGraphInfo: GraphInfo;
     let mut oAttribute: (Attribute, i32);
-    let mut tmpAttribute: Attribute;
+    let mut tmpAttribute: Attribute = <Attribute as ::std::default::Default>::default();
     let mut attIdx: i32 = 0;
     let mut graphs: Arc<metamodelica::List<Graph>> = metamodelica::nil();
     let mut graphCount: i32 = 0;
@@ -493,7 +555,7 @@ pub fn addGraphAttributeValue(mut iValue: (i32, ArcStr), mut iGraphIdx: i32, mut
     let mut attributes: Arc<metamodelica::List<Attribute>> = metamodelica::nil();
     let mut graphNodeKey: ArcStr = arcstr::literal!("");
     let mut graphEdgeKey: ArcStr = arcstr::literal!("");
-    let mut iGraph: Graph;
+    let mut iGraph: Graph = <Graph as ::std::default::Default>::default();
     let mut gid: ArcStr = arcstr::literal!("");
     let mut directed: bool = false;
     let mut newGraphIdx: i32 = 0;
@@ -528,7 +590,7 @@ pub fn addGraphAttributeValue(mut iValue: (i32, ArcStr), mut iGraphIdx: i32, mut
 pub fn getMainGraph(mut iGraphInfo: GraphInfo) -> Result<Option<(i32, Graph)>> {
     let mut oGraph: Option<(i32, Graph)> = None;
     let mut graphs: Arc<metamodelica::List<Graph>> = metamodelica::nil();
-    let mut firstGraph: Graph;
+    let mut firstGraph: Graph = <Graph as ::std::default::Default>::default();
     oGraph = (match iGraphInfo.clone() {
         GraphInfo::GRAPHINFO { graphCount: 0, .. } => None,
         GraphInfo::GRAPHINFO { graphs: mut graphs, .. } => {
@@ -565,7 +627,7 @@ fn getAttributeByNameAndTargetTail(mut iList: Arc<metamodelica::List<Attribute>>
     let mut rest: Arc<metamodelica::List<Attribute>> = metamodelica::nil();
     let mut attIdx: i32 = 0;
     let mut name: ArcStr = arcstr::literal!("");
-    let mut head: Attribute;
+    let mut head: Attribute = <Attribute as ::std::default::Default>::default();
     let mut attTarget: AttributeTarget = AttributeTarget::TARGET_EDGE;
     let mut tmpAttribute: Option<(Attribute, i32)> = None;
     oAttribute = 'mc: {

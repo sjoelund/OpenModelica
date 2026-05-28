@@ -759,7 +759,7 @@ fn printComponentRefMmaStr(mut cr: Arc<DAE::ComponentRef>, mut vars: BackendDAE:
                     let mut nameStr: ArcStr = arcstr::literal!("");
                     let mut isInput: bool = false;
                     let mut isOutput: bool = false;
-                    let mut v: BackendDAE::Var;
+                    let mut v: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
                     let mut res: ArcStr = res.clone();
                     let __pa0 = ::match_deref::match_deref! { match &(BackendVariable::getVar(cr.clone(), knvars.clone())?) {
                         (Deref @ metamodelica::List::Cons { head: __pa0, tail: _ }, _) => __pa0.clone(),
@@ -938,7 +938,7 @@ fn dumpSingleAlgorithmStr(mut algs: Arc<DAE::Algorithm>) -> Result<ArcStr> {
     outString = ((::match_deref::match_deref! { match &(algs.clone()) {
         Deref @ DAE::Algorithm { statementLst: stmts } => {
             let mut r#str: ArcStr = arcstr::literal!("");
-            let mut myStream: IOStream::IOStream;
+            let mut myStream: IOStream::IOStream = <IOStream::IOStream as ::std::default::Default>::default();
             myStream = IOStream::create((literal!("")).clone(), openmodelica_util::IOStream::IOStreamType::LIST)?;
             myStream = DAEDump::dumpAlgorithmStream(Arc::new(DAE::Element::ALGORITHM { algorithm_: Arc::new(DAE::Algorithm { statementLst: stmts.clone() }), source: DAE::emptyElementSource().clone() }), myStream.clone())?;
             r#str = (IOStream::string(myStream.clone())?).clone();

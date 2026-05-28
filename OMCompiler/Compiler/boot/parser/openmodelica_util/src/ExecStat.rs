@@ -92,8 +92,8 @@ pub fn execStat(mut name: ArcStr) -> Result<()> {
     let mut free_bytes_full: i32 = 0;
     let mut since: i32 = 0;
     let mut before: i32 = 0;
-    let mut stats: GCExt::ProfStats;
-    let mut oldStats: GCExt::ProfStats;
+    let mut stats: GCExt::ProfStats = <GCExt::ProfStats as ::std::default::Default>::default();
+    let mut oldStats: GCExt::ProfStats = <GCExt::ProfStats as ::std::default::Default>::default();
     if Flags::isSet(Flags::EXEC_STAT.clone())? {
         for mut i in &*if (Flags::isSet(Flags::EXEC_STAT_EXTRA_GC.clone())?) {list![1, 2]} else {list![1]} {
             let mut i = i.clone();

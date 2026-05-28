@@ -61,6 +61,16 @@ pub struct ForIterator {
     pub range: Option<Arc<Exp>>,
 }
 
+impl Default for ForIterator {
+    fn default() -> Self {
+        Self {
+            name: Default::default(),
+            guardExp: Default::default(),
+            range: Default::default(),
+        }
+    }
+}
+
 pub type ITERATOR = ForIterator;
 
 
@@ -389,6 +399,15 @@ pub struct ConstrainClass {
     pub comment: Option<Arc<Comment>>,
 }
 
+impl Default for ConstrainClass {
+    fn default() -> Self {
+        Self {
+            elementSpec: Default::default(),
+            comment: Default::default(),
+        }
+    }
+}
+
 pub type CONSTRAINCLASS = ConstrainClass;
 
 
@@ -433,6 +452,14 @@ pub enum ElementSpec {
         components: Arc<metamodelica::List<Arc<ComponentItem>>>,
     },
 }
+impl Default for ElementSpec {
+    fn default() -> Self {
+        Self::CLASSDEF {
+            replaceable_: Default::default(),
+            class_: Default::default(),
+        }
+    }
+}
 pub use self::ElementSpec::{CLASSDEF,EXTENDS,IMPORT,COMPONENTS};
 
 /// One of the keyword inner and outer CAN be given to reference an
@@ -447,6 +474,9 @@ pub enum InnerOuter {
     INNER_OUTER,
     /// no inner outer prefix
     NOT_INNER_OUTER,
+}
+impl Default for InnerOuter {
+    fn default() -> Self { Self::INNER }
 }
 pub use self::InnerOuter::{INNER,OUTER,INNER_OUTER,NOT_INNER_OUTER};
 
@@ -508,6 +538,16 @@ pub struct ComponentItem {
     pub comment: Option<Arc<Comment>>,
 }
 
+impl Default for ComponentItem {
+    fn default() -> Self {
+        Self {
+            component: Default::default(),
+            condition: Default::default(),
+            comment: Default::default(),
+        }
+    }
+}
+
 pub type COMPONENTITEM = ComponentItem;
 
 
@@ -520,6 +560,16 @@ pub struct Component {
     pub arrayDim: ArrayDim,
     /// Optional modification
     pub modification: Option<Arc<Modification>>,
+}
+
+impl Default for Component {
+    fn default() -> Self {
+        Self {
+            name: Default::default(),
+            arrayDim: Default::default(),
+            modification: Default::default(),
+        }
+    }
 }
 
 pub type COMPONENT = Component;
@@ -559,6 +609,13 @@ pub enum AlgorithmItem {
     ALGORITHMITEMCOMMENT {
         comment: ArcStr,
     },
+}
+impl Default for AlgorithmItem {
+    fn default() -> Self {
+        Self::ALGORITHMITEMCOMMENT {
+            comment: Default::default(),
+        }
+    }
 }
 pub use self::AlgorithmItem::{ALGORITHMITEM,ALGORITHMITEMCOMMENT};
 
@@ -698,6 +755,15 @@ pub struct Modification {
     pub eqMod: Arc<EqMod>,
 }
 
+impl Default for Modification {
+    fn default() -> Self {
+        Self {
+            elementArgLst: Default::default(),
+            eqMod: Default::default(),
+        }
+    }
+}
+
 pub type CLASSMOD = Modification;
 
 
@@ -708,6 +774,9 @@ pub enum EqMod {
         exp: Arc<Exp>,
         info: Info,
     },
+}
+impl Default for EqMod {
+    fn default() -> Self { Self::NOMOD }
 }
 pub use self::EqMod::{NOMOD,EQMOD};
 
@@ -797,6 +866,20 @@ pub struct ElementAttributes {
     pub arrayDim: ArrayDim,
 }
 
+impl Default for ElementAttributes {
+    fn default() -> Self {
+        Self {
+            flowPrefix: Default::default(),
+            streamPrefix: Default::default(),
+            parallelism: Default::default(),
+            variability: Default::default(),
+            direction: Default::default(),
+            isField: Default::default(),
+            arrayDim: Default::default(),
+        }
+    }
+}
+
 pub type ATTR = ElementAttributes;
 
 
@@ -807,6 +890,9 @@ pub enum IsField {
     NONFIELD,
     /// variable is a field
     FIELD,
+}
+impl Default for IsField {
+    fn default() -> Self { Self::NONFIELD }
 }
 pub use self::IsField::{NONFIELD,FIELD};
 
@@ -819,6 +905,9 @@ pub enum Parallelism {
     PARLOCAL,
     /// Non parallel/Normal variables
     NON_PARALLEL,
+}
+impl Default for Parallelism {
+    fn default() -> Self { Self::PARGLOBAL }
 }
 pub use self::Parallelism::{PARGLOBAL,PARLOCAL,NON_PARALLEL};
 
@@ -838,6 +927,9 @@ pub enum Variability {
     PARAM,
     CONST,
 }
+impl Default for Variability {
+    fn default() -> Self { Self::VAR }
+}
 pub use self::Variability::{VAR,DISCRETE,PARAM,CONST};
 
 /// Direction
@@ -851,6 +943,9 @@ pub enum Direction {
     BIDIR,
     /// direction is both input and output (OM extension; syntactic sugar for functions)
     INPUT_OUTPUT,
+}
+impl Default for Direction {
+    fn default() -> Self { Self::INPUT }
 }
 pub use self::Direction::{INPUT,OUTPUT,BIDIR,INPUT_OUTPUT};
 
@@ -1214,6 +1309,9 @@ pub enum Subscript {
         subscript: Arc<Exp>,
     },
 }
+impl Default for Subscript {
+    fn default() -> Self { Self::NOSUB }
+}
 pub use self::Subscript::{NOSUB,SUBSCRIPT};
 
 /// A component reference is the fully or partially qualified name of
@@ -1409,6 +1507,18 @@ pub struct ExternalDecl {
     /// only positional arguments, i.e. expression list
     pub args: Arc<metamodelica::List<Arc<Exp>>>,
     pub annotation_: Option<Arc<Annotation>>,
+}
+
+impl Default for ExternalDecl {
+    fn default() -> Self {
+        Self {
+            funcName: Default::default(),
+            lang: Default::default(),
+            output_: Default::default(),
+            args: Default::default(),
+            annotation_: Default::default(),
+        }
+    }
 }
 
 pub type EXTERNALDECL = ExternalDecl;

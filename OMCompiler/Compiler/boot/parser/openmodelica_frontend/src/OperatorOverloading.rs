@@ -57,6 +57,7 @@ use crate::Types;
 use openmodelica_ast::Absyn;
 use openmodelica_frontend_dump::AbsynToSCode;
 use openmodelica_frontend_dump::AbsynUtil;
+use openmodelica_frontend_dump::AvlTreePathFunction;
 use openmodelica_frontend_dump::Dump;
 use openmodelica_frontend_dump::ExpressionBasics;
 use openmodelica_frontend_dump::SCodeUtil;
@@ -110,7 +111,7 @@ pub fn binary(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inOperator
             let mut r#const: DAE::Const = DAE::Const::C_CONST;
             let mut oper: DAE::Operator;
             let mut prop: DAE::Properties;
-            let mut functionTree; // TODO: local with unresolved type
+            let mut functionTree: Arc<AvlTreePathFunction::Tree> = Arc::new(AvlTreePathFunction::Tree::EMPTY);
             let mut didInline: bool = false;
             let mut cache = (*cache).clone();
             let mut type1 = (*type1).clone();
@@ -228,7 +229,10 @@ pub fn unary(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inOperator1
                     } };
                     cache = __pa0.clone();
                     types = __pa1.clone();
-                    let (__pa2, Some((__pa3, __pa4))) = (Static::elabCallArgs3(cache.clone(), env.clone(), types.clone(), path.clone(), list![absexp1.clone()], metamodelica::nil(), metamodelica::nil(), inImpl.clone(), inPre.clone(), inInfo.clone())?) else { bail!("pattern mismatch") };
+                    let (__pa2, __pa3, __pa4) = ::match_deref::match_deref! { match &(Static::elabCallArgs3(cache.clone(), env.clone(), types.clone(), path.clone(), list![absexp1.clone()], metamodelica::nil(), metamodelica::nil(), inImpl.clone(), inPre.clone(), inInfo.clone())?) {
+                        (__pa2, Some((__pa3, __pa4))) => (__pa2.clone(), __pa3.clone(), __pa4.clone()),
+                        _ => bail!("pattern mismatch"),
+                    } };
                     cache = __pa2.clone();
                     exp = __pa3.clone();
                     prop = __pa4.clone();
@@ -279,7 +283,10 @@ pub fn string(mut inCache: FCore::Cache, mut inEnv: FCore::Graph, mut inExp1: Ar
             } };
             cache = __pa2.clone();
             types = __pa3.clone();
-            let (__pa4, Some((__pa5, __pa6))) = (Static::elabCallArgs3(cache.clone(), env.clone(), types.clone(), path.clone(), cons(exp1.clone(), restargs.clone()), nargs.clone(), metamodelica::nil(), inImpl.clone(), inPre.clone(), inInfo.clone())?) else { bail!("pattern mismatch") };
+            let (__pa4, __pa5, __pa6) = ::match_deref::match_deref! { match &(Static::elabCallArgs3(cache.clone(), env.clone(), types.clone(), path.clone(), cons(exp1.clone(), restargs.clone()), nargs.clone(), metamodelica::nil(), inImpl.clone(), inPre.clone(), inInfo.clone())?) {
+                (__pa4, Some((__pa5, __pa6))) => (__pa4.clone(), __pa5.clone(), __pa6.clone()),
+                _ => bail!("pattern mismatch"),
+            } };
             cache = __pa4.clone();
             daeExp = __pa5.clone();
             prop = __pa6.clone();
@@ -632,9 +639,9 @@ fn binaryUserdefArray2(mut inCache: FCore::Cache, mut env: FCore::Graph, mut isS
             let mut dim2: Arc<DAE::Dimension> = Arc::new(DAE::Dimension::DIM_BOOLEAN);
             let mut dim1_1: Arc<DAE::Dimension> = Arc::new(DAE::Dimension::DIM_BOOLEAN);
             let mut dim1_2: Arc<DAE::Dimension> = Arc::new(DAE::Dimension::DIM_BOOLEAN);
-            let mut iter: Arc<DAE::ReductionIterator>;
-            let mut iter1: Arc<DAE::ReductionIterator>;
-            let mut iter2: Arc<DAE::ReductionIterator>;
+            let mut iter: Arc<DAE::ReductionIterator> = Arc::new(<DAE::ReductionIterator as ::std::default::Default>::default());
+            let mut iter1: Arc<DAE::ReductionIterator> = Arc::new(<DAE::ReductionIterator as ::std::default::Default>::default());
+            let mut iter2: Arc<DAE::ReductionIterator> = Arc::new(<DAE::ReductionIterator as ::std::default::Default>::default());
             let mut foldName1: ArcStr = arcstr::literal!("");
             let mut resultName1: ArcStr = arcstr::literal!("");
             let mut foldName2: ArcStr = arcstr::literal!("");
@@ -714,10 +721,10 @@ fn binaryUserdefArray2(mut inCache: FCore::Cache, mut env: FCore::Graph, mut isS
             let mut dim1_2: Arc<DAE::Dimension> = Arc::new(DAE::Dimension::DIM_BOOLEAN);
             let mut dim2_1: Arc<DAE::Dimension> = Arc::new(DAE::Dimension::DIM_BOOLEAN);
             let mut dim2_2: Arc<DAE::Dimension> = Arc::new(DAE::Dimension::DIM_BOOLEAN);
-            let mut iter1: Arc<DAE::ReductionIterator>;
-            let mut iter2: Arc<DAE::ReductionIterator>;
-            let mut iter3: Arc<DAE::ReductionIterator>;
-            let mut iter4: Arc<DAE::ReductionIterator>;
+            let mut iter1: Arc<DAE::ReductionIterator> = Arc::new(<DAE::ReductionIterator as ::std::default::Default>::default());
+            let mut iter2: Arc<DAE::ReductionIterator> = Arc::new(<DAE::ReductionIterator as ::std::default::Default>::default());
+            let mut iter3: Arc<DAE::ReductionIterator> = Arc::new(<DAE::ReductionIterator as ::std::default::Default>::default());
+            let mut iter4: Arc<DAE::ReductionIterator> = Arc::new(<DAE::ReductionIterator as ::std::default::Default>::default());
             let mut foldName: ArcStr = arcstr::literal!("");
             let mut resultName: ArcStr = arcstr::literal!("");
             let mut foldName1: ArcStr = arcstr::literal!("");
@@ -802,8 +809,8 @@ fn binaryUserdefArray2(mut inCache: FCore::Cache, mut env: FCore::Graph, mut isS
             let mut resType: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
             let mut dim1: Arc<DAE::Dimension> = Arc::new(DAE::Dimension::DIM_BOOLEAN);
             let mut dim2: Arc<DAE::Dimension> = Arc::new(DAE::Dimension::DIM_BOOLEAN);
-            let mut iter1: Arc<DAE::ReductionIterator>;
-            let mut iter2: Arc<DAE::ReductionIterator>;
+            let mut iter1: Arc<DAE::ReductionIterator> = Arc::new(<DAE::ReductionIterator as ::std::default::Default>::default());
+            let mut iter2: Arc<DAE::ReductionIterator> = Arc::new(<DAE::ReductionIterator as ::std::default::Default>::default());
             let mut foldName: ArcStr = arcstr::literal!("");
             let mut resultName: ArcStr = arcstr::literal!("");
             let mut iterName1: ArcStr = arcstr::literal!("");

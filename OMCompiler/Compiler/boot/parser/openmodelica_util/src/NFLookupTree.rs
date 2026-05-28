@@ -60,6 +60,13 @@ pub mod Entry {
             index: i32,
         },
     }
+    impl Default for Entry {
+        fn default() -> Self {
+            Self::CLASS {
+                index: Default::default(),
+            }
+        }
+    }
     pub use self::Entry::{CLASS,COMPONENT,IMPORT};
     pub fn index(mut entry: Arc<Entry>) -> Result<i32> {
         let mut index: i32 = 0;

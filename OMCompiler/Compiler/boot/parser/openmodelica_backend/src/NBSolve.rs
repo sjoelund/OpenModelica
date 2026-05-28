@@ -216,8 +216,8 @@ pub fn solveStrongComponent(mut comp: Arc<StrongComponent::NBStrongComponent>, m
             let mut eqn: Arc<Equation::Equation> = Arc::new(Equation::DUMMY_EQUATION);
             let mut eqn_slice: Arc<Slice::NBSlice<Pointer::Pointer<Arc<Equation::Equation>>>>;
             let mut solved_comp: Arc<StrongComponent::NBStrongComponent>;
-            let mut strict: Arc<Tearing::NBTearing>;
-            let mut alg: Arc<Algorithm::NFAlgorithm>;
+            let mut strict: Arc<Tearing::NBTearing> = Arc::new(<Tearing::NBTearing as ::std::default::Default>::default());
+            let mut alg: Arc<Algorithm::NFAlgorithm> = Arc::new(<Algorithm::NFAlgorithm as ::std::default::Default>::default());
             let mut solved_crefs: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
             let mut inputs: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
             let mut outputs: Arc<metamodelica::List<Arc<ComponentRef::NFComponentRef>>> = metamodelica::nil();
@@ -544,7 +544,7 @@ pub fn solveMultiStrongComponent(mut eqn_slice: Arc<Slice::NBSlice<Pointer::Poin
     let mut eqn: Arc<Equation::Equation> = Pointer::access(Slice::getT(eqn_slice.clone()));
     (eqn_slice, status) = (::match_deref::match_deref! { match &(eqn.clone()) {
         Deref @ Equation::IF_EQUATION { .. } => {
-            let mut if_body: Arc<IfEquationBody::IfEquationBody>;
+            let mut if_body: Arc<IfEquationBody::IfEquationBody> = Arc::new(<IfEquationBody::IfEquationBody as ::std::default::Default>::default());
             (if_body, status, implicit_index) = solveIfBody(var_field!((*eqn).body, Equation::Equation::IF_EQUATION).clone(), BVariable::VariablePointers::fromList({
         let mut __acc: Arc<metamodelica::List<Pointer::Pointer<Arc<Variable::NFVariable>>>> = metamodelica::nil();
         for mut v in (var_slices.clone()).into_iter().cloned() {
@@ -678,9 +678,9 @@ pub fn solveBody(mut eqn: Arc<Equation::Equation>, mut cref: Arc<ComponentRef::N
     let mut fixed_cref: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
     let mut residual: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut derivative: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-    let mut diffArgs: Arc<Differentiate::DifferentiationArguments::DifferentiationArguments>;
-    let mut divOp: Arc<Operator::NFOperator>;
-    let mut uminOp: Arc<Operator::NFOperator>;
+    let mut diffArgs: Arc<Differentiate::DifferentiationArguments::DifferentiationArguments> = Arc::new(<Differentiate::DifferentiationArguments::DifferentiationArguments as ::std::default::Default>::default());
+    let mut divOp: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
+    let mut uminOp: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
     fixed_cref = ComponentRef::stripSubscriptsAll(cref.clone());
     ty = ComponentRef::getSubscriptedType(fixed_cref.clone(), true)?;
     if Type::isArray(ty.clone()) && Type::sizeOf(ty.clone(), false)? == 1 {
@@ -727,7 +727,7 @@ pub fn solveIfBody(mut body: Arc<IfEquationBody::IfEquationBody>, mut vars: Arc<
     let mut body: Arc<IfEquationBody::IfEquationBody> = body;
     let mut status: Status = Status::UNPROCESSED;
     let mut implicit_index: i32 = implicit_index;
-    let mut else_if: Arc<IfEquationBody::IfEquationBody>;
+    let mut else_if: Arc<IfEquationBody::IfEquationBody> = Arc::new(<IfEquationBody::IfEquationBody as ::std::default::Default>::default());
     let mut comps: Arc<metamodelica::List<Arc<StrongComponent::NBStrongComponent>>> = metamodelica::nil();
     let mut solved_comps: Arc<metamodelica::List<Arc<StrongComponent::NBStrongComponent>>> = metamodelica::nil();
     let mut new_then_eqns: Arc<metamodelica::List<Pointer::Pointer<Arc<Equation::Equation>>>> = metamodelica::nil();
@@ -778,7 +778,7 @@ pub fn solveSimple(mut eqn: Arc<Equation::Equation>, mut cref: Arc<ComponentRef:
             (eqn.clone(), status.clone(), invertRelation.clone())
         },
         Deref @ Equation::IF_EQUATION { .. } => {
-            let mut if_body: Arc<IfEquationBody::IfEquationBody>;
+            let mut if_body: Arc<IfEquationBody::IfEquationBody> = Arc::new(<IfEquationBody::IfEquationBody as ::std::default::Default>::default());
             (if_body, status, invertRelation) = solveSimpleIf(var_field!((*eqn).body, Equation::Equation::IF_EQUATION).clone(), cref.clone())?;
             if status.clone() == Status::EXPLICIT.clone() {
                 assign_variant_field!(eqn => Equation::Equation::IF_EQUATION; body = if_body.clone());
@@ -858,7 +858,7 @@ fn solveSimpleIf(mut body: Arc<IfEquationBody::IfEquationBody>, mut cref: Arc<Co
     let mut body: Arc<IfEquationBody::IfEquationBody> = body;
     let mut status: Status = Status::EXPLICIT.clone();
     let mut invertRelation: RelationInversion = RelationInversion::FALSE.clone();
-    let mut else_if: Arc<IfEquationBody::IfEquationBody>;
+    let mut else_if: Arc<IfEquationBody::IfEquationBody> = Arc::new(<IfEquationBody::IfEquationBody as ::std::default::Default>::default());
     let mut eqn: Arc<Equation::Equation> = Arc::new(Equation::DUMMY_EQUATION);
     if Util::isSome(body.else_if.clone()) {
         (else_if, status, _) = solveSimpleIf(Util::getOption(body.else_if.clone())?, cref.clone())?;
@@ -882,8 +882,8 @@ fn solveLinear(mut eqn: Arc<Equation::Equation>, mut residual: Arc<Expression::N
     let mut eqn: Arc<Equation::Equation> = eqn;
     let mut crefExp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut numerator: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-    let mut mulOp: Arc<Operator::NFOperator>;
-    let mut uminOp: Arc<Operator::NFOperator>;
+    let mut mulOp: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
+    let mut uminOp: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
     let mut ty: Arc<Type::NFType> = Arc::new(Type::ANY);
     crefExp = Expression::fromCref(cref.clone(), false)?;
     ty = ComponentRef::getSubscriptedType(cref.clone(), true)?;

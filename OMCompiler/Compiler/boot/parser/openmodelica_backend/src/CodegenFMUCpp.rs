@@ -383,7 +383,7 @@ fn fun_67(mut in_txt: Tpl::Text, mut in_a_var: SimCodeVar::SimVar, mut in_a_simC
         (txt, SimCodeVar::SimVar { type_: Deref @ DAE::Type::T_REAL { varLst: _ }, name: i_name, .. }, a_simCode) => {
             let mut ret_2: i32 = 0;
             let mut ret_1: i32 = 0;
-            let mut ret_0: SimCodeVar::SimVar;
+            let mut ret_0: SimCodeVar::SimVar = <SimCodeVar::SimVar as ::std::default::Default>::default();
             let mut txt = (*txt).clone();
             ret_0 = SimCodeUtil::cref2simvar(i_name.clone(), a_simCode.clone())?;
             ret_1 = SimCodeUtil::getVariableIndex(ret_0.clone());
@@ -425,7 +425,7 @@ fn fun_69(mut in_txt: Tpl::Text, mut in_a_var: SimCodeVar::SimVar, mut in_a_simC
         (txt, SimCodeVar::SimVar { varKind: BackendDAE::VarKind::CLOCKED_STATE { previousName: _, .. }, type_: Deref @ DAE::Type::T_REAL { varLst: _ }, name: i_name, .. }, a_simCode) => {
             let mut ret_2: i32 = 0;
             let mut ret_1: i32 = 0;
-            let mut ret_0: SimCodeVar::SimVar;
+            let mut ret_0: SimCodeVar::SimVar = <SimCodeVar::SimVar as ::std::default::Default>::default();
             let mut txt = (*txt).clone();
             ret_0 = SimCodeUtil::cref2simvar(i_name.clone(), a_simCode.clone())?;
             ret_1 = SimCodeUtil::getVariableIndex(ret_0.clone());
@@ -436,7 +436,7 @@ fn fun_69(mut in_txt: Tpl::Text, mut in_a_var: SimCodeVar::SimVar, mut in_a_simC
         (txt, SimCodeVar::SimVar { causality: Some(SimCodeVar::Causality::OUTPUT), type_: Deref @ DAE::Type::T_REAL { varLst: _ }, name: i_name, .. }, a_simCode) => {
             let mut ret_5: i32 = 0;
             let mut ret_4: i32 = 0;
-            let mut ret_3: SimCodeVar::SimVar;
+            let mut ret_3: SimCodeVar::SimVar = <SimCodeVar::SimVar as ::std::default::Default>::default();
             let mut txt = (*txt).clone();
             ret_3 = SimCodeUtil::cref2simvar(i_name.clone(), a_simCode.clone())?;
             ret_4 = SimCodeUtil::getVariableIndex(ret_3.clone());

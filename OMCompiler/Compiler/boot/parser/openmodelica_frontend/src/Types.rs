@@ -524,7 +524,7 @@ pub fn expTypetoTypesType(mut inType: Arc<DAE::Type>) -> Result<Arc<DAE::Type>> 
 }
 
 fn convertFromExpToTypesVar(mut inVar: Arc<DAE::Var>) -> Result<Arc<DAE::Var>> {
-    let mut outVar: Arc<DAE::Var>;
+    let mut outVar: Arc<DAE::Var> = Arc::new(<DAE::Var as ::std::default::Default>::default());
     outVar = inVar.clone();
     assign_field!(outVar.ty = expTypetoTypesType(inVar.ty.clone())?);
     Ok(outVar)
@@ -1526,8 +1526,8 @@ pub fn arrayType(mut inType: Arc<DAE::Type>) -> bool {
 }
 
 pub fn setVarInput(mut var: Arc<DAE::Var>) -> Arc<DAE::Var> {
-    let mut outV: Arc<DAE::Var>;
-    let mut attrs: Arc<DAE::Attributes>;
+    let mut outV: Arc<DAE::Var> = Arc::new(<DAE::Var as ::std::default::Default>::default());
+    let mut attrs: Arc<DAE::Attributes> = Arc::new(<DAE::Attributes as ::std::default::Default>::default());
     outV = var.clone();
     attrs = outV.attributes.clone();
     assign_field!(attrs.direction = openmodelica_ast::Absyn::Direction::INPUT);
@@ -1536,8 +1536,8 @@ pub fn setVarInput(mut var: Arc<DAE::Var>) -> Arc<DAE::Var> {
 }
 
 pub fn setVarDefaultInput(mut var: Arc<DAE::Var>) -> Arc<DAE::Var> {
-    let mut outV: Arc<DAE::Var>;
-    let mut attrs: Arc<DAE::Attributes>;
+    let mut outV: Arc<DAE::Var> = Arc::new(<DAE::Var as ::std::default::Default>::default());
+    let mut attrs: Arc<DAE::Attributes> = Arc::new(<DAE::Attributes as ::std::default::Default>::default());
     outV = var.clone();
     attrs = outV.attributes.clone();
     assign_field!(
@@ -1552,8 +1552,8 @@ pub fn setVarDefaultInput(mut var: Arc<DAE::Var>) -> Arc<DAE::Var> {
 }
 
 pub fn setVarProtected(mut var: Arc<DAE::Var>) -> Arc<DAE::Var> {
-    let mut outV: Arc<DAE::Var>;
-    let mut attrs: Arc<DAE::Attributes>;
+    let mut outV: Arc<DAE::Var> = Arc::new(<DAE::Var as ::std::default::Default>::default());
+    let mut attrs: Arc<DAE::Attributes> = Arc::new(<DAE::Attributes as ::std::default::Default>::default());
     outV = var.clone();
     attrs = outV.attributes.clone();
     assign_field!(attrs.visibility = openmodelica_frontend_types::SCode::Visibility::PROTECTED);
@@ -2106,7 +2106,7 @@ fn subtypeVarlist(mut inVarLst1: Arc<metamodelica::List<Arc<DAE::Var>>>, mut inV
 }
 
 pub fn varlistLookup(mut inVarLst: Arc<metamodelica::List<Arc<DAE::Var>>>, mut inIdent: ArcStr) -> Result<Arc<DAE::Var>> {
-    let mut outVar: Arc<DAE::Var>;
+    let mut outVar: Arc<DAE::Var> = Arc::new(<DAE::Var as ::std::default::Default>::default());
     let mut name: ArcStr = arcstr::literal!("");
     for mut var in &*inVarLst.clone() {
         let mut var = var.clone();
@@ -2125,13 +2125,13 @@ pub fn varlistLookup(mut inVarLst: Arc<metamodelica::List<Arc<DAE::Var>>>, mut i
 }
 
 pub fn lookupComponent(mut inType: Arc<DAE::Type>, mut inIdent: ArcStr) -> Result<Arc<DAE::Var>> {
-    let mut outVar: Arc<DAE::Var>;
+    let mut outVar: Arc<DAE::Var> = Arc::new(<DAE::Var as ::std::default::Default>::default());
     outVar = 'mc: {
         let __mc_input = (inType.clone(), inIdent.clone());
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (t, n) => {
-                    let mut v: Arc<DAE::Var>;
+                    let mut v: Arc<DAE::Var> = Arc::new(<DAE::Var as ::std::default::Default>::default());
                     let true = (basicType(t.clone())) else { bail!("pattern mismatch") };
                     v = lookupInBuiltin(t.clone(), (n.clone()).clone())?;
                     Ok(v.clone())
@@ -2142,7 +2142,7 @@ pub fn lookupComponent(mut inType: Arc<DAE::Type>, mut inIdent: ArcStr) -> Resul
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ DAE::Type::T_COMPLEX { varLst: cs, .. }, id) => {
-                    let mut v: Arc<DAE::Var>;
+                    let mut v: Arc<DAE::Var> = Arc::new(<DAE::Var as ::std::default::Default>::default());
                     v = lookupComponent2(cs.clone(), (id.clone()).clone())?;
                     Ok(v.clone())
                 }
@@ -2152,7 +2152,7 @@ pub fn lookupComponent(mut inType: Arc<DAE::Type>, mut inIdent: ArcStr) -> Resul
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ DAE::Type::T_SUBTYPE_BASIC { varLst: cs, .. }, id) => {
-                    let mut v: Arc<DAE::Var>;
+                    let mut v: Arc<DAE::Var> = Arc::new(<DAE::Var as ::std::default::Default>::default());
                     v = lookupComponent2(cs.clone(), (id.clone()).clone())?;
                     Ok(v.clone())
                 }
@@ -2162,7 +2162,7 @@ pub fn lookupComponent(mut inType: Arc<DAE::Type>, mut inIdent: ArcStr) -> Resul
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ DAE::Type::T_ARRAY { ty: Deref @ DAE::Type::T_COMPLEX { varLst: cs, .. }, dims: Deref @ metamodelica::List::Cons { head: dim, tail: Deref @ metamodelica::List::Nil } }, id) => {
-                    let mut v: Arc<DAE::Var>;
+                    let mut v: Arc<DAE::Var> = Arc::new(<DAE::Var as ::std::default::Default>::default());
                     v = lookupComponent2(cs.clone(), (id.clone()).clone())?;
                     assign_field!(v.ty = Arc::new(DAE::Type::T_ARRAY { ty: v.ty.clone(), dims: list![dim.clone()] }));
                     Ok(v.clone())
@@ -2173,7 +2173,7 @@ pub fn lookupComponent(mut inType: Arc<DAE::Type>, mut inIdent: ArcStr) -> Resul
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ DAE::Type::T_ARRAY { ty: Deref @ DAE::Type::T_SUBTYPE_BASIC { varLst: cs, .. }, dims: Deref @ metamodelica::List::Cons { head: dim, tail: Deref @ metamodelica::List::Nil } }, id) => {
-                    let mut v: Arc<DAE::Var>;
+                    let mut v: Arc<DAE::Var> = Arc::new(<DAE::Var as ::std::default::Default>::default());
                     v = lookupComponent2(cs.clone(), (id.clone()).clone())?;
                     assign_field!(v.ty = Arc::new(DAE::Type::T_ARRAY { ty: v.ty.clone(), dims: list![dim.clone()] }));
                     Ok(v.clone())
@@ -2195,25 +2195,25 @@ pub fn lookupComponent(mut inType: Arc<DAE::Type>, mut inIdent: ArcStr) -> Resul
 }
 
 fn lookupInBuiltin(mut inType: Arc<DAE::Type>, mut inIdent: ArcStr) -> Result<Arc<DAE::Var>> {
-    let mut outVar: Arc<DAE::Var>;
+    let mut outVar: Arc<DAE::Var> = Arc::new(<DAE::Var as ::std::default::Default>::default());
     outVar = (::match_deref::match_deref! { match &((inType.clone(), inIdent.clone())) {
         (Deref @ DAE::Type::T_REAL { varLst: cs }, id) => {
-            let mut v: Arc<DAE::Var>;
+            let mut v: Arc<DAE::Var> = Arc::new(<DAE::Var as ::std::default::Default>::default());
             v = lookupComponent2(cs.clone(), (id.clone()).clone())?;
             v.clone()
         },
         (Deref @ DAE::Type::T_INTEGER { varLst: cs }, id) => {
-            let mut v: Arc<DAE::Var>;
+            let mut v: Arc<DAE::Var> = Arc::new(<DAE::Var as ::std::default::Default>::default());
             v = lookupComponent2(cs.clone(), (id.clone()).clone())?;
             v.clone()
         },
         (Deref @ DAE::Type::T_STRING { varLst: cs }, id) => {
-            let mut v: Arc<DAE::Var>;
+            let mut v: Arc<DAE::Var> = Arc::new(<DAE::Var as ::std::default::Default>::default());
             v = lookupComponent2(cs.clone(), (id.clone()).clone())?;
             v.clone()
         },
         (Deref @ DAE::Type::T_BOOL { varLst: cs }, id) => {
-            let mut v: Arc<DAE::Var>;
+            let mut v: Arc<DAE::Var> = Arc::new(<DAE::Var as ::std::default::Default>::default());
             v = lookupComponent2(cs.clone(), (id.clone()).clone())?;
             v.clone()
         },
@@ -2243,7 +2243,7 @@ fn lookupInBuiltin(mut inType: Arc<DAE::Type>, mut inIdent: ArcStr) -> Result<Ar
 // NOTE: #[tailcall::tailcall] disabled: function body contains a `match_deref!{…}` match,
 // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
 fn lookupComponent2(mut inVarLst: Arc<metamodelica::List<Arc<DAE::Var>>>, mut inIdent: ArcStr) -> Result<Arc<DAE::Var>> {
-    let mut outVar: Arc<DAE::Var>;
+    let mut outVar: Arc<DAE::Var> = Arc::new(<DAE::Var as ::std::default::Default>::default());
     outVar = 'mc: {
         let __mc_input = (inVarLst.clone(), inIdent.clone());
         if let Ok(__v) = (|| -> Result<_> {
@@ -2258,7 +2258,7 @@ fn lookupComponent2(mut inVarLst: Arc<metamodelica::List<Arc<DAE::Var>>>, mut in
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ metamodelica::List::Cons { head: _, tail: vs }, n) => {
-                    let mut v: Arc<DAE::Var>;
+                    let mut v: Arc<DAE::Var> = Arc::new(<DAE::Var as ::std::default::Default>::default());
                     v = lookupComponent2(vs.clone(), (n.clone()).clone())?;
                     Ok(v.clone())
                 }
@@ -2689,7 +2689,7 @@ pub fn makeEnumerationType1(mut inPath: Arc<Absyn::Path>, mut inVarLst: Arc<meta
         (p, Deref @ metamodelica::List::Cons { head: Deref @ DAE::Var { name, attributes, ty: _, binding, bind_from_outside: bsrc, constOfForIteratorRange: cnstForRange }, tail: xs }, names, idx) => {
             let mut vars: Arc<metamodelica::List<Arc<DAE::Var>>> = metamodelica::nil();
             let mut t: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
-            let mut var: Arc<DAE::Var>;
+            let mut var: Arc<DAE::Var> = Arc::new(<DAE::Var as ::std::default::Default>::default());
             vars = makeEnumerationType1(p.clone(), xs.clone(), names.clone(), idx.clone() + 1)?;
             t = Arc::new(DAE::Type::T_ENUMERATION { index: Some(idx.clone()), path: p.clone(), names: names.clone(), literalVarLst: metamodelica::nil(), attributeLst: metamodelica::nil() });
             var = Arc::new(DAE::Var { name: (name.clone()).clone(), attributes: attributes.clone(), ty: t.clone(), binding: binding.clone(), bind_from_outside: bsrc.clone(), constOfForIteratorRange: cnstForRange.clone() });
@@ -3013,7 +3013,7 @@ pub fn makeFargsList(mut vars: Arc<metamodelica::List<Arc<DAE::Var>>>) -> Arc<me
 }
 
 fn makeFarg(mut variable: Arc<DAE::Var>) -> Result<Arc<DAE::FuncArg>> {
-    let mut farg: Arc<DAE::FuncArg>;
+    let mut farg: Arc<DAE::FuncArg> = Arc::new(<DAE::FuncArg as ::std::default::Default>::default());
     farg = (::match_deref::match_deref! { match &(variable.clone()) {
         Deref @ DAE::Var { binding: bnd, ty, attributes: Deref @ DAE::Attributes { parallelism: par, variability: var, .. }, name: n, .. } => {
             let mut c: DAE::Const = DAE::Const::C_CONST;
@@ -3030,7 +3030,7 @@ fn makeFarg(mut variable: Arc<DAE::Var>) -> Result<Arc<DAE::FuncArg>> {
 }
 
 fn makeElementFarg(mut inElement: Arc<DAE::Element>, mut inFarg: Arc<DAE::FuncArg>) -> Result<Arc<DAE::FuncArg>> {
-    let mut farg: Arc<DAE::FuncArg>;
+    let mut farg: Arc<DAE::FuncArg> = Arc::new(<DAE::FuncArg as ::std::default::Default>::default());
     farg = (::match_deref::match_deref! { match &((inElement.clone(), inFarg.clone())) {
         (Deref @ DAE::Element::VAR { componentRef: cref, .. }, _) => {
             let mut name: ArcStr = arcstr::literal!("");
@@ -3423,11 +3423,11 @@ pub fn propTupleFirstProp(mut inTupleProp: DAE::Properties) -> Result<DAE::Prope
     let mut ty: Type = Arc::new(DAE::Type::T_NORETCALL);
     let mut c: DAE::Const = DAE::Const::C_CONST;
     let DAE::PROP_TUPLE { tupleConst: __t2, type_: __t3 } = (inTupleProp.clone()) else { bail!("pattern mismatch") };
-    let __pa0 = ::match_deref::match_deref! { match &((*__t2).clone()) {
+    let __pa0 = ::match_deref::match_deref! { match &(__t2.clone()) {
         Deref @ DAE::TupleConst::TUPLE_CONST { tupleConstLst: Deref @ metamodelica::List::Cons { head: Deref @ DAE::TupleConst::SINGLE_CONST { r#const: __pa0 }, tail: _ } } => __pa0.clone(),
         _ => bail!("pattern mismatch"),
     } };
-    let __pa1 = ::match_deref::match_deref! { match &((*__t3).clone()) {
+    let __pa1 = ::match_deref::match_deref! { match &(__t3.clone()) {
         Deref @ DAE::Type::T_TUPLE { types: Deref @ metamodelica::List::Cons { head: __pa1, tail: _ }, .. } => __pa1.clone(),
         _ => bail!("pattern mismatch"),
     } };
@@ -6366,10 +6366,7 @@ fn fixPolymorphicRestype2(mut ty: Arc<DAE::Type>, mut prefix: ArcStr, mut bindin
             ::match_deref::match_deref! { match &__mc_input {
                 (t1 @ Deref @ DAE::Type::T_ARRAY { .. }, _, _, _) => {
                     let mut t1 = (*t1).clone();
-                    let __owned_variant_ty_0 = fixPolymorphicRestype2(var_field!((**t1).ty, DAE::Type::T_ARRAY).clone(), (prefix.clone()).clone(), bindings.clone(), info.clone())?;
-                    if let DAE::Type::T_ARRAY { ty, .. } = &mut t1 {
-                        *ty = __owned_variant_ty_0;
-                    } else { panic!("owned-variant field-assign: value held a different variant than DAE::Type::T_ARRAY"); }
+                    assign_variant_field!(t1 => DAE::Type::T_ARRAY; ty = fixPolymorphicRestype2(var_field!((*t1).ty, DAE::Type::T_ARRAY).clone(), (prefix.clone()).clone(), bindings.clone(), info.clone())?);
                     Ok(t1.clone())
                 }
                 _ => bail!("nomatch"),
@@ -6379,10 +6376,7 @@ fn fixPolymorphicRestype2(mut ty: Arc<DAE::Type>, mut prefix: ArcStr, mut bindin
             ::match_deref::match_deref! { match &__mc_input {
                 (t1 @ Deref @ DAE::Type::T_TUPLE { .. }, _, _, _) => {
                     let mut t1 = (*t1).clone();
-                    let __owned_variant_types_0 = List::map3(var_field!((**t1).types, DAE::Type::T_TUPLE).clone(), (std::sync::Arc::new(fixPolymorphicRestype2) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Type>, ArcStr, Arc<metamodelica::List<(ArcStr, Arc<metamodelica::List<Arc<DAE::Type>>>)>>, SourceInfo) -> Result<Arc<DAE::Type>> + 'static>), (prefix.clone()).clone(), bindings.clone(), info.clone());
-                    if let DAE::Type::T_TUPLE { types, .. } = &mut t1 {
-                        *types = __owned_variant_types_0;
-                    } else { panic!("owned-variant field-assign: value held a different variant than DAE::Type::T_TUPLE"); }
+                    assign_variant_field!(t1 => DAE::Type::T_TUPLE; types = List::map3(var_field!((*t1).types, DAE::Type::T_TUPLE).clone(), (std::sync::Arc::new(fixPolymorphicRestype2) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Type>, ArcStr, Arc<metamodelica::List<(ArcStr, Arc<metamodelica::List<Arc<DAE::Type>>>)>>, SourceInfo) -> Result<Arc<DAE::Type>> + 'static>), (prefix.clone()).clone(), bindings.clone(), info.clone()));
                     Ok(t1.clone())
                 }
                 _ => bail!("nomatch"),
@@ -6599,10 +6593,7 @@ fn makeFunctionPolymorphicReferenceResType(mut inType: Arc<DAE::Type>) -> Result
                     let mut tys = (*tys).clone();
                     (dummyExpList, dummyBoxedTypeList) = makeDummyExpAndTypeLists(tys.clone())?;
                     (_, tys) = matchTypeTuple(dummyExpList.clone(), tys.clone(), dummyBoxedTypeList.clone(), false)?;
-                    let __owned_variant_types_0 = tys.clone();
-                    if let DAE::Type::T_TUPLE { types, .. } = &mut ty {
-                        *types = __owned_variant_types_0;
-                    } else { panic!("owned-variant field-assign: value held a different variant than DAE::Type::T_TUPLE"); }
+                    assign_variant_field!(ty => DAE::Type::T_TUPLE; types = tys.clone());
                     Ok(ty.clone())
                 }
                 _ => bail!("nomatch"),
@@ -8629,7 +8620,7 @@ fn isBuiltin(mut a: DAE::FunctionBuiltin) -> bool {
 }
 
 pub fn makeCallAttr(mut ty: Arc<DAE::Type>, mut attr: DAE::FunctionAttributes) -> Arc<DAE::CallAttributes> {
-    let mut callAttr: Arc<DAE::CallAttributes>;
+    let mut callAttr: Arc<DAE::CallAttributes> = Arc::new(<DAE::CallAttributes as ::std::default::Default>::default());
     let mut isImpure: bool = false;
     let mut isT: bool = false;
     let mut isB: bool = false;
@@ -8718,7 +8709,7 @@ pub fn funcArgDefaultBinding(mut arg: Arc<DAE::FuncArg>) -> Result<Option<Arc<DA
 }
 
 pub fn setFuncArgType(mut arg: Arc<DAE::FuncArg>, mut ty: Arc<DAE::Type>) -> Result<Arc<DAE::FuncArg>> {
-    let mut outArg: Arc<DAE::FuncArg>;
+    let mut outArg: Arc<DAE::FuncArg> = Arc::new(<DAE::FuncArg as ::std::default::Default>::default());
     let mut name: ArcStr = arcstr::literal!("");
     let mut r#const: DAE::Const = DAE::Const::C_CONST;
     let mut par: DAE::VarParallelism = DAE::VarParallelism::NON_PARALLEL;
@@ -8736,7 +8727,7 @@ pub fn setFuncArgType(mut arg: Arc<DAE::FuncArg>, mut ty: Arc<DAE::Type>) -> Res
 }
 
 pub fn setFuncArgName(mut arg: Arc<DAE::FuncArg>, mut name: ArcStr) -> Result<Arc<DAE::FuncArg>> {
-    let mut outArg: Arc<DAE::FuncArg>;
+    let mut outArg: Arc<DAE::FuncArg> = Arc::new(<DAE::FuncArg as ::std::default::Default>::default());
     let mut ty: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
     let mut r#const: DAE::Const = DAE::Const::C_CONST;
     let mut par: DAE::VarParallelism = DAE::VarParallelism::NON_PARALLEL;
@@ -8754,7 +8745,7 @@ pub fn setFuncArgName(mut arg: Arc<DAE::FuncArg>, mut name: ArcStr) -> Result<Ar
 }
 
 pub fn clearDefaultBinding(mut arg: Arc<DAE::FuncArg>) -> Result<Arc<DAE::FuncArg>> {
-    let mut outArg: Arc<DAE::FuncArg>;
+    let mut outArg: Arc<DAE::FuncArg> = Arc::new(<DAE::FuncArg as ::std::default::Default>::default());
     let mut name: ArcStr = arcstr::literal!("");
     let mut ty: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
     let mut r#const: DAE::Const = DAE::Const::C_CONST;
@@ -8772,7 +8763,7 @@ pub fn clearDefaultBinding(mut arg: Arc<DAE::FuncArg>) -> Result<Arc<DAE::FuncAr
 }
 
 pub fn makeDefaultFuncArg(mut name: ArcStr, mut ty: Arc<DAE::Type>) -> Arc<DAE::FuncArg> {
-    let mut arg: Arc<DAE::FuncArg>;
+    let mut arg: Arc<DAE::FuncArg> = Arc::new(<DAE::FuncArg as ::std::default::Default>::default());
     arg = Arc::new(DAE::FuncArg { name: (name.clone()).clone(), ty: ty.clone(), r#const: openmodelica_frontend_types::DAE::Const::C_VAR, par: openmodelica_frontend_types::DAE::VarParallelism::NON_PARALLEL, defaultBinding: None });
     arg
 }

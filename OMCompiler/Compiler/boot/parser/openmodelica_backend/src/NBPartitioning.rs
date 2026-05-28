@@ -494,7 +494,7 @@ pub mod ClockedInfo {
 // =========================================================================
 //                      MAIN ROUTINE, PLEASE DO NOT CHANGE
 // =========================================================================
-pub fn getModule() -> Result<Module::partitioningInterface> {
+pub fn getModule() -> Result<Arc<dyn ::std::ops::Fn(Partition::Kind, Arc<VariablePointers::VariablePointers>, Arc<EquationPointers::EquationPointers>, Arc<VariablePointers::VariablePointers>, Arc<EquationPointers::EquationPointers>, Arc<ClockedInfo::ClockedInfo>) -> Result<Arc<metamodelica::List<Arc<Partition::Partition::Partition>>>> + 'static>> {
     let mut func: Module::partitioningInterface;
     let mut flag: ArcStr = literal!("clocked");
     func = (::match_deref::match_deref! { match &(flag.clone()) {
@@ -659,7 +659,7 @@ pub mod Cluster {
         let mut clock: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
         for mut eqn_name in &*UnorderedSet::toList(cluster.eqn_idnts.clone()) {
             let mut eqn_name = eqn_name.clone();
-            BEquation::Equation::map(Pointer::access(BEquation::EquationPointers::getEqnByName(equations.clone(), eqn_name.clone())?), Arc::new({ let __pe_b1 = info.clone(); let __pe_b2 = clock_ptr.clone(); move |__pe_a0| findClock(__pe_a0, __pe_b1.clone(), __pe_b2.clone()) }), None, (std::sync::Arc::new(fnptr!(Expression::fakeMap, Arc<Expression::NFExpression>, fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>>) -> Result<Arc<Expression::NFExpression>> + 'static>))?;
+            BEquation::Equation::map(Pointer::access(BEquation::EquationPointers::getEqnByName(equations.clone(), eqn_name.clone())?), Arc::new({ let __pe_b1 = info.clone(); let __pe_b2 = clock_ptr.clone(); move |__pe_a0| findClock(__pe_a0, __pe_b1.clone(), __pe_b2.clone()) }), None, (std::sync::Arc::new(fnptr!(Expression::fakeMap, Arc<Expression::NFExpression>, Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>)) as std::sync::Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>, Arc<dyn ::std::ops::Fn(Arc<Expression::NFExpression>) -> Result<Arc<Expression::NFExpression>> + 'static>) -> Result<Arc<Expression::NFExpression>> + 'static>))?;
             clock_opt = Pointer::access(clock_ptr.clone());
             if Util::isSome(clock_opt.clone()) {
                 break;
@@ -768,10 +768,19 @@ pub mod DisjointSetForest {
         pub rank: Pointer::Pointer<metamodelica::Array<i32>>,
     }
 
+    impl Default for DisjointSetForest {
+        fn default() -> Self {
+            Self {
+                parent: Default::default(),
+                rank: Default::default(),
+            }
+        }
+    }
+
     pub type FOREST = DisjointSetForest;
 
     pub fn new(mut n: i32) -> Arc<DisjointSetForest> {
-        let mut dsf: Arc<DisjointSetForest>;
+        let mut dsf: Arc<DisjointSetForest> = Arc::new(<DisjointSetForest as ::std::default::Default>::default());
         dsf = Arc::new(DisjointSetForest { rank: Pointer::create(arrayCreate(n.clone(), 0)), parent: Pointer::create(metamodelica::arrayFromVec({
         let mut __acc: Arc<metamodelica::List<i32>> = metamodelica::nil();
         for mut i in (1..=n.clone()).into_iter() {

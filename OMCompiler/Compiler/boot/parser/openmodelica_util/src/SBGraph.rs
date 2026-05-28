@@ -99,7 +99,7 @@ pub mod IncidenceList {
 
     impl<VertexT: Clone + 'static + PartialEq, EdgeT: Clone + 'static + PartialEq> PartialEq for IncidenceList<VertexT, EdgeT> {
         fn eq(&self, other: &Self) -> bool {
-            self.vertices == other.vertices && self.edges == other.edges && self.graph == other.graph && std::sync::Arc::ptr_eq(&self.vertEqFn, &other.vertEqFn) && std::sync::Arc::ptr_eq(&self.edgeEqFn, &other.edgeEqFn) && std::sync::Arc::ptr_eq(&self.vertToString, &other.vertToString) && std::sync::Arc::ptr_eq(&self.edgeToString, &other.edgeToString)
+            self.vertices == other.vertices && self.edges == other.edges && self.graph == other.graph && std::sync::Arc::ptr_eq((&self.vertEqFn), (&other.vertEqFn)) && std::sync::Arc::ptr_eq((&self.edgeEqFn), (&other.edgeEqFn)) && std::sync::Arc::ptr_eq((&self.vertToString), (&other.vertToString)) && std::sync::Arc::ptr_eq((&self.edgeToString), (&other.edgeToString))
         }
     }
     impl<VertexT: Clone + 'static + PartialEq + Eq, EdgeT: Clone + 'static + PartialEq + Eq> Eq for IncidenceList<VertexT, EdgeT> {}
@@ -108,7 +108,7 @@ pub mod IncidenceList {
     }
     impl<VertexT: Clone + 'static + PartialEq + Eq + PartialOrd + Ord, EdgeT: Clone + 'static + PartialEq + Eq + PartialOrd + Ord> Ord for IncidenceList<VertexT, EdgeT> {
         fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-            self.vertices.cmp(&other.vertices).then_with(|| self.edges.cmp(&other.edges).then_with(|| self.graph.cmp(&other.graph).then_with(|| (std::sync::Arc::as_ptr(&self.vertEqFn) as *const ()).cmp(&(std::sync::Arc::as_ptr(&other.vertEqFn) as *const ())).then_with(|| (std::sync::Arc::as_ptr(&self.edgeEqFn) as *const ()).cmp(&(std::sync::Arc::as_ptr(&other.edgeEqFn) as *const ())).then_with(|| (std::sync::Arc::as_ptr(&self.vertToString) as *const ()).cmp(&(std::sync::Arc::as_ptr(&other.vertToString) as *const ())).then_with(|| (std::sync::Arc::as_ptr(&self.edgeToString) as *const ()).cmp(&(std::sync::Arc::as_ptr(&other.edgeToString) as *const ()))))))))
+            self.vertices.cmp(&other.vertices).then_with(|| self.edges.cmp(&other.edges).then_with(|| self.graph.cmp(&other.graph).then_with(|| (std::sync::Arc::as_ptr((&self.vertEqFn)) as *const ()).cmp(&(std::sync::Arc::as_ptr((&other.vertEqFn)) as *const ())).then_with(|| (std::sync::Arc::as_ptr((&self.edgeEqFn)) as *const ()).cmp(&(std::sync::Arc::as_ptr((&other.edgeEqFn)) as *const ())).then_with(|| (std::sync::Arc::as_ptr((&self.vertToString)) as *const ()).cmp(&(std::sync::Arc::as_ptr((&other.vertToString)) as *const ())).then_with(|| (std::sync::Arc::as_ptr((&self.edgeToString)) as *const ()).cmp(&(std::sync::Arc::as_ptr((&other.edgeToString)) as *const ()))))))))
         }
     }
     impl<VertexT: Clone + 'static + std::fmt::Debug, EdgeT: Clone + 'static + std::fmt::Debug> std::fmt::Debug for IncidenceList<VertexT, EdgeT> {
@@ -117,10 +117,10 @@ pub mod IncidenceList {
             __ds.field("vertices", &self.vertices);
             __ds.field("edges", &self.edges);
             __ds.field("graph", &self.graph);
-            __ds.field("vertEqFn", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(&self.vertEqFn)));
-            __ds.field("edgeEqFn", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(&self.edgeEqFn)));
-            __ds.field("vertToString", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(&self.vertToString)));
-            __ds.field("edgeToString", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(&self.edgeToString)));
+            __ds.field("vertEqFn", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr((&self.vertEqFn))));
+            __ds.field("edgeEqFn", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr((&self.edgeEqFn))));
+            __ds.field("vertToString", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr((&self.vertToString))));
+            __ds.field("edgeToString", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr((&self.edgeToString))));
             __ds.finish()
         }
     }
@@ -265,7 +265,7 @@ pub mod BipartiteIncidenceList {
 
     impl<VertexT: Clone + 'static + PartialEq, EdgeT: Clone + 'static + PartialEq> PartialEq for BipartiteIncidenceList<VertexT, EdgeT> {
         fn eq(&self, other: &Self) -> bool {
-            self.F_vertices == other.F_vertices && self.U_vertices == other.U_vertices && self.edges == other.edges && self.graph == other.graph && std::sync::Arc::ptr_eq(&self.vertEqFn, &other.vertEqFn) && std::sync::Arc::ptr_eq(&self.edgeEqFn, &other.edgeEqFn) && std::sync::Arc::ptr_eq(&self.vertToString, &other.vertToString) && std::sync::Arc::ptr_eq(&self.edgeToString, &other.edgeToString)
+            self.F_vertices == other.F_vertices && self.U_vertices == other.U_vertices && self.edges == other.edges && self.graph == other.graph && std::sync::Arc::ptr_eq((&self.vertEqFn), (&other.vertEqFn)) && std::sync::Arc::ptr_eq((&self.edgeEqFn), (&other.edgeEqFn)) && std::sync::Arc::ptr_eq((&self.vertToString), (&other.vertToString)) && std::sync::Arc::ptr_eq((&self.edgeToString), (&other.edgeToString))
         }
     }
     impl<VertexT: Clone + 'static + PartialEq + Eq, EdgeT: Clone + 'static + PartialEq + Eq> Eq for BipartiteIncidenceList<VertexT, EdgeT> {}
@@ -274,7 +274,7 @@ pub mod BipartiteIncidenceList {
     }
     impl<VertexT: Clone + 'static + PartialEq + Eq + PartialOrd + Ord, EdgeT: Clone + 'static + PartialEq + Eq + PartialOrd + Ord> Ord for BipartiteIncidenceList<VertexT, EdgeT> {
         fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-            self.F_vertices.cmp(&other.F_vertices).then_with(|| self.U_vertices.cmp(&other.U_vertices).then_with(|| self.edges.cmp(&other.edges).then_with(|| self.graph.cmp(&other.graph).then_with(|| (std::sync::Arc::as_ptr(&self.vertEqFn) as *const ()).cmp(&(std::sync::Arc::as_ptr(&other.vertEqFn) as *const ())).then_with(|| (std::sync::Arc::as_ptr(&self.edgeEqFn) as *const ()).cmp(&(std::sync::Arc::as_ptr(&other.edgeEqFn) as *const ())).then_with(|| (std::sync::Arc::as_ptr(&self.vertToString) as *const ()).cmp(&(std::sync::Arc::as_ptr(&other.vertToString) as *const ())).then_with(|| (std::sync::Arc::as_ptr(&self.edgeToString) as *const ()).cmp(&(std::sync::Arc::as_ptr(&other.edgeToString) as *const ())))))))))
+            self.F_vertices.cmp(&other.F_vertices).then_with(|| self.U_vertices.cmp(&other.U_vertices).then_with(|| self.edges.cmp(&other.edges).then_with(|| self.graph.cmp(&other.graph).then_with(|| (std::sync::Arc::as_ptr((&self.vertEqFn)) as *const ()).cmp(&(std::sync::Arc::as_ptr((&other.vertEqFn)) as *const ())).then_with(|| (std::sync::Arc::as_ptr((&self.edgeEqFn)) as *const ()).cmp(&(std::sync::Arc::as_ptr((&other.edgeEqFn)) as *const ())).then_with(|| (std::sync::Arc::as_ptr((&self.vertToString)) as *const ()).cmp(&(std::sync::Arc::as_ptr((&other.vertToString)) as *const ())).then_with(|| (std::sync::Arc::as_ptr((&self.edgeToString)) as *const ()).cmp(&(std::sync::Arc::as_ptr((&other.edgeToString)) as *const ())))))))))
         }
     }
     impl<VertexT: Clone + 'static + std::fmt::Debug, EdgeT: Clone + 'static + std::fmt::Debug> std::fmt::Debug for BipartiteIncidenceList<VertexT, EdgeT> {
@@ -284,10 +284,10 @@ pub mod BipartiteIncidenceList {
             __ds.field("U_vertices", &self.U_vertices);
             __ds.field("edges", &self.edges);
             __ds.field("graph", &self.graph);
-            __ds.field("vertEqFn", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(&self.vertEqFn)));
-            __ds.field("edgeEqFn", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(&self.edgeEqFn)));
-            __ds.field("vertToString", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(&self.vertToString)));
-            __ds.field("edgeToString", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(&self.edgeToString)));
+            __ds.field("vertEqFn", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr((&self.vertEqFn))));
+            __ds.field("edgeEqFn", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr((&self.edgeEqFn))));
+            __ds.field("vertToString", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr((&self.vertToString))));
+            __ds.field("edgeToString", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr((&self.edgeToString))));
             __ds.finish()
         }
     }

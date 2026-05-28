@@ -321,7 +321,7 @@ pub mod SimVar {
     }
 
     pub fn convert(mut simVar: Arc<SimVar>) -> Result<OldSimCodeVar::SimVar> {
-        let mut oldSimVar: OldSimCodeVar::SimVar;
+        let mut oldSimVar: OldSimCodeVar::SimVar = <OldSimCodeVar::SimVar as ::std::default::Default>::default();
         oldSimVar = OldSimCodeVar::SimVar { relativeQuantity: false, exportVar: Util::applyOption(simVar.exportVar.clone(), (std::sync::Arc::new(ComponentRef::toDAE) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<Arc<DAE::ComponentRef>> + 'static>)), initial_: None, variability: None, matrixName: simVar.matrixName.clone(), initNonlinear: false, inputIndex: simVar.inputIndex.clone(), isEncrypted: simVar.isEncrypted.clone(), hideResult: Some(simVar.hideResult.clone()), isProtected: simVar.isProtected.clone(), isValueChangeable: simVar.isValueChangeable.clone(), numArrayElement: simVar.numArrayElement.clone(), fmi_index: simVar.fmi_index.clone(), variable_index: simVar.variable_index.clone(), causality: None, source: DAE::emptyElementSource().clone(), aliasvar: Alias::convert(simVar.aliasvar.clone())?, arrayCref: Util::applyOption(simVar.arrayCref.clone(), (std::sync::Arc::new(ComponentRef::toDAE) as std::sync::Arc<dyn ::std::ops::Fn(Arc<ComponentRef::NFComponentRef>) -> Result<Arc<DAE::ComponentRef>> + 'static>)), isDiscrete: simVar.isDiscrete.clone(), type_: Type::toDAE(simVar.type_.clone(), true)?, isFixed: simVar.isFixed.clone(), nominalValue: Util::applyOption(simVar.nominal.clone(), Arc::new({ let __pe_b1 = false; move |__pe_a0| Expression::toDAE(__pe_a0, __pe_b1.clone()) })), initialValue: Util::applyOption(simVar.start.clone(), Arc::new({ let __pe_b1 = false; move |__pe_a0| Expression::toDAE(__pe_a0, __pe_b1.clone()) })), maxValue: Util::applyOption(simVar.max.clone(), Arc::new({ let __pe_b1 = false; move |__pe_a0| Expression::toDAE(__pe_a0, __pe_b1.clone()) })), minValue: Util::applyOption(simVar.min.clone(), Arc::new({ let __pe_b1 = false; move |__pe_a0| Expression::toDAE(__pe_a0, __pe_b1.clone()) })), index: simVar.index.clone(), displayUnit: (simVar.displayUnit.clone()).clone(), unit: (simVar.unit.clone()).clone(), comment: (simVar.comment.clone()).clone(), varKind: convertVarKind(simVar.varKind.clone())?, name: ComponentRef::toDAE(simVar.name.clone())? };
         Ok(oldSimVar)
     }
@@ -800,6 +800,48 @@ pub mod SimVars {
         pub dataReconSetBVars: Arc<metamodelica::List<Arc<SimVar::SimVar>>>,
     }
 
+    impl Default for SimVars {
+        fn default() -> Self {
+            Self {
+                stateVars: Default::default(),
+                derivativeVars: Default::default(),
+                algVars: Default::default(),
+                discreteAlgVars: Default::default(),
+                intAlgVars: Default::default(),
+                boolAlgVars: Default::default(),
+                stringAlgVars: Default::default(),
+                enumAlgVars: Default::default(),
+                inputVars: Default::default(),
+                outputVars: Default::default(),
+                aliasVars: Default::default(),
+                intAliasVars: Default::default(),
+                boolAliasVars: Default::default(),
+                stringAliasVars: Default::default(),
+                enumAliasVars: Default::default(),
+                paramVars: Default::default(),
+                intParamVars: Default::default(),
+                boolParamVars: Default::default(),
+                stringParamVars: Default::default(),
+                enumParamVars: Default::default(),
+                extObjVars: Default::default(),
+                constVars: Default::default(),
+                intConstVars: Default::default(),
+                boolConstVars: Default::default(),
+                stringConstVars: Default::default(),
+                enumConstVars: Default::default(),
+                residualVars: Default::default(),
+                jacobianVars: Default::default(),
+                seedVars: Default::default(),
+                realOptimizeConstraintsVars: Default::default(),
+                realOptimizeFinalConstraintsVars: Default::default(),
+                sensitivityVars: Default::default(),
+                dataReconSetcVars: Default::default(),
+                dataReconinputVars: Default::default(),
+                dataReconSetBVars: Default::default(),
+            }
+        }
+    }
+
     pub type SIMVARS = SimVars;
 
     pub fn toString(mut vars: Arc<SimVars>, mut r#str: ArcStr) -> Result<ArcStr> {
@@ -820,7 +862,7 @@ pub mod SimVars {
     }
 
     pub fn create(mut varData: Arc<BVariable::VarData::VarData>, mut residual_vars: Arc<VariablePointers::VariablePointers>, mut simCodeIndices: SimCodeIndices) -> Result<(Arc<SimVars>, SimCodeIndices)> {
-        let mut simVars: Arc<SimVars>;
+        let mut simVars: Arc<SimVars> = Arc::new(<SimVars as ::std::default::Default>::default());
         let mut simCodeIndices: SimCodeIndices = simCodeIndices;
         let mut stateVars: Arc<metamodelica::List<Arc<SimVar::SimVar>>> = metamodelica::nil();
         let mut derivativeVars: Arc<metamodelica::List<Arc<SimVar::SimVar>>> = metamodelica::nil();
@@ -1057,7 +1099,7 @@ pub mod SimVars {
     }
 
     pub fn convert(mut simVars: Arc<SimVars>) -> OldSimCodeVar::SimVars {
-        let mut oldSimVars: OldSimCodeVar::SimVars;
+        let mut oldSimVars: OldSimCodeVar::SimVars = <OldSimCodeVar::SimVars as ::std::default::Default>::default();
         oldSimVars = OldSimCodeVar::SimVars { dataReconSetBVars: SimVar::convertList(simVars.dataReconSetBVars.clone()), dataReconinputVars: SimVar::convertList(simVars.dataReconinputVars.clone()), dataReconSetcVars: SimVar::convertList(simVars.dataReconSetcVars.clone()), sensitivityVars: SimVar::convertList(simVars.sensitivityVars.clone()), realOptimizeFinalConstraintsVars: SimVar::convertList(simVars.realOptimizeFinalConstraintsVars.clone()), realOptimizeConstraintsVars: SimVar::convertList(simVars.realOptimizeConstraintsVars.clone()), seedVars: SimVar::convertList(simVars.seedVars.clone()), jacobianVars: SimVar::convertList(simVars.jacobianVars.clone()), stringConstVars: SimVar::convertList(simVars.stringConstVars.clone()), boolConstVars: SimVar::convertList(simVars.boolConstVars.clone()), intConstVars: SimVar::convertList(simVars.intConstVars.clone()), constVars: SimVar::convertList(simVars.constVars.clone()), extObjVars: SimVar::convertList(simVars.extObjVars.clone()), stringAliasVars: SimVar::convertList(simVars.stringAliasVars.clone()), stringParamVars: SimVar::convertList(simVars.stringParamVars.clone()), stringAlgVars: SimVar::convertList(simVars.stringAlgVars.clone()), boolParamVars: SimVar::convertList(simVars.boolParamVars.clone()), intParamVars: SimVar::convertList(simVars.intParamVars.clone()), paramVars: SimVar::convertList(simVars.paramVars.clone()), boolAliasVars: SimVar::convertList(simVars.boolAliasVars.clone()), intAliasVars: SimVar::convertList(simVars.intAliasVars.clone()), aliasVars: SimVar::convertList(simVars.aliasVars.clone()), outputVars: SimVar::convertList(simVars.outputVars.clone()), inputVars: SimVar::convertList(simVars.inputVars.clone()), boolAlgVars: SimVar::convertList(simVars.boolAlgVars.clone()), intAlgVars: SimVar::convertList(simVars.intAlgVars.clone()), discreteAlgVars: SimVar::convertList(simVars.discreteAlgVars.clone()), algVars: SimVar::convertList(simVars.algVars.clone()), derivativeVars: SimVar::convertList(simVars.derivativeVars.clone()), stateVars: SimVar::convertList(simVars.stateVars.clone()) };
         oldSimVars
     }
@@ -1363,10 +1405,52 @@ pub mod VarInfo {
         pub numRelatedBoundaryConditions: i32,
     }
 
+    impl Default for VarInfo {
+        fn default() -> Self {
+            Self {
+                numZeroCrossings: Default::default(),
+                numTimeEvents: Default::default(),
+                numRelations: Default::default(),
+                numMathEventFunctions: Default::default(),
+                numStateVars: Default::default(),
+                numAlgVars: Default::default(),
+                numDiscreteReal: Default::default(),
+                numIntAlgVars: Default::default(),
+                numBoolAlgVars: Default::default(),
+                numAlgAliasVars: Default::default(),
+                numIntAliasVars: Default::default(),
+                numBoolAliasVars: Default::default(),
+                numParams: Default::default(),
+                numIntParams: Default::default(),
+                numBoolParams: Default::default(),
+                numOutVars: Default::default(),
+                numInVars: Default::default(),
+                numExternalObjects: Default::default(),
+                numStringAlgVars: Default::default(),
+                numStringParamVars: Default::default(),
+                numStringAliasVars: Default::default(),
+                numEquations: Default::default(),
+                numLinearSystems: Default::default(),
+                numNonLinearSystems: Default::default(),
+                numMixedSystems: Default::default(),
+                numStateSets: Default::default(),
+                numJacobians: Default::default(),
+                numOptimizeConstraints: Default::default(),
+                numOptimizeFinalConstraints: Default::default(),
+                numSensitivityParameters: Default::default(),
+                numSetcVars: Default::default(),
+                numDataReconVars: Default::default(),
+                numRealIntputVars: Default::default(),
+                numSetbVars: Default::default(),
+                numRelatedBoundaryConditions: Default::default(),
+            }
+        }
+    }
+
     pub type VAR_INFO = VarInfo;
 
     pub fn create(mut vars: Arc<SimVars::SimVars>, mut eventInfo: Arc<EventInfo::EventInfo>, mut simCodeIndices: SimCodeIndices) -> Arc<VarInfo> {
-        let mut varInfo: Arc<VarInfo>;
+        let mut varInfo: Arc<VarInfo> = Arc::new(<VarInfo as ::std::default::Default>::default());
         varInfo = Arc::new(VarInfo { numRelatedBoundaryConditions: 0, numSetbVars: 0, numRealIntputVars: 0, numDataReconVars: 0, numSetcVars: 0, numSensitivityParameters: 0, numOptimizeFinalConstraints: 0, numOptimizeConstraints: 0, numJacobians: simCodeIndices.nonlinearSystemIndex.clone() + 5, numStateSets: 0, numMixedSystems: 0, numNonLinearSystems: simCodeIndices.nonlinearSystemIndex.clone(), numLinearSystems: simCodeIndices.linearSystemIndex.clone(), numEquations: simCodeIndices.equationIndex.clone(), numStringAliasVars: (vars.stringAliasVars.clone().len() as i32), numStringParamVars: (vars.stringParamVars.clone().len() as i32), numStringAlgVars: (vars.stringAlgVars.clone().len() as i32), numExternalObjects: (vars.extObjVars.clone().len() as i32), numInVars: (vars.inputVars.clone().len() as i32), numOutVars: (vars.outputVars.clone().len() as i32), numBoolParams: (vars.boolParamVars.clone().len() as i32), numIntParams: (vars.intParamVars.clone().len() as i32), numParams: (vars.paramVars.clone().len() as i32), numBoolAliasVars: (vars.boolAliasVars.clone().len() as i32), numIntAliasVars: (vars.intAliasVars.clone().len() as i32), numAlgAliasVars: (vars.aliasVars.clone().len() as i32), numBoolAlgVars: (vars.boolAlgVars.clone().len() as i32), numIntAlgVars: (vars.intAlgVars.clone().len() as i32), numDiscreteReal: (vars.discreteAlgVars.clone().len() as i32), numAlgVars: (vars.algVars.clone().len() as i32), numStateVars: (vars.stateVars.clone().len() as i32), numMathEventFunctions: eventInfo.numberMathEvents.clone(), numRelations: {
         let mut __acc: i32 = 0;
         for mut cond in (UnorderedMap::keyList(eventInfo.state_map.clone())).into_iter().cloned() {
@@ -1386,7 +1470,7 @@ pub mod VarInfo {
     }
 
     pub fn convert(mut varInfo: Arc<VarInfo>) -> OldSimCode::VarInfo {
-        let mut oldVarInfo: OldSimCode::VarInfo;
+        let mut oldVarInfo: OldSimCode::VarInfo = <OldSimCode::VarInfo as ::std::default::Default>::default();
         oldVarInfo = OldSimCode::VarInfo { numRelatedBoundaryConditions: varInfo.numRelatedBoundaryConditions.clone(), numSetbVars: varInfo.numSetbVars.clone(), numRealInputVars: varInfo.numRealIntputVars.clone(), numDataReconVars: varInfo.numDataReconVars.clone(), numSetcVars: varInfo.numSetcVars.clone(), numSensitivityParameters: varInfo.numSensitivityParameters.clone(), numOptimizeFinalConstraints: varInfo.numOptimizeFinalConstraints.clone(), numOptimizeConstraints: varInfo.numOptimizeConstraints.clone(), numJacobians: varInfo.numJacobians.clone(), numStateSets: varInfo.numStateSets.clone(), numMixedSystems: varInfo.numMixedSystems.clone(), numNonLinearSystems: varInfo.numNonLinearSystems.clone(), numLinearSystems: varInfo.numLinearSystems.clone(), numEquations: varInfo.numEquations.clone(), numStringAliasVars: varInfo.numStringAliasVars.clone(), numStringParamVars: varInfo.numStringParamVars.clone(), numStringAlgVars: varInfo.numStringAlgVars.clone(), numExternalObjects: varInfo.numExternalObjects.clone(), numInVars: varInfo.numInVars.clone(), numOutVars: varInfo.numOutVars.clone(), numBoolParams: varInfo.numBoolParams.clone(), numIntParams: varInfo.numIntParams.clone(), numParams: varInfo.numParams.clone(), numBoolAliasVars: varInfo.numBoolAliasVars.clone(), numIntAliasVars: varInfo.numIntAliasVars.clone(), numAlgAliasVars: varInfo.numAlgAliasVars.clone(), numBoolAlgVars: varInfo.numBoolAlgVars.clone(), numIntAlgVars: varInfo.numIntAlgVars.clone(), numDiscreteReal: varInfo.numDiscreteReal.clone(), numAlgVars: varInfo.numAlgVars.clone(), numStateVars: varInfo.numStateVars.clone(), numMathEventFunctions: varInfo.numMathEventFunctions.clone(), numRelations: varInfo.numRelations.clone(), numTimeEvents: varInfo.numTimeEvents.clone(), numZeroCrossings: varInfo.numZeroCrossings.clone() };
         oldVarInfo
     }
@@ -1401,6 +1485,15 @@ pub mod ExtObjInfo {
         pub aliases: Arc<metamodelica::List<(Arc<ComponentRef::NFComponentRef>, Arc<ComponentRef::NFComponentRef>)>>,
     }
 
+    impl Default for ExtObjInfo {
+        fn default() -> Self {
+            Self {
+                objects: Default::default(),
+                aliases: Default::default(),
+            }
+        }
+    }
+
     pub type EXT_OBJ_INFO = ExtObjInfo;
 
     pub fn toString(mut info: Arc<ExtObjInfo>) -> ArcStr {
@@ -1409,7 +1502,7 @@ pub mod ExtObjInfo {
     }
 
     pub fn create(mut external_objects: Arc<VariablePointers::VariablePointers>, mut vars: Arc<SimVars::SimVars>, mut simCodeIndices: SimCodeIndices) -> Result<(Arc<ExtObjInfo>, Arc<SimVars::SimVars>, SimCodeIndices)> {
-        let mut info: Arc<ExtObjInfo>;
+        let mut info: Arc<ExtObjInfo> = Arc::new(<ExtObjInfo as ::std::default::Default>::default());
         let mut vars: Arc<SimVars::SimVars> = vars;
         let mut simCodeIndices: SimCodeIndices = simCodeIndices;
         let mut indices_ptr: Pointer::Pointer<SimCodeIndices> = Pointer::create(simCodeIndices.clone());
@@ -1425,7 +1518,7 @@ pub mod ExtObjInfo {
     }
 
     pub fn convert(mut info: Arc<ExtObjInfo>) -> OldSimCode::ExtObjInfo {
-        let mut oldInfo: OldSimCode::ExtObjInfo;
+        let mut oldInfo: OldSimCode::ExtObjInfo = <OldSimCode::ExtObjInfo as ::std::default::Default>::default();
         oldInfo = OldSimCode::ExtObjInfo { vars: SimVar::convertList(info.objects.clone()), aliases: metamodelica::nil() };
         oldInfo
     }

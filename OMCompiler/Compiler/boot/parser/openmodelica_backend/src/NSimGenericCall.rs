@@ -171,12 +171,12 @@ pub fn fromIdentifier(mut ident_tpl: (Arc<Identifier::Identifier>, i32)) -> Resu
         Deref @ Equation::FOR_EQUATION { body: Deref @ metamodelica::List::Cons { head: body @ Deref @ Equation::IF_EQUATION { .. }, tail: Deref @ metamodelica::List::Nil }, .. } => {
             let mut iters: Arc<metamodelica::List<Arc<SimIterator::SimIterator>>> = metamodelica::nil();
             iters = SimIterator::fromIterator(var_field!((*eqn).iter, Equation::Equation::FOR_EQUATION).clone())?;
-            Arc::new(NSimGenericCall::IF_GENERIC_CALL { resizable: resizable.clone(), branches: SimBranch::fromIfBody(body.body.clone())?, iters: iters.clone(), index: index.clone() })
+            Arc::new(NSimGenericCall::IF_GENERIC_CALL { resizable: resizable.clone(), branches: SimBranch::fromIfBody(var_field!((**body).body, Equation::Equation::IF_EQUATION).clone())?, iters: iters.clone(), index: index.clone() })
         },
         Deref @ Equation::FOR_EQUATION { body: Deref @ metamodelica::List::Cons { head: body @ Deref @ Equation::WHEN_EQUATION { .. }, tail: Deref @ metamodelica::List::Nil }, .. } => {
             let mut iters: Arc<metamodelica::List<Arc<SimIterator::SimIterator>>> = metamodelica::nil();
             iters = SimIterator::fromIterator(var_field!((*eqn).iter, Equation::Equation::FOR_EQUATION).clone())?;
-            Arc::new(NSimGenericCall::WHEN_GENERIC_CALL { resizable: resizable.clone(), branches: SimBranch::fromWhenBody(body.body.clone())?, iters: iters.clone(), index: index.clone() })
+            Arc::new(NSimGenericCall::WHEN_GENERIC_CALL { resizable: resizable.clone(), branches: SimBranch::fromWhenBody(var_field!((**body).body, Equation::Equation::WHEN_EQUATION).clone())?, iters: iters.clone(), index: index.clone() })
         },
         Deref @ Equation::FOR_EQUATION { body: Deref @ metamodelica::List::Cons { head: body, tail: Deref @ metamodelica::List::Nil }, .. } => {
             let mut iters: Arc<metamodelica::List<Arc<SimIterator::SimIterator>>> = metamodelica::nil();
@@ -300,8 +300,8 @@ pub mod SimIterator {
         let mut ranges: Arc<metamodelica::List<Arc<Expression::NFExpression>>> = metamodelica::nil();
         let mut maps: Arc<metamodelica::List<Option<Arc<Iterator::Iterator>>>> = metamodelica::nil();
         let mut name: Arc<ComponentRef::NFComponentRef> = Arc::new(ComponentRef::EMPTY);
-        let mut addOp: Arc<Operator::NFOperator>;
-        let mut mulOp: Arc<Operator::NFOperator>;
+        let mut addOp: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
+        let mut mulOp: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
         let mut range: Arc<Expression::NFExpression> = Arc::new(Expression::END);
         let mut step: Arc<Expression::NFExpression> = Arc::new(Expression::END);
         let mut size: Arc<Expression::NFExpression> = Arc::new(Expression::END);

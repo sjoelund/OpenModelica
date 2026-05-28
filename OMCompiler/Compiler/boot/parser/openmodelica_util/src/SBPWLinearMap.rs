@@ -146,7 +146,7 @@ pub fn isEmpty(mut map: Arc<SBPWLinearMap>) -> bool {
 pub fn image(mut map: Arc<SBPWLinearMap>, mut set: Arc<SBSet::SBSet>) -> Result<Arc<SBSet::SBSet>> {
     fn add_set(mut aset: Arc<SBAtomicSet::SBAtomicSet>, mut map: Arc<SBLinearMap::SBLinearMap>, mut set: Arc<SBSet::SBSet>) -> Result<Arc<SBSet::SBSet>> {
         let mut set: Arc<SBSet::SBSet> = set;
-        let mut aux_map: Arc<SBPWAtomicLinearMap::SBPWAtomicLinearMap>;
+        let mut aux_map: Arc<SBPWAtomicLinearMap::SBPWAtomicLinearMap> = Arc::new(<SBPWAtomicLinearMap::SBPWAtomicLinearMap as ::std::default::Default>::default());
         aux_map = SBPWAtomicLinearMap::new(aset.clone(), map.clone());
         set = SBSet::addAtomicSet(SBPWAtomicLinearMap::image(aux_map.clone(), aset.clone())?, set.clone())?;
         Ok(set)
@@ -170,7 +170,7 @@ pub fn image(mut map: Arc<SBPWLinearMap>, mut set: Arc<SBSet::SBSet>) -> Result<
 pub fn preImage(mut map: Arc<SBPWLinearMap>, mut set: Arc<SBSet::SBSet>) -> Result<Arc<SBSet::SBSet>> {
     fn add_set(mut aset: Arc<SBAtomicSet::SBAtomicSet>, mut map: Arc<SBLinearMap::SBLinearMap>, mut sets: metamodelica::Array<Arc<SBAtomicSet::SBAtomicSet>>, mut set: Arc<SBSet::SBSet>) -> Result<Arc<SBSet::SBSet>> {
         let mut set: Arc<SBSet::SBSet> = set;
-        let mut aux_map: Arc<SBPWAtomicLinearMap::SBPWAtomicLinearMap>;
+        let mut aux_map: Arc<SBPWAtomicLinearMap::SBPWAtomicLinearMap> = Arc::new(<SBPWAtomicLinearMap::SBPWAtomicLinearMap as ::std::default::Default>::default());
         aux_map = SBPWAtomicLinearMap::new(aset.clone(), map.clone());
         let __range0 = sets.clone().borrow().iter().cloned().collect::<Vec<_>>();
         for mut as2 in __range0 {

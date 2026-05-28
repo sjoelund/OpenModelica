@@ -54,6 +54,7 @@ use crate::FHashTableUnitToString as HashTableUnitToString;
 use crate::FUnit as Unit;
 use openmodelica_ast::Absyn;
 use openmodelica_frontend_dump::AbsynUtil;
+use openmodelica_frontend_dump::AvlTreePathFunction;
 use openmodelica_frontend_dump::ComponentReferenceBasics;
 use openmodelica_frontend_dump::ExpressionBasics;
 use openmodelica_frontend_types::DAE;
@@ -63,6 +64,7 @@ use openmodelica_util::Error;
 use openmodelica_util::ExecStat::execStat;
 use openmodelica_util::Flags;
 use openmodelica_util::System;
+use openmodelica_util::Util;
 use openmodelica_util_datatypes_basic::List;
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -76,6 +78,51 @@ pub struct Functionargs {
 
 pub type FUNCTIONUNITS = Functionargs;
 
+
+pub fn checkUnits(mut inDAE: DAE::DAElist, mut func: Arc<AvlTreePathFunction::Tree>) -> Result<DAE::DAElist> {
+    let mut outDAE: DAE::DAElist = inDAE.clone();
+    let mut elts1: DAE::DAElist = <DAE::DAElist as ::std::default::Default>::default();
+    let mut elts2: DAE::DAElist = <DAE::DAElist as ::std::default::Default>::default();
+    let mut eqlist: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
+    let mut varlist: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
+    let mut newdaelist: Arc<metamodelica::List<Arc<DAE::Element>>> = metamodelica::nil();
+    let mut functionlist: Arc<metamodelica::List<DAE::Function>> = metamodelica::nil();
+    let mut args: Arc<metamodelica::List<Functionargs>> = metamodelica::nil();
+    let mut HtCr2U1: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Unit::Unit)>>), i32, (HashTableCrToUnit::FuncHashKey, HashTableCrToUnit::FuncKeyEqual, HashTableCrToUnit::FuncKeyStr, HashTableCrToUnit::FuncValueStr));
+    let mut HtCr2U2: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Unit::Unit)>>), i32, (HashTableCrToUnit::FuncHashKey, HashTableCrToUnit::FuncKeyEqual, HashTableCrToUnit::FuncKeyStr, HashTableCrToUnit::FuncValueStr));
+    let mut HtS2U: (metamodelica::Array<Arc<metamodelica::List<(ArcStr, i32)>>>, (i32, i32, metamodelica::Array<Option<(ArcStr, Unit::Unit)>>), i32, (HashTableStringToUnit::FuncHashKey, HashTableStringToUnit::FuncKeyEqual, HashTableStringToUnit::FuncKeyStr, HashTableStringToUnit::FuncValueStr));
+    let mut HtU2S: (metamodelica::Array<Arc<metamodelica::List<(Unit::Unit, i32)>>>, (i32, i32, metamodelica::Array<Option<(Unit::Unit, ArcStr)>>), i32, (HashTableUnitToString::FuncHashKey, HashTableUnitToString::FuncKeyEqual, HashTableUnitToString::FuncKeyStr, HashTableUnitToString::FuncValueStr));
+    if !(Flags::getConfigBool(Flags::UNIT_CHECKING.clone())? || Flags::getConfigBool(Flags::CHECK_MODEL.clone())? && Flags::isSet(Flags::SCODE_INST.clone())?) {
+        return Ok(outDAE);
+    }
+    if '__try0: {
+        (elts1, elts2) = unwrap_break_err!(DAEUtil::splitDAEIntoVarsAndEquations(inDAE.clone()), '__try0);
+        varlist = GetVarList(elts1.clone());
+        eqlist = unwrap_break_err!(GetElementList(elts2.clone()), '__try0);
+        functionlist = unwrap_break_err!(DAEUtil::getFunctionList(func.clone(), false), '__try0);
+        HtCr2U1 = HashTableCrToUnit::emptyHashTableSized(Util::nextPrime(((metamodelica::OrderedFloat((10) as f64) + metamodelica::OrderedFloat(1.4_f64) * metamodelica::OrderedFloat(((varlist.clone().len() as i32)) as f64)).0.floor() as i32)));
+        HtS2U = unwrap_break_err!(Unit::getKnownUnits(), '__try0);
+        HtU2S = unwrap_break_err!(Unit::getKnownUnitsInverse(), '__try0);
+        args = list![Functionargs { name: (literal!("")).clone(), invars: metamodelica::nil(), outvars: metamodelica::nil(), inunits: metamodelica::nil(), outunits: metamodelica::nil() }];
+        args = List::mapFlat(functionlist.clone(), (std::sync::Arc::new(parseFunctionList) as std::sync::Arc<dyn ::std::ops::Fn(DAE::Function) -> Result<Arc<metamodelica::List<Functionargs>>> + 'static>));
+        (HtCr2U1, HtS2U, HtU2S) = List::fold(varlist.clone(), (std::sync::Arc::new(convertUnitString2unit_old) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Element>, ((metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Unit::Unit)>>), i32, (HashTableCrToUnit::FuncHashKey, HashTableCrToUnit::FuncKeyEqual, HashTableCrToUnit::FuncKeyStr, HashTableCrToUnit::FuncValueStr)), (metamodelica::Array<Arc<metamodelica::List<(ArcStr, i32)>>>, (i32, i32, metamodelica::Array<Option<(ArcStr, Unit::Unit)>>), i32, (HashTableStringToUnit::FuncHashKey, HashTableStringToUnit::FuncKeyEqual, HashTableStringToUnit::FuncKeyStr, HashTableStringToUnit::FuncValueStr)), (metamodelica::Array<Arc<metamodelica::List<(Unit::Unit, i32)>>>, (i32, i32, metamodelica::Array<Option<(Unit::Unit, ArcStr)>>), i32, (HashTableUnitToString::FuncHashKey, HashTableUnitToString::FuncKeyEqual, HashTableUnitToString::FuncKeyStr, HashTableUnitToString::FuncValueStr)))) -> Result<((metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Unit::Unit)>>), i32, (HashTableCrToUnit::FuncHashKey, HashTableCrToUnit::FuncKeyEqual, HashTableCrToUnit::FuncKeyStr, HashTableCrToUnit::FuncValueStr)), (metamodelica::Array<Arc<metamodelica::List<(ArcStr, i32)>>>, (i32, i32, metamodelica::Array<Option<(ArcStr, Unit::Unit)>>), i32, (HashTableStringToUnit::FuncHashKey, HashTableStringToUnit::FuncKeyEqual, HashTableStringToUnit::FuncKeyStr, HashTableStringToUnit::FuncValueStr)), (metamodelica::Array<Arc<metamodelica::List<(Unit::Unit, i32)>>>, (i32, i32, metamodelica::Array<Option<(Unit::Unit, ArcStr)>>), i32, (HashTableUnitToString::FuncHashKey, HashTableUnitToString::FuncKeyEqual, HashTableUnitToString::FuncKeyStr, HashTableUnitToString::FuncValueStr)))> + 'static>), (HtCr2U1.clone(), HtS2U.clone(), HtU2S.clone()));
+        HtCr2U2 = BaseHashTable::copy(HtCr2U1.clone());
+        (HtCr2U2, HtS2U, HtU2S) = algo(varlist.clone(), eqlist.clone(), args.clone(), HtCr2U2.clone(), HtS2U.clone(), HtU2S.clone());
+        varlist = List::map2(varlist.clone(), (std::sync::Arc::new(returnVar) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Element>, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Unit::Unit)>>), i32, (HashTableCrToUnit::FuncHashKey, HashTableCrToUnit::FuncKeyEqual, HashTableCrToUnit::FuncKeyStr, HashTableCrToUnit::FuncValueStr)), (metamodelica::Array<Arc<metamodelica::List<(Unit::Unit, i32)>>>, (i32, i32, metamodelica::Array<Option<(Unit::Unit, ArcStr)>>), i32, (HashTableUnitToString::FuncHashKey, HashTableUnitToString::FuncKeyEqual, HashTableUnitToString::FuncKeyStr, HashTableUnitToString::FuncValueStr))) -> Result<Arc<DAE::Element>> + 'static>), HtCr2U2.clone(), HtU2S.clone());
+        newdaelist = listAppend(varlist.clone(), eqlist.clone());
+        if unwrap_break_err!(Flags::isSet(Flags::DUMP_UNIT.clone()), '__try0) {
+            BaseHashTable::dumpHashTable(HtCr2U2.clone());
+            println!("{}", (literal!("######## UnitCheck COMPLETED ########\n")).clone());
+        }
+        unwrap_break_err!(notification(HtCr2U1.clone(), HtCr2U2.clone(), HtU2S.clone()), '__try0);
+        outDAE = unwrap_break_err!(updateDAElist(inDAE.clone(), newdaelist.clone()), '__try0);
+        Ok::<(), anyhow::Error>(())
+    }.is_err() {
+        Error::addInternalError(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("FUnitCheck.checkUnits")); __mm_s.push_str(&*literal!(": unit check module failed")); ArcStr::from(__mm_s) }).clone(), metamodelica::sourceInfo!())?;
+    }
+    execStat((literal!("FUnitCheck.checkUnits")).clone())?;
+    Ok(outDAE)
+}
 
 fn parseFunctionList(mut infunction: DAE::Function) -> Result<Arc<metamodelica::List<Functionargs>>> {
     let mut outTpl: Arc<metamodelica::List<Functionargs>> = metamodelica::nil();
@@ -132,10 +179,10 @@ pub fn getUnits(mut inElement: Arc<DAE::Element>) -> ArcStr {
 }
 
 fn updateDAElist(mut indaelist: DAE::DAElist, mut indaevarlist: Arc<metamodelica::List<Arc<DAE::Element>>>) -> Result<DAE::DAElist> {
-    let mut outdaelist: DAE::DAElist;
+    let mut outdaelist: DAE::DAElist = <DAE::DAElist as ::std::default::Default>::default();
     outdaelist = (::match_deref::match_deref! { match &((indaelist.clone(), indaevarlist.clone())) {
         (DAE::DAElist { elementLst: Deref @ metamodelica::List::Cons { head: Deref @ DAE::Element::COMP { comment, source: eltsrc, ident, .. }, tail: Deref @ metamodelica::List::Nil } }, varlist2) => {
-            let mut outdae: DAE::DAElist;
+            let mut outdae: DAE::DAElist = <DAE::DAElist as ::std::default::Default>::default();
             outdae = DAE::DAElist { elementLst: list![Arc::new(DAE::Element::COMP { ident: (ident.clone()).clone(), dAElist: varlist2.clone(), source: eltsrc.clone(), comment: comment.clone() })] };
             outdae.clone()
         },
@@ -829,8 +876,8 @@ fn insertUnitInEquation(mut inEq: Arc<DAE::Exp>, mut inTpl: ((metamodelica::Arra
                     ut = Unit::unitMul(ut.clone(), ut2.clone())?;
                     s1 = (Unit::unitString(ut.clone(), HtU2S.clone())?).clone();
                     expListList = List::append_reverse(expListList.clone(), expListList2.clone());
-                    (HtS2U, _, _, _) = addUnit2HtS2U((s1.clone(), ut.clone()), HtS2U.clone())?;
-                    (HtU2S, _, _, _) = addUnit2HtU2S((s1.clone(), ut.clone()), HtU2S.clone())?;
+                    HtS2U = addUnit2HtS2U((s1.clone(), ut.clone()), HtS2U.clone())?;
+                    HtU2S = addUnit2HtU2S((s1.clone(), ut.clone()), HtU2S.clone())?;
                     Ok((ut.clone(), (HtCr2U.clone(), HtS2U.clone(), HtU2S.clone()), expListList.clone()))
                 }
                 _ => bail!("nomatch"),
@@ -898,10 +945,10 @@ fn insertUnitInEquation(mut inEq: Arc<DAE::Exp>, mut inTpl: ((metamodelica::Arra
                     expListList2 = __pa9.clone();
                     ut = Unit::unitDiv(inUt.clone(), ut2.clone())?;
                     s1 = (Unit::unitString(ut.clone(), HtU2S.clone())?).clone();
-                    (HtCr2U, _, _, _) = List::fold1(lcr.clone(), (std::sync::Arc::new(updateHtCr2U) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Unit::Unit, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Unit::Unit)>>), i32, (HashTableCrToUnit::FuncHashKey, HashTableCrToUnit::FuncKeyEqual, HashTableCrToUnit::FuncKeyStr, HashTableCrToUnit::FuncValueStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Unit::Unit)>>), i32, (HashTableCrToUnit::FuncHashKey, HashTableCrToUnit::FuncKeyEqual, HashTableCrToUnit::FuncKeyStr, HashTableCrToUnit::FuncValueStr))> + 'static>), ut.clone(), HtCr2U.clone());
+                    HtCr2U = List::fold1(lcr.clone(), (std::sync::Arc::new(updateHtCr2U) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Unit::Unit, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Unit::Unit)>>), i32, (HashTableCrToUnit::FuncHashKey, HashTableCrToUnit::FuncKeyEqual, HashTableCrToUnit::FuncKeyStr, HashTableCrToUnit::FuncValueStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Unit::Unit)>>), i32, (HashTableCrToUnit::FuncHashKey, HashTableCrToUnit::FuncKeyEqual, HashTableCrToUnit::FuncKeyStr, HashTableCrToUnit::FuncValueStr))> + 'static>), ut.clone(), HtCr2U.clone());
                     expListList = List::append_reverse(expListList.clone(), expListList2.clone());
-                    (HtS2U, _, _, _) = addUnit2HtS2U((s1.clone(), ut.clone()), HtS2U.clone())?;
-                    (HtU2S, _, _, _) = addUnit2HtU2S((s1.clone(), ut.clone()), HtU2S.clone())?;
+                    HtS2U = addUnit2HtS2U((s1.clone(), ut.clone()), HtS2U.clone())?;
+                    HtU2S = addUnit2HtU2S((s1.clone(), ut.clone()), HtU2S.clone())?;
                     Ok((inUt.clone(), (HtCr2U.clone(), HtS2U.clone(), HtU2S.clone()), expListList.clone()))
                 }
                 _ => bail!("nomatch"),
@@ -969,10 +1016,10 @@ fn insertUnitInEquation(mut inEq: Arc<DAE::Exp>, mut inTpl: ((metamodelica::Arra
                     expListList2 = __pa9.clone();
                     ut = Unit::unitDiv(inUt.clone(), ut2.clone())?;
                     s1 = (Unit::unitString(ut.clone(), HtU2S.clone())?).clone();
-                    (HtCr2U, _, _, _) = List::fold1(lcr.clone(), (std::sync::Arc::new(updateHtCr2U) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Unit::Unit, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Unit::Unit)>>), i32, (HashTableCrToUnit::FuncHashKey, HashTableCrToUnit::FuncKeyEqual, HashTableCrToUnit::FuncKeyStr, HashTableCrToUnit::FuncValueStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Unit::Unit)>>), i32, (HashTableCrToUnit::FuncHashKey, HashTableCrToUnit::FuncKeyEqual, HashTableCrToUnit::FuncKeyStr, HashTableCrToUnit::FuncValueStr))> + 'static>), ut.clone(), HtCr2U.clone());
+                    HtCr2U = List::fold1(lcr.clone(), (std::sync::Arc::new(updateHtCr2U) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Unit::Unit, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Unit::Unit)>>), i32, (HashTableCrToUnit::FuncHashKey, HashTableCrToUnit::FuncKeyEqual, HashTableCrToUnit::FuncKeyStr, HashTableCrToUnit::FuncValueStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Unit::Unit)>>), i32, (HashTableCrToUnit::FuncHashKey, HashTableCrToUnit::FuncKeyEqual, HashTableCrToUnit::FuncKeyStr, HashTableCrToUnit::FuncValueStr))> + 'static>), ut.clone(), HtCr2U.clone());
                     expListList = List::append_reverse(expListList.clone(), expListList2.clone());
-                    (HtS2U, _, _, _) = addUnit2HtS2U((s1.clone(), ut.clone()), HtS2U.clone())?;
-                    (HtU2S, _, _, _) = addUnit2HtU2S((s1.clone(), ut.clone()), HtU2S.clone())?;
+                    HtS2U = addUnit2HtS2U((s1.clone(), ut.clone()), HtS2U.clone())?;
+                    HtU2S = addUnit2HtU2S((s1.clone(), ut.clone()), HtU2S.clone())?;
                     Ok((inUt.clone(), (HtCr2U.clone(), HtS2U.clone(), HtU2S.clone()), expListList.clone()))
                 }
                 _ => bail!("nomatch"),
@@ -1040,8 +1087,8 @@ fn insertUnitInEquation(mut inEq: Arc<DAE::Exp>, mut inTpl: ((metamodelica::Arra
                     ut = Unit::unitDiv(ut.clone(), ut2.clone())?;
                     s1 = (Unit::unitString(ut.clone(), HtU2S.clone())?).clone();
                     expListList = List::append_reverse(expListList.clone(), expListList2.clone());
-                    (HtS2U, _, _, _) = addUnit2HtS2U((s1.clone(), ut.clone()), HtS2U.clone())?;
-                    (HtU2S, _, _, _) = addUnit2HtU2S((s1.clone(), ut.clone()), HtU2S.clone())?;
+                    HtS2U = addUnit2HtS2U((s1.clone(), ut.clone()), HtS2U.clone())?;
+                    HtU2S = addUnit2HtU2S((s1.clone(), ut.clone()), HtU2S.clone())?;
                     Ok((ut.clone(), (HtCr2U.clone(), HtS2U.clone(), HtU2S.clone()), expListList.clone()))
                 }
                 _ => bail!("nomatch"),
@@ -1109,10 +1156,10 @@ fn insertUnitInEquation(mut inEq: Arc<DAE::Exp>, mut inTpl: ((metamodelica::Arra
                     expListList2 = __pa9.clone();
                     ut = Unit::unitMul(inUt.clone(), ut2.clone())?;
                     s1 = (Unit::unitString(ut.clone(), HtU2S.clone())?).clone();
-                    (HtCr2U, _, _, _) = List::fold1(lcr.clone(), (std::sync::Arc::new(updateHtCr2U) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Unit::Unit, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Unit::Unit)>>), i32, (HashTableCrToUnit::FuncHashKey, HashTableCrToUnit::FuncKeyEqual, HashTableCrToUnit::FuncKeyStr, HashTableCrToUnit::FuncValueStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Unit::Unit)>>), i32, (HashTableCrToUnit::FuncHashKey, HashTableCrToUnit::FuncKeyEqual, HashTableCrToUnit::FuncKeyStr, HashTableCrToUnit::FuncValueStr))> + 'static>), ut.clone(), HtCr2U.clone());
+                    HtCr2U = List::fold1(lcr.clone(), (std::sync::Arc::new(updateHtCr2U) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Unit::Unit, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Unit::Unit)>>), i32, (HashTableCrToUnit::FuncHashKey, HashTableCrToUnit::FuncKeyEqual, HashTableCrToUnit::FuncKeyStr, HashTableCrToUnit::FuncValueStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Unit::Unit)>>), i32, (HashTableCrToUnit::FuncHashKey, HashTableCrToUnit::FuncKeyEqual, HashTableCrToUnit::FuncKeyStr, HashTableCrToUnit::FuncValueStr))> + 'static>), ut.clone(), HtCr2U.clone());
                     expListList = List::append_reverse(expListList.clone(), expListList2.clone());
-                    (HtS2U, _, _, _) = addUnit2HtS2U((s1.clone(), ut.clone()), HtS2U.clone())?;
-                    (HtU2S, _, _, _) = addUnit2HtU2S((s1.clone(), ut.clone()), HtU2S.clone())?;
+                    HtS2U = addUnit2HtS2U((s1.clone(), ut.clone()), HtS2U.clone())?;
+                    HtU2S = addUnit2HtU2S((s1.clone(), ut.clone()), HtU2S.clone())?;
                     Ok((inUt.clone(), (HtCr2U.clone(), HtS2U.clone(), HtU2S.clone()), expListList.clone()))
                 }
                 _ => bail!("nomatch"),
@@ -1180,10 +1227,10 @@ fn insertUnitInEquation(mut inEq: Arc<DAE::Exp>, mut inTpl: ((metamodelica::Arra
                     expListList2 = __pa9.clone();
                     ut = Unit::unitDiv(ut2.clone(), inUt.clone())?;
                     s1 = (Unit::unitString(ut.clone(), HtU2S.clone())?).clone();
-                    (HtCr2U, _, _, _) = List::fold1(lcr.clone(), (std::sync::Arc::new(updateHtCr2U) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Unit::Unit, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Unit::Unit)>>), i32, (HashTableCrToUnit::FuncHashKey, HashTableCrToUnit::FuncKeyEqual, HashTableCrToUnit::FuncKeyStr, HashTableCrToUnit::FuncValueStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Unit::Unit)>>), i32, (HashTableCrToUnit::FuncHashKey, HashTableCrToUnit::FuncKeyEqual, HashTableCrToUnit::FuncKeyStr, HashTableCrToUnit::FuncValueStr))> + 'static>), ut.clone(), HtCr2U.clone());
+                    HtCr2U = List::fold1(lcr.clone(), (std::sync::Arc::new(updateHtCr2U) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Unit::Unit, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Unit::Unit)>>), i32, (HashTableCrToUnit::FuncHashKey, HashTableCrToUnit::FuncKeyEqual, HashTableCrToUnit::FuncKeyStr, HashTableCrToUnit::FuncValueStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Unit::Unit)>>), i32, (HashTableCrToUnit::FuncHashKey, HashTableCrToUnit::FuncKeyEqual, HashTableCrToUnit::FuncKeyStr, HashTableCrToUnit::FuncValueStr))> + 'static>), ut.clone(), HtCr2U.clone());
                     expListList = List::append_reverse(expListList.clone(), expListList2.clone());
-                    (HtS2U, _, _, _) = addUnit2HtS2U((s1.clone(), ut.clone()), HtS2U.clone())?;
-                    (HtU2S, _, _, _) = addUnit2HtU2S((s1.clone(), ut.clone()), HtU2S.clone())?;
+                    HtS2U = addUnit2HtS2U((s1.clone(), ut.clone()), HtS2U.clone())?;
+                    HtU2S = addUnit2HtU2S((s1.clone(), ut.clone()), HtU2S.clone())?;
                     Ok((inUt.clone(), (HtCr2U.clone(), HtS2U.clone(), HtU2S.clone()), expListList.clone()))
                 }
                 _ => bail!("nomatch"),
@@ -1242,8 +1289,8 @@ fn insertUnitInEquation(mut inEq: Arc<DAE::Exp>, mut inTpl: ((metamodelica::Arra
                     let true = (realEq(r.clone(), intReal(i.clone()))) else { bail!("pattern mismatch") };
                     ut = Unit::unitPow(ut.clone(), i.clone())?;
                     s1 = (Unit::unitString(ut.clone(), HtU2S.clone())?).clone();
-                    (HtS2U, _, _, _) = addUnit2HtS2U((s1.clone(), ut.clone()), HtS2U.clone())?;
-                    (HtU2S, _, _, _) = addUnit2HtU2S((s1.clone(), ut.clone()), HtU2S.clone())?;
+                    HtS2U = addUnit2HtS2U((s1.clone(), ut.clone()), HtS2U.clone())?;
+                    HtU2S = addUnit2HtU2S((s1.clone(), ut.clone()), HtU2S.clone())?;
                     Ok((ut.clone(), (HtCr2U.clone(), HtS2U.clone(), HtU2S.clone()), expListList.clone()))
                 }
                 _ => bail!("nomatch"),
@@ -1284,10 +1331,10 @@ fn insertUnitInEquation(mut inEq: Arc<DAE::Exp>, mut inTpl: ((metamodelica::Arra
                     i5 = __pa10.clone();
                     i6 = __pa11.clone();
                     i7 = __pa12.clone();
-                    (HtCr2U, _, _, _) = List::fold1(lcr.clone(), (std::sync::Arc::new(updateHtCr2U) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Unit::Unit, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Unit::Unit)>>), i32, (HashTableCrToUnit::FuncHashKey, HashTableCrToUnit::FuncKeyEqual, HashTableCrToUnit::FuncKeyStr, HashTableCrToUnit::FuncValueStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Unit::Unit)>>), i32, (HashTableCrToUnit::FuncHashKey, HashTableCrToUnit::FuncKeyEqual, HashTableCrToUnit::FuncKeyStr, HashTableCrToUnit::FuncValueStr))> + 'static>), Unit::Unit::UNIT { factor: factor1.clone(), mol: i1.clone(), cd: i2.clone(), m: i3.clone(), s: i4.clone(), A: i5.clone(), K: i6.clone(), g: i7.clone() }, HtCr2U.clone());
+                    HtCr2U = List::fold1(lcr.clone(), (std::sync::Arc::new(updateHtCr2U) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Unit::Unit, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Unit::Unit)>>), i32, (HashTableCrToUnit::FuncHashKey, HashTableCrToUnit::FuncKeyEqual, HashTableCrToUnit::FuncKeyStr, HashTableCrToUnit::FuncValueStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Unit::Unit)>>), i32, (HashTableCrToUnit::FuncHashKey, HashTableCrToUnit::FuncKeyEqual, HashTableCrToUnit::FuncKeyStr, HashTableCrToUnit::FuncValueStr))> + 'static>), Unit::Unit::UNIT { factor: factor1.clone(), mol: i1.clone(), cd: i2.clone(), m: i3.clone(), s: i4.clone(), A: i5.clone(), K: i6.clone(), g: i7.clone() }, HtCr2U.clone());
                     s1 = (Unit::unitString(Unit::Unit::UNIT { factor: factor1.clone(), mol: i1.clone(), cd: i2.clone(), m: i3.clone(), s: i4.clone(), A: i5.clone(), K: i6.clone(), g: i7.clone() }, HtU2S.clone())?).clone();
-                    (HtS2U, _, _, _) = addUnit2HtS2U((s1.clone(), Unit::Unit::UNIT { factor: factor1.clone(), mol: i1.clone(), cd: i2.clone(), m: i3.clone(), s: i4.clone(), A: i5.clone(), K: i6.clone(), g: i7.clone() }), HtS2U.clone())?;
-                    (HtU2S, _, _, _) = addUnit2HtU2S((s1.clone(), Unit::Unit::UNIT { factor: factor1.clone(), mol: i1.clone(), cd: i2.clone(), m: i3.clone(), s: i4.clone(), A: i5.clone(), K: i6.clone(), g: i7.clone() }), HtU2S.clone())?;
+                    HtS2U = addUnit2HtS2U((s1.clone(), Unit::Unit::UNIT { factor: factor1.clone(), mol: i1.clone(), cd: i2.clone(), m: i3.clone(), s: i4.clone(), A: i5.clone(), K: i6.clone(), g: i7.clone() }), HtS2U.clone())?;
+                    HtU2S = addUnit2HtU2S((s1.clone(), Unit::Unit::UNIT { factor: factor1.clone(), mol: i1.clone(), cd: i2.clone(), m: i3.clone(), s: i4.clone(), A: i5.clone(), K: i6.clone(), g: i7.clone() }), HtU2S.clone())?;
                     Ok((inUt.clone(), (HtCr2U.clone(), HtS2U.clone(), HtU2S.clone()), expListList.clone()))
                 }
                 _ => bail!("nomatch"),
@@ -1349,10 +1396,10 @@ fn insertUnitInEquation(mut inEq: Arc<DAE::Exp>, mut inTpl: ((metamodelica::Arra
                     HtU2S = __pa3.clone();
                     expListList = __pa4.clone();
                     ut = Unit::unitMul(inUt.clone(), Unit::Unit::UNIT { factor: metamodelica::OrderedFloat(1e0_f64), mol: 0, cd: 0, m: 0, s: 1, A: 0, K: 0, g: 0 })?;
-                    (HtCr2U, _, _, _) = List::fold1(lcr.clone(), (std::sync::Arc::new(updateHtCr2U) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Unit::Unit, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Unit::Unit)>>), i32, (HashTableCrToUnit::FuncHashKey, HashTableCrToUnit::FuncKeyEqual, HashTableCrToUnit::FuncKeyStr, HashTableCrToUnit::FuncValueStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Unit::Unit)>>), i32, (HashTableCrToUnit::FuncHashKey, HashTableCrToUnit::FuncKeyEqual, HashTableCrToUnit::FuncKeyStr, HashTableCrToUnit::FuncValueStr))> + 'static>), ut.clone(), HtCr2U.clone());
+                    HtCr2U = List::fold1(lcr.clone(), (std::sync::Arc::new(updateHtCr2U) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Unit::Unit, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Unit::Unit)>>), i32, (HashTableCrToUnit::FuncHashKey, HashTableCrToUnit::FuncKeyEqual, HashTableCrToUnit::FuncKeyStr, HashTableCrToUnit::FuncValueStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Unit::Unit)>>), i32, (HashTableCrToUnit::FuncHashKey, HashTableCrToUnit::FuncKeyEqual, HashTableCrToUnit::FuncKeyStr, HashTableCrToUnit::FuncValueStr))> + 'static>), ut.clone(), HtCr2U.clone());
                     s1 = (Unit::unitString(ut.clone(), HtU2S.clone())?).clone();
-                    (HtS2U, _, _, _) = addUnit2HtS2U((s1.clone(), ut.clone()), HtS2U.clone())?;
-                    (HtU2S, _, _, _) = addUnit2HtU2S((s1.clone(), ut.clone()), HtU2S.clone())?;
+                    HtS2U = addUnit2HtS2U((s1.clone(), ut.clone()), HtS2U.clone())?;
+                    HtU2S = addUnit2HtU2S((s1.clone(), ut.clone()), HtU2S.clone())?;
                     Ok((inUt.clone(), (HtCr2U.clone(), HtS2U.clone(), HtU2S.clone()), expListList.clone()))
                 }
                 _ => bail!("nomatch"),
@@ -1378,8 +1425,8 @@ fn insertUnitInEquation(mut inEq: Arc<DAE::Exp>, mut inTpl: ((metamodelica::Arra
                     expListList = __pa4.clone();
                     ut = Unit::unitDiv(ut.clone(), Unit::Unit::UNIT { factor: metamodelica::OrderedFloat(1e0_f64), mol: 0, cd: 0, m: 0, s: 1, A: 0, K: 0, g: 0 })?;
                     s1 = (Unit::unitString(ut.clone(), HtU2S.clone())?).clone();
-                    (HtS2U, _, _, _) = addUnit2HtS2U((s1.clone(), ut.clone()), HtS2U.clone())?;
-                    (HtU2S, _, _, _) = addUnit2HtU2S((s1.clone(), ut.clone()), HtU2S.clone())?;
+                    HtS2U = addUnit2HtS2U((s1.clone(), ut.clone()), HtS2U.clone())?;
+                    HtU2S = addUnit2HtU2S((s1.clone(), ut.clone()), HtU2S.clone())?;
                     Ok((ut.clone(), (HtCr2U.clone(), HtS2U.clone(), HtU2S.clone()), expListList.clone()))
                 }
                 _ => bail!("nomatch"),
@@ -1441,8 +1488,8 @@ fn insertUnitInEquation(mut inEq: Arc<DAE::Exp>, mut inTpl: ((metamodelica::Arra
                     i6 = __pa11.clone();
                     i7 = __pa12.clone();
                     s1 = (Unit::unitString(Unit::Unit::UNIT { factor: factor1.clone(), mol: i1.clone(), cd: i2.clone(), m: i3.clone(), s: i4.clone(), A: i5.clone(), K: i6.clone(), g: i7.clone() }, HtU2S.clone())?).clone();
-                    (HtS2U, _, _, _) = addUnit2HtS2U((s1.clone(), Unit::Unit::UNIT { factor: factor1.clone(), mol: i1.clone(), cd: i2.clone(), m: i3.clone(), s: i4.clone(), A: i5.clone(), K: i6.clone(), g: i7.clone() }), HtS2U.clone())?;
-                    (HtU2S, _, _, _) = addUnit2HtU2S((s1.clone(), Unit::Unit::UNIT { factor: factor1.clone(), mol: i1.clone(), cd: i2.clone(), m: i3.clone(), s: i4.clone(), A: i5.clone(), K: i6.clone(), g: i7.clone() }), HtU2S.clone())?;
+                    HtS2U = addUnit2HtS2U((s1.clone(), Unit::Unit::UNIT { factor: factor1.clone(), mol: i1.clone(), cd: i2.clone(), m: i3.clone(), s: i4.clone(), A: i5.clone(), K: i6.clone(), g: i7.clone() }), HtS2U.clone())?;
+                    HtU2S = addUnit2HtU2S((s1.clone(), Unit::Unit::UNIT { factor: factor1.clone(), mol: i1.clone(), cd: i2.clone(), m: i3.clone(), s: i4.clone(), A: i5.clone(), K: i6.clone(), g: i7.clone() }), HtU2S.clone())?;
                     Ok((Unit::Unit::UNIT { factor: factor1.clone(), mol: i1.clone(), cd: i2.clone(), m: i3.clone(), s: i4.clone(), A: i5.clone(), K: i6.clone(), g: i7.clone() }, (HtCr2U.clone(), HtS2U.clone(), HtU2S.clone()), expListList.clone()))
                 }
                 _ => bail!("nomatch"),
@@ -1469,9 +1516,9 @@ fn insertUnitInEquation(mut inEq: Arc<DAE::Exp>, mut inTpl: ((metamodelica::Arra
                     expListList = __pa4.clone();
                     ut = Unit::unitPow(inUt.clone(), 2)?;
                     s1 = (Unit::unitString(ut.clone(), HtU2S.clone())?).clone();
-                    (HtCr2U, _, _, _) = List::fold1(lcr.clone(), (std::sync::Arc::new(updateHtCr2U) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Unit::Unit, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Unit::Unit)>>), i32, (HashTableCrToUnit::FuncHashKey, HashTableCrToUnit::FuncKeyEqual, HashTableCrToUnit::FuncKeyStr, HashTableCrToUnit::FuncValueStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Unit::Unit)>>), i32, (HashTableCrToUnit::FuncHashKey, HashTableCrToUnit::FuncKeyEqual, HashTableCrToUnit::FuncKeyStr, HashTableCrToUnit::FuncValueStr))> + 'static>), ut.clone(), HtCr2U.clone());
-                    (HtS2U, _, _, _) = addUnit2HtS2U((s1.clone(), ut.clone()), HtS2U.clone())?;
-                    (HtU2S, _, _, _) = addUnit2HtU2S((s1.clone(), ut.clone()), HtU2S.clone())?;
+                    HtCr2U = List::fold1(lcr.clone(), (std::sync::Arc::new(updateHtCr2U) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::ComponentRef>, Unit::Unit, (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Unit::Unit)>>), i32, (HashTableCrToUnit::FuncHashKey, HashTableCrToUnit::FuncKeyEqual, HashTableCrToUnit::FuncKeyStr, HashTableCrToUnit::FuncValueStr))) -> Result<(metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Unit::Unit)>>), i32, (HashTableCrToUnit::FuncHashKey, HashTableCrToUnit::FuncKeyEqual, HashTableCrToUnit::FuncKeyStr, HashTableCrToUnit::FuncValueStr))> + 'static>), ut.clone(), HtCr2U.clone());
+                    HtS2U = addUnit2HtS2U((s1.clone(), ut.clone()), HtS2U.clone())?;
+                    HtU2S = addUnit2HtU2S((s1.clone(), ut.clone()), HtU2S.clone())?;
                     Ok((inUt.clone(), (HtCr2U.clone(), HtS2U.clone(), HtU2S.clone()), expListList.clone()))
                 }
                 _ => bail!("nomatch"),
@@ -1677,8 +1724,8 @@ fn insertUnitInEquation(mut inEq: Arc<DAE::Exp>, mut inTpl: ((metamodelica::Arra
                     let mut HtU2S = (*HtU2S).clone();
                     let true = (ComponentReferenceBasics::crefEqual(cr.clone(), DAE::crefTime().clone())?) else { bail!("pattern mismatch") };
                     ut = Unit::Unit::UNIT { factor: metamodelica::OrderedFloat(1e0_f64), mol: 0, cd: 0, m: 0, s: 1, A: 0, K: 0, g: 0 };
-                    (HtS2U, _, _, _) = addUnit2HtS2U((literal!("time"), ut.clone()), HtS2U.clone())?;
-                    (HtU2S, _, _, _) = addUnit2HtU2S((literal!("time"), ut.clone()), HtU2S.clone())?;
+                    HtS2U = addUnit2HtS2U((literal!("time"), ut.clone()), HtS2U.clone())?;
+                    HtU2S = addUnit2HtU2S((literal!("time"), ut.clone()), HtU2S.clone())?;
                     Ok((ut.clone(), (HtCr2U.clone(), HtS2U.clone(), HtU2S.clone()), metamodelica::nil()))
                 }
                 _ => bail!("nomatch"),

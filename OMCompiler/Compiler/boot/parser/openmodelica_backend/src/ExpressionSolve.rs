@@ -56,12 +56,16 @@ use openmodelica_frontend::ExpressionSimplify;
 use openmodelica_frontend::Inline;
 use openmodelica_frontend::Types;
 use openmodelica_frontend_dump::AbsynUtil;
+use openmodelica_frontend_dump::AvlTreePathFunction;
 use openmodelica_frontend_dump::ComponentReferenceBasics;
 use openmodelica_frontend_dump::ElementSource;
 use openmodelica_frontend_dump::ExpressionBasics;
 use openmodelica_frontend_types::DAE;
+use openmodelica_util::Config;
 use openmodelica_util::Debug;
+use openmodelica_util::Error;
 use openmodelica_util::Flags;
+use openmodelica_util::Util;
 use openmodelica_util_datatypes_basic::List;
 
 // public imports
@@ -85,7 +89,7 @@ pub fn solveSimpleEquations(mut dae: Arc<BackendDAE::BackendDAE>) -> Result<Arc<
             let __x = (::match_deref::match_deref! { match &(comp.clone()) {
         Deref @ BackendDAE::StrongComponent::SINGLEEQUATION { .. } => {
             let mut eqn: Arc<BackendDAE::Equation> = Arc::new(BackendDAE::Equation::DUMMY_EQUATION);
-            let mut var: BackendDAE::Var;
+            let mut var: BackendDAE::Var = <BackendDAE::Var as ::std::default::Default>::default();
             let mut eindex: i32 = 0;
             let mut vindx: i32 = 0;
             let mut solved: bool = false;
@@ -140,7 +144,7 @@ fn solveSimpleEquation(mut eqn: Arc<BackendDAE::Equation>, mut var: BackendDAE::
     let mut e2: Arc<DAE::Exp>;
     let mut varexp: Arc<DAE::Exp>;
     let mut e: Arc<DAE::Exp>;
-    let mut attr: BackendDAE::EquationAttributes;
+    let mut attr: BackendDAE::EquationAttributes = <BackendDAE::EquationAttributes as ::std::default::Default>::default();
     let mut source: Arc<DAE::ElementSource> = Arc::new(<DAE::ElementSource as ::std::default::Default>::default());
     let mut isContinuousIntegration: bool = BackendDAEUtil::isSimulationDAE(shared.clone());
     let (__pa0, __pa1, __pa2, __pa3) = ::match_deref::match_deref! { match &(eqn.clone()) {
@@ -159,10 +163,10 @@ fn solveSimpleEquation(mut eqn: Arc<BackendDAE::Equation>, mut var: BackendDAE::
         cr = ComponentReference::crefPrefixDer(cr.clone());
     }
     if Types::isIntegerOrRealOrSubTypeOfEither(Expression::r#typeof(e1.clone())?)? && Types::isIntegerOrRealOrSubTypeOfEither(Expression::r#typeof(e2.clone())?)? {
-        (e1, e2) = preprocessingSolve(e1.clone(), e2.clone(), varexp.clone(), None, Some(shared.functionTree.clone()), None, 0, false)?;
+        (e1, e2, _, _, _) = preprocessingSolve(e1.clone(), e2.clone(), varexp.clone(), None, Some(shared.functionTree.clone()), None, 0, false)?;
     }
     match '__try5: {
-        e = unwrap_break_err!(solve2(e1.clone(), e2.clone(), varexp.clone(), Some(shared.functionTree.clone()), None, false, isContinuousIntegration.clone()), '__try5);
+        (e, _, _, _) = unwrap_break_err!(solve2(e1.clone(), e2.clone(), varexp.clone(), Some(shared.functionTree.clone()), None, false, isContinuousIntegration.clone()), '__try5);
         source = unwrap_break_err!(ElementSource::addSymbolicTransformationSolve(true, source.clone(), cr.clone(), e1.clone(), e2.clone(), e.clone(), metamodelica::nil()), '__try5);
         eqn = unwrap_break_err!(BackendEquation::generateEquation(varexp.clone(), e.clone(), source.clone(), attr.clone()), '__try5);
         solved = true;
@@ -185,6 +189,173 @@ fn solveSimpleEquation(mut eqn: Arc<BackendDAE::Equation>, mut var: BackendDAE::
 fn printTryToSolve(mut instanceName: ArcStr, mut inExp1: Arc<DAE::Exp>, mut inExp2: Arc<DAE::Exp>, mut inExp3: Arc<DAE::Exp>) -> Result<()> {
     println!("{}", ({ let mut __mm_s = String::new(); __mm_s.push_str(&*instanceName.clone()); __mm_s.push_str(&*literal!(" tries to solve: ")); __mm_s.push_str(&*ExpressionBasics::printExpStr(inExp1.clone())?); __mm_s.push_str(&*literal!(" = ")); __mm_s.push_str(&*ExpressionBasics::printExpStr(inExp2.clone())?); __mm_s.push_str(&*literal!("\nwith respect to: ")); __mm_s.push_str(&*ExpressionBasics::printExpStr(inExp3.clone())?); __mm_s.push_str(&*literal!("\n")); ArcStr::from(__mm_s) }).clone());
     Ok(())
+}
+
+pub fn solve(mut inExp1: Arc<DAE::Exp>, mut inExp2: Arc<DAE::Exp>, mut inExp3: Arc<DAE::Exp>, mut functions: Option<Arc<AvlTreePathFunction::Tree>>) -> Result<(Arc<DAE::Exp>, Arc<metamodelica::List<Arc<DAE::Statement>>>)> {
+    let mut outExp: Arc<DAE::Exp>;
+    let mut outAsserts: Arc<metamodelica::List<Arc<DAE::Statement>>> = metamodelica::nil();
+    let mut dummy1: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
+    let mut dummy2: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
+    let mut dummyI: i32 = 0;
+    (outExp, outAsserts, dummy1, dummy2, dummyI) = 'mc: {
+        let __mc_input = inExp1.clone();
+        if let Ok(__v) = (|| -> Result<_> {
+            ::match_deref::match_deref! { match &__mc_input {
+                _ => {
+                    Ok(solveSimple(inExp1.clone(), inExp2.clone(), inExp3.clone(), 0)?)
+                }
+                _ => bail!("nomatch"),
+            }}
+        })() { break 'mc __v; }
+        if let Ok(__v) = (|| -> Result<_> {
+            ::match_deref::match_deref! { match &__mc_input {
+                _ => {
+                    Ok(solveSimple(inExp2.clone(), inExp1.clone(), inExp3.clone(), 0)?)
+                }
+                _ => bail!("nomatch"),
+            }}
+        })() { break 'mc __v; }
+        if let Ok(__v) = (|| -> Result<_> {
+            ::match_deref::match_deref! { match &__mc_input {
+                _ => {
+                    Ok(solveWork(inExp1.clone(), inExp2.clone(), inExp3.clone(), None, functions.clone(), None, 0, false, false)?)
+                }
+                _ => bail!("nomatch"),
+            }}
+        })() { break 'mc __v; }
+        if let Ok(__v) = (|| -> Result<_> {
+            ::match_deref::match_deref! { match &__mc_input {
+                _ => {
+                    if Flags::isSet(Flags::FAILTRACE.clone())? {
+                        Error::addInternalError(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Failed to solve \"")); __mm_s.push_str(&*ExpressionBasics::printExpStr(inExp1.clone())?); __mm_s.push_str(&*literal!(" = ")); __mm_s.push_str(&*ExpressionBasics::printExpStr(inExp2.clone())?); __mm_s.push_str(&*literal!("\" w.r.t. \"")); __mm_s.push_str(&*ExpressionBasics::printExpStr(inExp3.clone())?); __mm_s.push_str(&*literal!("\"")); ArcStr::from(__mm_s) }).clone(), metamodelica::sourceInfo!())?;
+                    }
+                    Ok(bail!("fail"))
+                }
+                _ => bail!("nomatch"),
+            }}
+        })() { break 'mc __v; }
+        bail!("matchcontinue: no arm matched")
+    };
+    (outExp, _) = ExpressionSimplify::simplify1(outExp.clone())?;
+    Ok((outExp, outAsserts))
+}
+
+pub fn solve2(mut inExp1: Arc<DAE::Exp>, mut inExp2: Arc<DAE::Exp>, mut inExp3: Arc<DAE::Exp>, mut functions: Option<Arc<AvlTreePathFunction::Tree>>, mut uniqueEqIndex: Option<i32>, mut doInline: bool, mut isContinuousIntegration: bool) -> Result<(Arc<DAE::Exp>, Arc<metamodelica::List<Arc<DAE::Statement>>>, Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>)> {
+    let mut outExp: Arc<DAE::Exp>;
+    let mut outAsserts: Arc<metamodelica::List<Arc<DAE::Statement>>> = metamodelica::nil();
+    let mut eqnForNewVars: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
+    let mut newVarsCrefs: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
+    let mut dummyI: i32 = 0;
+    (outExp, outAsserts, eqnForNewVars, newVarsCrefs, dummyI) = 'mc: {
+        let __mc_input = inExp1.clone();
+        if let Ok(__v) = (|| -> Result<_> {
+            ::match_deref::match_deref! { match &__mc_input {
+                _ => {
+                    Ok(solveSimple(inExp1.clone(), inExp2.clone(), inExp3.clone(), 0)?)
+                }
+                _ => bail!("nomatch"),
+            }}
+        })() { break 'mc __v; }
+        if let Ok(__v) = (|| -> Result<_> {
+            ::match_deref::match_deref! { match &__mc_input {
+                _ => {
+                    Ok(solveSimple(inExp2.clone(), inExp1.clone(), inExp3.clone(), 0)?)
+                }
+                _ => bail!("nomatch"),
+            }}
+        })() { break 'mc __v; }
+        if let Ok(__v) = (|| -> Result<_> {
+            ::match_deref::match_deref! { match &__mc_input {
+                _ => {
+                    Ok(solveWork(inExp1.clone(), inExp2.clone(), inExp3.clone(), None, functions.clone(), uniqueEqIndex.clone(), 0, doInline.clone(), isContinuousIntegration.clone())?)
+                }
+                _ => bail!("nomatch"),
+            }}
+        })() { break 'mc __v; }
+        if let Ok(__v) = (|| -> Result<_> {
+            ::match_deref::match_deref! { match &__mc_input {
+                _ => {
+                    if Flags::isSet(Flags::FAILTRACE.clone())? {
+                        Error::addInternalError(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!("Failed to solve \"")); __mm_s.push_str(&*ExpressionBasics::printExpStr(inExp1.clone())?); __mm_s.push_str(&*literal!(" = ")); __mm_s.push_str(&*ExpressionBasics::printExpStr(inExp2.clone())?); __mm_s.push_str(&*literal!("\" w.r.t. \"")); __mm_s.push_str(&*ExpressionBasics::printExpStr(inExp3.clone())?); __mm_s.push_str(&*literal!("\"")); ArcStr::from(__mm_s) }).clone(), metamodelica::sourceInfo!())?;
+                    }
+                    Ok(bail!("fail"))
+                }
+                _ => bail!("nomatch"),
+            }}
+        })() { break 'mc __v; }
+        bail!("matchcontinue: no arm matched")
+    };
+    Ok((outExp, outAsserts, eqnForNewVars, newVarsCrefs))
+}
+
+fn solveWork(mut inExp1: Arc<DAE::Exp>, mut inExp2: Arc<DAE::Exp>, mut inExp3: Arc<DAE::Exp>, mut optCond: Option<Arc<DAE::Exp>>, mut functions: Option<Arc<AvlTreePathFunction::Tree>>, mut uniqueEqIndex: Option<i32>, mut idepth: i32, mut doInline: bool, mut isContinuousIntegration: bool) -> Result<(Arc<DAE::Exp>, Arc<metamodelica::List<Arc<DAE::Statement>>>, Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>, i32)> {
+    let mut outExp: Arc<DAE::Exp>;
+    let mut outAsserts: Arc<metamodelica::List<Arc<DAE::Statement>>> = metamodelica::nil();
+    let mut eqnForNewVars: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
+    let mut newVarsCrefs: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
+    let mut depth: i32 = 0;
+    let mut e1: Arc<DAE::Exp>;
+    let mut e2: Arc<DAE::Exp>;
+    let mut eqnForNewVars1: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
+    let mut eqnForNewVars2: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
+    let mut newVarsCrefs1: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
+    let mut newVarsCrefs2: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
+    (e1, e2, eqnForNewVars1, newVarsCrefs1, depth) = 'mc: {
+        let __mc_input = inExp1.clone();
+        if let Ok(__v) = (|| -> Result<_> {
+            ::match_deref::match_deref! { match &__mc_input {
+                _ => {
+                    Ok(preprocessingSolve(inExp1.clone(), inExp2.clone(), inExp3.clone(), optCond.clone(), functions.clone(), uniqueEqIndex.clone(), idepth.clone(), doInline.clone())?)
+                }
+                _ => bail!("nomatch"),
+            }}
+        })() { break 'mc __v; }
+        if let Ok(__v) = (|| -> Result<_> {
+            ::match_deref::match_deref! { match &__mc_input {
+                _ => {
+                    if Flags::isSet(Flags::FAILTRACE.clone())? {
+                        Debug::trace((literal!("\n-ExpressionSolve.preprocessingSolve failed:\n")).clone())?;
+                        Debug::trace(({ let mut __mm_s = String::new(); __mm_s.push_str(&*ExpressionBasics::printExpStr(inExp1.clone())?); __mm_s.push_str(&*literal!(" = ")); __mm_s.push_str(&*ExpressionBasics::printExpStr(inExp2.clone())?); ArcStr::from(__mm_s) }).clone())?;
+                        Debug::trace(({ let mut __mm_s = String::new(); __mm_s.push_str(&*literal!(" with respect to: ")); __mm_s.push_str(&*ExpressionBasics::printExpStr(inExp3.clone())?); ArcStr::from(__mm_s) }).clone())?;
+                    }
+                    Ok((inExp1.clone(), inExp2.clone(), metamodelica::nil(), metamodelica::nil(), idepth.clone()))
+                }
+                _ => bail!("nomatch"),
+            }}
+        })() { break 'mc __v; }
+        bail!("matchcontinue: no arm matched")
+    };
+    (outExp, outAsserts, eqnForNewVars2, newVarsCrefs2, depth) = 'mc: {
+        let __mc_input = e1.clone();
+        if let Ok(__v) = (|| -> Result<_> {
+            ::match_deref::match_deref! { match &__mc_input {
+                _ => {
+                    Ok(solveIfExp(e1.clone(), e2.clone(), inExp3.clone(), optCond.clone(), functions.clone(), uniqueEqIndex.clone(), depth.clone(), doInline.clone(), isContinuousIntegration.clone())?)
+                }
+                _ => bail!("nomatch"),
+            }}
+        })() { break 'mc __v; }
+        if let Ok(__v) = (|| -> Result<_> {
+            ::match_deref::match_deref! { match &__mc_input {
+                _ => {
+                    Ok(solveSimple(e1.clone(), e2.clone(), inExp3.clone(), depth.clone())?)
+                }
+                _ => bail!("nomatch"),
+            }}
+        })() { break 'mc __v; }
+        if let Ok(__v) = (|| -> Result<_> {
+            ::match_deref::match_deref! { match &__mc_input {
+                _ => {
+                    Ok(solveLinearSystem(e1.clone(), e2.clone(), inExp3.clone(), functions.clone(), depth.clone())?)
+                }
+                _ => bail!("nomatch"),
+            }}
+        })() { break 'mc __v; }
+        bail!("matchcontinue: no arm matched")
+    };
+    eqnForNewVars = listAppend(eqnForNewVars1.clone(), eqnForNewVars2.clone());
+    newVarsCrefs = listAppend(newVarsCrefs1.clone(), newVarsCrefs2.clone());
+    Ok((outExp, outAsserts, eqnForNewVars, newVarsCrefs, depth))
 }
 
 fn solveSimple(mut inExp1: Arc<DAE::Exp>, mut inExp2: Arc<DAE::Exp>, mut inExp3: Arc<DAE::Exp>, mut idepth: i32) -> Result<(Arc<DAE::Exp>, Arc<metamodelica::List<Arc<DAE::Statement>>>, Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>, i32)> {
@@ -264,6 +435,93 @@ fn generateAssertType(mut tp: Arc<DAE::Type>, mut cr: Arc<DAE::ComponentRef>, mu
         _ => unreachable!("match_deref! exhaustiveness placeholder"),
     } });
     Ok(outAsserts)
+}
+
+pub fn preprocessingSolve(mut x: Arc<DAE::Exp>, mut y: Arc<DAE::Exp>, mut inExp3: Arc<DAE::Exp>, mut optCond: Option<Arc<DAE::Exp>>, mut functions: Option<Arc<AvlTreePathFunction::Tree>>, mut uniqueEqIndex: Option<i32>, mut idepth: i32, mut doInline: bool) -> Result<(Arc<DAE::Exp>, Arc<DAE::Exp>, Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>, i32)> {
+    let mut x: Arc<DAE::Exp> = x;
+    let mut y: Arc<DAE::Exp> = y;
+    let mut eqnForNewVars: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
+    let mut newVarsCrefs: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
+    let mut depth: i32 = idepth.clone();
+    let mut res: Arc<DAE::Exp>;
+    let mut lhs: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
+    let mut rhs: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
+    let mut lhsWithX: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
+    let mut rhsWithX: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
+    let mut lhsWithoutX: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
+    let mut rhsWithoutX: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
+    let mut eWithX: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
+    let mut factorWithX: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
+    let mut factorWithoutX: Arc<metamodelica::List<Arc<DAE::Exp>>> = metamodelica::nil();
+    let mut lhsX: Arc<DAE::Exp>;
+    let mut rhsX: Arc<DAE::Exp>;
+    let mut lhsY: Arc<DAE::Exp>;
+    let mut rhsY: Arc<DAE::Exp>;
+    let mut N: Arc<DAE::Exp>;
+    let mut cr: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
+    let mut con: bool = false;
+    let mut new_x: bool = false;
+    let mut inlineFun: bool = true;
+    let mut iter: i32 = 0;
+    let mut numSimplifed: i32 = 0;
+    (lhsX, lhsY) = preprocessingSolve5(x.clone(), inExp3.clone(), true)?;
+    (rhsX, rhsY) = preprocessingSolve5(y.clone(), inExp3.clone(), true)?;
+    x = Expression::expSub(lhsX.clone(), rhsX.clone())?;
+    y = Expression::expSub(rhsY.clone(), lhsY.clone())?;
+    con = !(Expression::isCref(x.clone()));
+    iter = 0;
+    if con.clone() {
+        (x, _) = unifyFunCalls(x.clone(), inExp3.clone())?;
+    }
+    while con.clone() && iter.clone() < 1000 && !(Expression::isCref(x.clone())) {
+        (x, y, con) = preprocessingSolve2(x.clone(), y.clone(), inExp3.clone())?;
+        (x, y, new_x) = preprocessingSolve3(x.clone(), y.clone(), inExp3.clone())?;
+        con = con.clone() || new_x.clone();
+        while new_x.clone() {
+            (x, y, new_x) = preprocessingSolve3(x.clone(), y.clone(), inExp3.clone())?;
+        }
+        if Expression::isCref(x.clone()) {
+            break;
+        }
+        (x, y, new_x) = removeSimpleCalls(x.clone(), y.clone(), inExp3.clone())?;
+        con = con.clone() || new_x.clone();
+        (x, y, new_x) = preprocessingSolve4(x.clone(), y.clone(), inExp3.clone())?;
+        con = new_x.clone() || con.clone();
+        if isSome(uniqueEqIndex.clone()) && !(stringEqual((Config::simCodeTarget()?).clone(), (literal!("Cpp")).clone())) {
+            (x, y, new_x, eqnForNewVars, newVarsCrefs, depth) = preprocessingSolveTmpVars(x.clone(), y.clone(), inExp3.clone(), optCond.clone(), Util::getOption(uniqueEqIndex.clone())?, eqnForNewVars.clone(), newVarsCrefs.clone(), depth.clone())?;
+            con = new_x.clone() || con.clone();
+        }
+        if !(con.clone()) {
+            if numSimplifed.clone() < 3 {
+                (x, con) = ExpressionSimplify::simplify(x.clone())?;
+                numSimplifed = numSimplifed.clone() + 1;
+            }
+            (x, N) = Expression::makeFraction(x.clone())?;
+            if !(Expression::isOne(N.clone())) {
+                new_x = true;
+                y = Expression::expMul(y.clone(), N.clone())?;
+            }
+            con = new_x.clone() || con.clone();
+        }
+        if con.clone() {
+            (lhsX, lhsY) = preprocessingSolve5(x.clone(), inExp3.clone(), true)?;
+            (rhsX, rhsY) = preprocessingSolve5(y.clone(), inExp3.clone(), false)?;
+            x = Expression::expSub(lhsX.clone(), rhsX.clone())?;
+            y = Expression::expSub(rhsY.clone(), lhsY.clone())?;
+        } else if doInline.clone() && inlineFun.clone() {
+            iter = iter.clone() + 50;
+            if inlineFun.clone() {
+                (x, con) = solveFunCalls(x.clone(), inExp3.clone(), functions.clone())?;
+                inlineFun = false;
+                if con.clone() {
+                    numSimplifed = 0;
+                }
+            }
+        }
+        iter = iter.clone() + 1;
+    }
+    (y, _) = ExpressionSimplify::simplify1(y.clone())?;
+    Ok((x, y, eqnForNewVars, newVarsCrefs, depth))
 }
 
 fn preprocessingSolve2(mut inExp1: Arc<DAE::Exp>, mut inExp2: Arc<DAE::Exp>, mut inExp3: Arc<DAE::Exp>) -> Result<(Arc<DAE::Exp>, Arc<DAE::Exp>, bool)> {
@@ -633,6 +891,36 @@ fn unifyFunCallsWork(mut inExp: Arc<DAE::Exp>, mut iT: Arc<DAE::Exp>) -> Result<
     Ok((outExp, cont, oT))
 }
 
+fn solveFunCalls(mut inExp1: Arc<DAE::Exp>, mut inExp3: Arc<DAE::Exp>, mut functions: Option<Arc<AvlTreePathFunction::Tree>>) -> Result<(Arc<DAE::Exp>, bool)> {
+    let mut x: Arc<DAE::Exp>;
+    let mut con: bool = false;
+    (x, con) = 'mc: {
+        let __mc_input = (functions.clone(), inExp1.clone());
+        if let Ok(__v) = (|| -> Result<_> {
+            ::match_deref::match_deref! { match &__mc_input {
+                (_, _) => {
+                    let mut funX: Arc<DAE::Exp>;
+                    let mut b: bool = false;
+                    (funX, _) = Expression::traverseExpTopDown(inExp1.clone(), (std::sync::Arc::new(inlineCallX) as std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>, (Arc<DAE::Exp>, Option<Arc<AvlTreePathFunction::Tree>>)) -> Result<(Arc<DAE::Exp>, bool, (Arc<DAE::Exp>, Option<Arc<AvlTreePathFunction::Tree>>))> + 'static>), (inExp3.clone(), functions.clone()))?;
+                    b = !(ExpressionBasics::expEqual(funX.clone(), inExp1.clone())?);
+                    Ok((funX.clone(), b.clone()))
+                }
+                _ => bail!("nomatch"),
+            }}
+        })() { break 'mc __v; }
+        if let Ok(__v) = (|| -> Result<_> {
+            ::match_deref::match_deref! { match &__mc_input {
+                _ => {
+                    Ok((inExp1.clone(), false))
+                }
+                _ => bail!("nomatch"),
+            }}
+        })() { break 'mc __v; }
+        bail!("matchcontinue: no arm matched")
+    };
+    Ok((x, con))
+}
+
 fn removeSimpleCalls(mut inExp1: Arc<DAE::Exp>, mut inExp2: Arc<DAE::Exp>, mut inExp3: Arc<DAE::Exp>) -> Result<(Arc<DAE::Exp>, Arc<DAE::Exp>, bool)> {
     let mut outLhs: Arc<DAE::Exp>;
     let mut outRhs: Arc<DAE::Exp>;
@@ -758,6 +1046,37 @@ fn removeSimpleCalls2(mut inExp1: Arc<DAE::Exp>, mut inExp2: Arc<DAE::Exp>, mut 
     Ok((outLhs, outRhs, con))
 }
 
+fn inlineCallX(mut inExp: Arc<DAE::Exp>, mut iT: (Arc<DAE::Exp>, Option<Arc<AvlTreePathFunction::Tree>>)) -> Result<(Arc<DAE::Exp>, bool, (Arc<DAE::Exp>, Option<Arc<AvlTreePathFunction::Tree>>))> {
+    let mut outExp: Arc<DAE::Exp>;
+    let mut cont: bool = false;
+    let mut oT: (Arc<DAE::Exp>, Option<Arc<AvlTreePathFunction::Tree>>);
+    (outExp, cont, oT) = 'mc: {
+        let __mc_input = (inExp.clone(), iT.clone());
+        if let Ok(__v) = (|| -> Result<_> {
+            ::match_deref::match_deref! { match &__mc_input {
+                (Deref @ DAE::Exp::CALL { .. }, (X, functions)) => {
+                    if !((expHasCref(inExp.clone(), X.clone())?)) { bail!("guard") }
+                    let mut e: Arc<DAE::Exp>;
+                    let mut b: bool = false;
+                    (e, _, b) = Inline::forceInlineExp(inExp.clone(), (functions.clone(), list![openmodelica_frontend_types::DAE::InlineType::NORM_INLINE, openmodelica_frontend_types::DAE::InlineType::DEFAULT_INLINE]), DAE::emptyElementSource().clone())?;
+                    Ok((e.clone(), !(b.clone()), iT.clone()))
+                }
+                _ => bail!("nomatch"),
+            }}
+        })() { break 'mc __v; }
+        if let Ok(__v) = (|| -> Result<_> {
+            ::match_deref::match_deref! { match &__mc_input {
+                _ => {
+                    Ok((inExp.clone(), true, iT.clone()))
+                }
+                _ => bail!("nomatch"),
+            }}
+        })() { break 'mc __v; }
+        bail!("matchcontinue: no arm matched")
+    };
+    Ok((outExp, cont, oT))
+}
+
 fn preprocessingSolveTmpVars(mut inExp1: Arc<DAE::Exp>, mut inExp2: Arc<DAE::Exp>, mut inExp3: Arc<DAE::Exp>, mut optCond: Option<Arc<DAE::Exp>>, mut uniqueEqIndex: i32, mut ieqnForNewVars: Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, mut inewVarsCrefs: Arc<metamodelica::List<Arc<DAE::ComponentRef>>>, mut idepth: i32) -> Result<(Arc<DAE::Exp>, Arc<DAE::Exp>, bool, Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>, i32)> {
     let mut x: Arc<DAE::Exp>;
     let mut y: Arc<DAE::Exp>;
@@ -773,8 +1092,8 @@ fn preprocessingSolveTmpVars(mut inExp1: Arc<DAE::Exp>, mut inExp2: Arc<DAE::Exp
                     if !((expHasCref(arg.clone(), inExp3.clone())? && !(expHasCref(inExp2.clone(), inExp3.clone())?))) { bail!("guard") }
                     let mut eqnForNewVars_: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
                     let mut newVarsCrefs_: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
-                    let mut new_x: bool = new_x.clone();
                     let mut y: Arc<DAE::Exp>;
+                    let mut new_x: bool = new_x.clone();
                     let mut odepth: i32 = odepth.clone();
                     (y, new_x, eqnForNewVars_, newVarsCrefs_, odepth) = preprocessingSolveFunctionCall((name.clone()).clone(), arg.clone(), inExp2.clone(), inExp3.clone(), optCond.clone(), uniqueEqIndex.clone(), idepth.clone())?;
                     if eqnForNewVars_.clone().is_empty() {
@@ -1217,6 +1536,88 @@ fn solveQE(mut e1: Arc<DAE::Exp>, mut e2: Arc<DAE::Exp>, mut e3: Arc<DAE::Exp>, 
     Ok((rhs, lhs, eqnForNewVars, newVarsCrefs))
 }
 
+fn solveIfExp(mut inExp1: Arc<DAE::Exp>, mut inExp2: Arc<DAE::Exp>, mut inExp3: Arc<DAE::Exp>, mut inCond: Option<Arc<DAE::Exp>>, mut functions: Option<Arc<AvlTreePathFunction::Tree>>, mut uniqueEqIndex: Option<i32>, mut idepth: i32, mut doInline: bool, mut isContinuousIntegration: bool) -> Result<(Arc<DAE::Exp>, Arc<metamodelica::List<Arc<DAE::Statement>>>, Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>, i32)> {
+    let mut outExp: Arc<DAE::Exp>;
+    let mut outAsserts: Arc<metamodelica::List<Arc<DAE::Statement>>> = metamodelica::nil();
+    let mut eqnForNewVars: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
+    let mut newVarsCrefs: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
+    let mut odepth: i32 = 0;
+    (outExp, outAsserts, eqnForNewVars, newVarsCrefs, odepth) = (::match_deref::match_deref! { match &(inExp1.clone()) {
+        Deref @ DAE::Exp::IFEXP { expCond: eCond, expThen: eThen, expElse: eElse } if (isContinuousIntegration.clone() || !(expHasCref(eCond.clone(), inExp3.clone())?)) => {
+            let mut res: Arc<DAE::Exp>;
+            let mut lhs: Arc<DAE::Exp>;
+            let mut rhs: Arc<DAE::Exp>;
+            let mut cond1: Arc<DAE::Exp>;
+            let mut cond2: Arc<DAE::Exp>;
+            let mut asserts: Arc<metamodelica::List<Arc<DAE::Statement>>> = metamodelica::nil();
+            let mut asserts1: Arc<metamodelica::List<Arc<DAE::Statement>>> = metamodelica::nil();
+            let mut eqns: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
+            let mut eqns1: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
+            let mut var: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
+            let mut var1: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
+            let mut depth: i32 = 0;
+            (cond1, cond2) = (::match_deref::match_deref! { match &(inCond.clone()) {
+        Some(theCond) => {
+            (Arc::new(DAE::Exp::LBINARY { exp1: theCond.clone(), operator: DAE::Operator::AND { ty: Expression::r#typeof(eCond.clone())? }, exp2: eCond.clone() }), Arc::new(DAE::Exp::LBINARY { exp1: theCond.clone(), operator: DAE::Operator::AND { ty: Expression::r#typeof(eCond.clone())? }, exp2: Expression::negate(eCond.clone())? }))
+        },
+        _ => {
+            (eCond.clone(), Expression::negate(eCond.clone())?)
+        },
+        _ => unreachable!("match_deref! exhaustiveness placeholder"),
+    } });
+            (lhs, asserts1, eqns, var, depth) = solveWork(eThen.clone(), inExp2.clone(), inExp3.clone(), Some(cond1.clone()), functions.clone(), uniqueEqIndex.clone(), idepth.clone(), doInline.clone(), isContinuousIntegration.clone())?;
+            (rhs, _, eqns1, var1, depth) = solveWork(eElse.clone(), inExp2.clone(), inExp3.clone(), Some(cond2.clone()), functions.clone(), uniqueEqIndex.clone(), depth.clone(), doInline.clone(), isContinuousIntegration.clone())?;
+            res = Arc::new(DAE::Exp::IFEXP { expCond: eCond.clone(), expThen: lhs.clone(), expElse: rhs.clone() });
+            asserts = listAppend(asserts1.clone(), asserts1.clone());
+            (res.clone(), asserts.clone(), listAppend(eqns1.clone(), eqns.clone()), listAppend(var1.clone(), var.clone()), depth.clone())
+        },
+        _ => {
+            bail!("fail")
+        },
+        _ => unreachable!("match_deref! exhaustiveness placeholder"),
+    } });
+    Ok((outExp, outAsserts, eqnForNewVars, newVarsCrefs, odepth))
+}
+
+fn solveLinearSystem(mut inExp1: Arc<DAE::Exp>, mut inExp2: Arc<DAE::Exp>, mut inExp3: Arc<DAE::Exp>, mut functions: Option<Arc<AvlTreePathFunction::Tree>>, mut idepth: i32) -> Result<(Arc<DAE::Exp>, Arc<metamodelica::List<Arc<DAE::Statement>>>, Arc<metamodelica::List<Arc<BackendDAE::Equation>>>, Arc<metamodelica::List<Arc<DAE::ComponentRef>>>, i32)> {
+    let mut outExp: Arc<DAE::Exp>;
+    let mut outAsserts: Arc<metamodelica::List<Arc<DAE::Statement>>> = metamodelica::nil();
+    let mut eqnForNewVars: Arc<metamodelica::List<Arc<BackendDAE::Equation>>> = metamodelica::nil();
+    let mut newVarsCrefs: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
+    let mut odepth: i32 = idepth.clone();
+    (outExp, outAsserts) = (::match_deref::match_deref! { match &((inExp1.clone(), inExp2.clone(), inExp3.clone())) {
+        (_, _, Deref @ DAE::Exp::CREF { componentRef: cr, .. }) => {
+            let mut dere: Arc<DAE::Exp>;
+            let mut e: Arc<DAE::Exp>;
+            let mut z: Arc<DAE::Exp>;
+            let mut rhs: Arc<DAE::Exp>;
+            let mut tp: Arc<DAE::Type> = Arc::new(DAE::Type::T_NORETCALL);
+            let mut i: i32 = 0;
+            let false = (hasOnlyFactors(inExp1.clone(), inExp2.clone())?) else { bail!("pattern mismatch") };
+            e = Expression::expSub(inExp1.clone(), inExp2.clone())?;
+            (e, _) = ExpressionSimplify::simplify1(e.clone())?;
+            dere = Differentiate::differentiateExpSolve(e.clone(), cr.clone(), functions.clone())?;
+            (dere, _) = ExpressionSimplify::simplify(dere.clone())?;
+            let false = (Expression::isZero(dere.clone())) else { bail!("pattern mismatch") };
+            let false = (Expression::expHasCrefNoPreOrStart(dere.clone(), cr.clone())?) else { bail!("pattern mismatch") };
+            tp = Expression::r#typeof(inExp3.clone())?;
+            (z, _) = Expression::makeZeroExpression(Expression::arrayDimension(tp.clone()))?;
+            (e, i) = Expression::replaceExp(e.clone(), inExp3.clone(), z.clone())?;
+            if i.clone() < 1 {
+                bail!("fail");
+            }
+            (e, _) = ExpressionSimplify::simplify(e.clone())?;
+            rhs = Expression::negate(Expression::makeDiv(e.clone(), dere.clone())?)?;
+            (rhs.clone(), metamodelica::nil())
+        },
+        _ => {
+            bail!("fail")
+        },
+        _ => unreachable!("match_deref! exhaustiveness placeholder"),
+    } });
+    Ok((outExp, outAsserts, eqnForNewVars, newVarsCrefs, odepth))
+}
+
 fn hasOnlyFactors(mut e1: Arc<DAE::Exp>, mut e2: Arc<DAE::Exp>) -> Result<bool> {
     let mut res: bool = false;
     res = 'mc: {
@@ -1383,7 +1784,7 @@ fn makeDomainAssert(mut name: ArcStr, mut rhs: Arc<DAE::Exp>, mut lowerBound: Op
     let mut assEq: Arc<BackendDAE::Equation> = Arc::new(BackendDAE::Equation::DUMMY_EQUATION);
     let mut msg: ArcStr = arcstr::literal!("");
     let mut cond: Arc<DAE::Exp>;
-    let mut algo: Arc<DAE::Algorithm>;
+    let mut algo: Arc<DAE::Algorithm> = Arc::new(<DAE::Algorithm as ::std::default::Default>::default());
     let mut tp: Arc<DAE::Type> = Expression::r#typeof(rhs.clone())?;
     (msg, cond) = (match (lowerBound.clone(), upperBound.clone()) {
         (Some((mut lower, true)), Some((mut upper, true))) => {

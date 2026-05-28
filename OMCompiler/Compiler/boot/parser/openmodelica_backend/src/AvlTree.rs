@@ -78,7 +78,7 @@ pub struct Tree<Key: Clone, Val: Clone> {
 
 impl<Key: Clone + 'static + PartialEq, Val: Clone + 'static + PartialEq> PartialEq for Tree<Key, Val> {
     fn eq(&self, other: &Self) -> bool {
-        self.root == other.root && std::sync::Arc::ptr_eq(&self.keyCompareFunc, &other.keyCompareFunc) && std::sync::Arc::ptr_eq(&self.keyStrFuncOpt, &other.keyStrFuncOpt) && std::sync::Arc::ptr_eq(&self.valStrFuncOpt, &other.valStrFuncOpt) && std::sync::Arc::ptr_eq(&self.updateCheckFuncOpt, &other.updateCheckFuncOpt) && self.name == other.name
+        self.root == other.root && std::sync::Arc::ptr_eq((&self.keyCompareFunc), (&other.keyCompareFunc)) && (match ((&self.keyStrFuncOpt), (&other.keyStrFuncOpt)) { (Some(__lo), Some(__ro)) => std::sync::Arc::ptr_eq(__lo, __ro), (None, None) => true, _ => false }) && (match ((&self.valStrFuncOpt), (&other.valStrFuncOpt)) { (Some(__lo), Some(__ro)) => std::sync::Arc::ptr_eq(__lo, __ro), (None, None) => true, _ => false }) && (match ((&self.updateCheckFuncOpt), (&other.updateCheckFuncOpt)) { (Some(__lo), Some(__ro)) => std::sync::Arc::ptr_eq(__lo, __ro), (None, None) => true, _ => false }) && self.name == other.name
     }
 }
 impl<Key: Clone + 'static + PartialEq + Eq, Val: Clone + 'static + PartialEq + Eq> Eq for Tree<Key, Val> {}
@@ -87,16 +87,16 @@ impl<Key: Clone + 'static + PartialEq + Eq + PartialOrd + Ord, Val: Clone + 'sta
 }
 impl<Key: Clone + 'static + PartialEq + Eq + PartialOrd + Ord, Val: Clone + 'static + PartialEq + Eq + PartialOrd + Ord> Ord for Tree<Key, Val> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.root.cmp(&other.root).then_with(|| (std::sync::Arc::as_ptr(&self.keyCompareFunc) as *const ()).cmp(&(std::sync::Arc::as_ptr(&other.keyCompareFunc) as *const ())).then_with(|| (std::sync::Arc::as_ptr(&self.keyStrFuncOpt) as *const ()).cmp(&(std::sync::Arc::as_ptr(&other.keyStrFuncOpt) as *const ())).then_with(|| (std::sync::Arc::as_ptr(&self.valStrFuncOpt) as *const ()).cmp(&(std::sync::Arc::as_ptr(&other.valStrFuncOpt) as *const ())).then_with(|| (std::sync::Arc::as_ptr(&self.updateCheckFuncOpt) as *const ()).cmp(&(std::sync::Arc::as_ptr(&other.updateCheckFuncOpt) as *const ())).then_with(|| self.name.cmp(&other.name))))))
+        self.root.cmp(&other.root).then_with(|| (std::sync::Arc::as_ptr((&self.keyCompareFunc)) as *const ()).cmp(&(std::sync::Arc::as_ptr((&other.keyCompareFunc)) as *const ())).then_with(|| (match ((&self.keyStrFuncOpt), (&other.keyStrFuncOpt)) { (Some(__lo), Some(__ro)) => (std::sync::Arc::as_ptr(__lo) as *const ()).cmp(&(std::sync::Arc::as_ptr(__ro) as *const ())), (None, None) => std::cmp::Ordering::Equal, (None, Some(_)) => std::cmp::Ordering::Less, (Some(_), None) => std::cmp::Ordering::Greater }).then_with(|| (match ((&self.valStrFuncOpt), (&other.valStrFuncOpt)) { (Some(__lo), Some(__ro)) => (std::sync::Arc::as_ptr(__lo) as *const ()).cmp(&(std::sync::Arc::as_ptr(__ro) as *const ())), (None, None) => std::cmp::Ordering::Equal, (None, Some(_)) => std::cmp::Ordering::Less, (Some(_), None) => std::cmp::Ordering::Greater }).then_with(|| (match ((&self.updateCheckFuncOpt), (&other.updateCheckFuncOpt)) { (Some(__lo), Some(__ro)) => (std::sync::Arc::as_ptr(__lo) as *const ()).cmp(&(std::sync::Arc::as_ptr(__ro) as *const ())), (None, None) => std::cmp::Ordering::Equal, (None, Some(_)) => std::cmp::Ordering::Less, (Some(_), None) => std::cmp::Ordering::Greater }).then_with(|| self.name.cmp(&other.name))))))
     }
 }
 impl<Key: Clone + 'static + std::hash::Hash, Val: Clone + 'static + std::hash::Hash> std::hash::Hash for Tree<Key, Val> {
     fn hash<__H: std::hash::Hasher>(&self, __state: &mut __H) {
         self.root.hash(__state);
-        (std::sync::Arc::as_ptr(&self.keyCompareFunc) as *const ()).hash(__state);
-        (std::sync::Arc::as_ptr(&self.keyStrFuncOpt) as *const ()).hash(__state);
-        (std::sync::Arc::as_ptr(&self.valStrFuncOpt) as *const ()).hash(__state);
-        (std::sync::Arc::as_ptr(&self.updateCheckFuncOpt) as *const ()).hash(__state);
+        (std::sync::Arc::as_ptr((&self.keyCompareFunc)) as *const ()).hash(__state);
+        match (&self.keyStrFuncOpt) { Some(__ho) => { 1u8.hash(__state); (std::sync::Arc::as_ptr(__ho) as *const ()).hash(__state); }, None => 0u8.hash(__state), }
+        match (&self.valStrFuncOpt) { Some(__ho) => { 1u8.hash(__state); (std::sync::Arc::as_ptr(__ho) as *const ()).hash(__state); }, None => 0u8.hash(__state), }
+        match (&self.updateCheckFuncOpt) { Some(__ho) => { 1u8.hash(__state); (std::sync::Arc::as_ptr(__ho) as *const ()).hash(__state); }, None => 0u8.hash(__state), }
         self.name.hash(__state);
     }
 }
@@ -104,10 +104,10 @@ impl<Key: Clone + 'static + std::fmt::Debug, Val: Clone + 'static + std::fmt::De
     fn fmt(&self, __f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut __ds = __f.debug_struct("Tree");
         __ds.field("root", &self.root);
-        __ds.field("keyCompareFunc", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(&self.keyCompareFunc)));
-        __ds.field("keyStrFuncOpt", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(&self.keyStrFuncOpt)));
-        __ds.field("valStrFuncOpt", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(&self.valStrFuncOpt)));
-        __ds.field("updateCheckFuncOpt", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(&self.updateCheckFuncOpt)));
+        __ds.field("keyCompareFunc", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr((&self.keyCompareFunc))));
+        __ds.field("keyStrFuncOpt", &format_args!("<dyn-fn-container@{:p}>", (&self.keyStrFuncOpt) as *const _));
+        __ds.field("valStrFuncOpt", &format_args!("<dyn-fn-container@{:p}>", (&self.valStrFuncOpt) as *const _));
+        __ds.field("updateCheckFuncOpt", &format_args!("<dyn-fn-container@{:p}>", (&self.updateCheckFuncOpt) as *const _));
         __ds.field("name", &self.name);
         __ds.finish()
     }
@@ -181,28 +181,28 @@ pub fn hasUpdateCheckFunction<Key: Clone + 'static + PartialEq, Val: Clone + 'st
     Ok(hasUpdateCheck)
 }
 
-pub fn getUpdateCheckFunc<Key: Clone + 'static, Val: Clone + 'static>(mut tree: Tree<Key, Val>) -> Result<FuncTypeItemUpdateCheck<Key, Val>> {
+pub fn getUpdateCheckFunc<Key: Clone + 'static, Val: Clone + 'static>(mut tree: Tree<Key, Val>) -> Result<Arc<dyn ::std::ops::Fn(Item<Key, Val>, Item<Key, Val>) -> Result<bool> + 'static>> {
     let mut outUpdateCheckFunc: FuncTypeItemUpdateCheck<Key, Val>;
     let Tree { updateCheckFuncOpt: Some(__pa0), .. } = (tree.clone()) else { bail!("pattern mismatch") };
     outUpdateCheckFunc = __pa0.clone();
     Ok(outUpdateCheckFunc)
 }
 
-pub fn getKeyCompareFunc<Key: Clone + 'static, Val: Clone + 'static>(mut tree: Tree<Key, Val>) -> Result<FuncTypeKeyCompare<Key>> {
+pub fn getKeyCompareFunc<Key: Clone + 'static, Val: Clone + 'static>(mut tree: Tree<Key, Val>) -> Result<Arc<dyn ::std::ops::Fn(Key, Key) -> Result<i32> + 'static>> {
     let mut outKeyCompareFunc: FuncTypeKeyCompare<Key>;
     let Tree { keyCompareFunc: __pa0, .. } = (tree.clone()) else { bail!("pattern mismatch") };
     outKeyCompareFunc = __pa0.clone();
     Ok(outKeyCompareFunc)
 }
 
-pub fn getKeyToStrFunc<Key: Clone + 'static, Val: Clone + 'static>(mut tree: Tree<Key, Val>) -> Result<FuncTypeKeyToStr<Key>> {
+pub fn getKeyToStrFunc<Key: Clone + 'static, Val: Clone + 'static>(mut tree: Tree<Key, Val>) -> Result<Arc<dyn ::std::ops::Fn(Key) -> Result<ArcStr> + 'static>> {
     let mut outKey2StrFunc: FuncTypeKeyToStr<Key>;
     let Tree { keyStrFuncOpt: Some(__pa0), .. } = (tree.clone()) else { bail!("pattern mismatch") };
     outKey2StrFunc = __pa0.clone();
     Ok(outKey2StrFunc)
 }
 
-pub fn getValToStrFunc<Key: Clone + 'static, Val: Clone + 'static>(mut tree: Tree<Key, Val>) -> Result<FuncTypeValToStr<Val>> {
+pub fn getValToStrFunc<Key: Clone + 'static, Val: Clone + 'static>(mut tree: Tree<Key, Val>) -> Result<Arc<dyn ::std::ops::Fn(Val) -> Result<ArcStr> + 'static>> {
     let mut outVal2StrFunc: FuncTypeValToStr<Val>;
     let Tree { valStrFuncOpt: Some(__pa0), .. } = (tree.clone()) else { bail!("pattern mismatch") };
     outVal2StrFunc = __pa0.clone();

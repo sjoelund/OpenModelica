@@ -135,7 +135,7 @@ fn compactSubMod(mut inSubMod: Arc<SCode::SubMod>, mut inModScope: ModScope, mut
 }
 
 fn compactSubMod2(mut inExistingMod: Arc<SCode::SubMod>, mut inNewMod: Arc<SCode::SubMod>, mut inModScope: ModScope, mut inName: Arc<metamodelica::List<ArcStr>>) -> Result<(Arc<SCode::SubMod>, bool)> {
-    let mut outMod: Arc<SCode::SubMod>;
+    let mut outMod: Arc<SCode::SubMod> = Arc::new(<SCode::SubMod as ::std::default::Default>::default());
     let mut outFound: bool = false;
     (outMod, outFound) = 'mc: {
         let __mc_input = (inExistingMod.clone(), inNewMod.clone(), inModScope.clone(), inName.clone());
@@ -151,7 +151,7 @@ fn compactSubMod2(mut inExistingMod: Arc<SCode::SubMod>, mut inNewMod: Arc<SCode
         if let Ok(__v) = (|| -> Result<_> {
             ::match_deref::match_deref! { match &__mc_input {
                 (Deref @ SCode::SubMod { ident: name1, .. }, _, _, _) => {
-                    let mut submod: Arc<SCode::SubMod>;
+                    let mut submod: Arc<SCode::SubMod> = Arc::new(<SCode::SubMod as ::std::default::Default>::default());
                     submod = mergeSubModsInSameScope(inExistingMod.clone(), inNewMod.clone(), cons((name1.clone()).clone(), inName.clone()), inModScope.clone())?;
                     Ok((submod.clone(), true))
                 }
@@ -164,7 +164,7 @@ fn compactSubMod2(mut inExistingMod: Arc<SCode::SubMod>, mut inNewMod: Arc<SCode
 }
 
 fn mergeSubModsInSameScope(mut inMod1: Arc<SCode::SubMod>, mut inMod2: Arc<SCode::SubMod>, mut inElementName: Arc<metamodelica::List<ArcStr>>, mut inModScope: ModScope) -> Result<Arc<SCode::SubMod>> {
-    let mut outMod: Arc<SCode::SubMod>;
+    let mut outMod: Arc<SCode::SubMod> = Arc::new(<SCode::SubMod as ::std::default::Default>::default());
     let mut scope: ArcStr = arcstr::literal!("");
     let mut name: ArcStr = arcstr::literal!("");
     let mut submods: Arc<metamodelica::List<Arc<SCode::SubMod>>> = metamodelica::nil();

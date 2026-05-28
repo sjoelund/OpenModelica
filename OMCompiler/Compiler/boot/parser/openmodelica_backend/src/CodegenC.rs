@@ -4877,7 +4877,7 @@ fn lm_233(mut in_txt: Tpl::Text, mut in_items: Arc<metamodelica::List<SimCodeVar
         },
         (txt, Deref @ metamodelica::List::Cons { head: SimCodeVar::SimVar { name: i_name, .. }, tail: rest }, a_simCode) => {
             let mut x_i0: i32 = 0;
-            let mut ret_0: SimCodeVar::SimVar;
+            let mut ret_0: SimCodeVar::SimVar = <SimCodeVar::SimVar as ::std::default::Default>::default();
             let mut txt = (*txt).clone();
             x_i0 = Tpl::getIteri_i0(txt.clone())?;
             ret_0 = SimCodeUtil::cref2simvar(i_name.clone(), a_simCode.clone())?;
@@ -4949,7 +4949,7 @@ fn lm_235(mut in_txt: Tpl::Text, mut in_items: Arc<metamodelica::List<SimCodeVar
         },
         (txt, Deref @ metamodelica::List::Cons { head: SimCodeVar::SimVar { name: i_name, .. }, tail: rest }, a_simCode) => {
             let mut x_i0: i32 = 0;
-            let mut ret_0: SimCodeVar::SimVar;
+            let mut ret_0: SimCodeVar::SimVar = <SimCodeVar::SimVar as ::std::default::Default>::default();
             let mut txt = (*txt).clone();
             x_i0 = Tpl::getIteri_i0(txt.clone())?;
             ret_0 = SimCodeUtil::cref2simvar(i_name.clone(), a_simCode.clone())?;
@@ -5006,7 +5006,7 @@ fn lm_237(mut in_txt: Tpl::Text, mut in_items: Arc<metamodelica::List<SimCodeVar
         },
         (txt, Deref @ metamodelica::List::Cons { head: SimCodeVar::SimVar { name: i_name, .. }, tail: rest }, a_simCode) => {
             let mut x_i0: i32 = 0;
-            let mut ret_0: SimCodeVar::SimVar;
+            let mut ret_0: SimCodeVar::SimVar = <SimCodeVar::SimVar as ::std::default::Default>::default();
             let mut txt = (*txt).clone();
             x_i0 = Tpl::getIteri_i0(txt.clone())?;
             ret_0 = SimCodeUtil::cref2simvar(i_name.clone(), a_simCode.clone())?;
@@ -5157,7 +5157,7 @@ fn lm_242(mut in_txt: Tpl::Text, mut in_items: Arc<metamodelica::List<SimCodeVar
         },
         (txt, Deref @ metamodelica::List::Cons { head: SimCodeVar::SimVar { name: i_name, .. }, tail: rest }, a_simCode) => {
             let mut x_i0: i32 = 0;
-            let mut ret_0: SimCodeVar::SimVar;
+            let mut ret_0: SimCodeVar::SimVar = <SimCodeVar::SimVar as ::std::default::Default>::default();
             let mut txt = (*txt).clone();
             x_i0 = Tpl::getIteri_i0(txt.clone())?;
             ret_0 = SimCodeUtil::cref2simvar(i_name.clone(), a_simCode.clone())?;
@@ -5214,7 +5214,7 @@ fn lm_244(mut in_txt: Tpl::Text, mut in_items: Arc<metamodelica::List<SimCodeVar
         },
         (txt, Deref @ metamodelica::List::Cons { head: SimCodeVar::SimVar { name: i_name, .. }, tail: rest }, a_simCode) => {
             let mut x_i0: i32 = 0;
-            let mut ret_0: SimCodeVar::SimVar;
+            let mut ret_0: SimCodeVar::SimVar = <SimCodeVar::SimVar as ::std::default::Default>::default();
             let mut txt = (*txt).clone();
             x_i0 = Tpl::getIteri_i0(txt.clone())?;
             ret_0 = SimCodeUtil::cref2simvar(i_name.clone(), a_simCode.clone())?;
@@ -10044,8 +10044,8 @@ fn lm_401(mut in_txt: Tpl::Text, mut in_items: Arc<metamodelica::List<Arc<DAE::C
             txt.clone()
         },
         (txt, Deref @ metamodelica::List::Cons { head: i_cr, tail: rest }) => {
-            let mut ret_3: SimCodeVar::SimVar;
-            let mut ret_2: SimCode::SimCode;
+            let mut ret_3: SimCodeVar::SimVar = <SimCodeVar::SimVar as ::std::default::Default>::default();
+            let mut ret_2: SimCode::SimCode = <SimCode::SimCode as ::std::default::Default>::default();
             let mut ret_1: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
             let mut l_cComment: Tpl::Text;
             let mut txt = (*txt).clone();
@@ -11304,7 +11304,7 @@ fn lm_434(mut in_txt: Tpl::Text, mut in_items: Arc<metamodelica::List<Arc<SimCod
             (txt.clone(), a_sub.clone())
         },
         (txt, Deref @ metamodelica::List::Cons { head: Deref @ SimCode::SimEqSystem::SES_SIMPLE_ASSIGN { exp: i_exp, cref: i_cref, .. }, tail: rest }, a_simCode, a_sub) => {
-            let mut ret_0: SimCodeVar::SimVar;
+            let mut ret_0: SimCodeVar::SimVar = <SimCodeVar::SimVar as ::std::default::Default>::default();
             let mut txt = (*txt).clone();
             let mut a_sub = (*a_sub).clone();
             (txt, a_sub) = CodegenCFunctions::cref(txt.clone(), i_cref.clone(), a_sub.clone())?;

@@ -807,7 +807,7 @@ fn evaluateActualStream(mut streamCref: Arc<ComponentRef::NFComponentRef>, mut s
     let mut flow_exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut stream_exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
     let mut instream_exp: Arc<Expression::NFExpression> = Arc::new(Expression::END);
-    let mut op: Arc<Operator::NFOperator>;
+    let mut op: Arc<Operator::NFOperator> = Arc::new(<Operator::NFOperator as ::std::default::Default>::default());
     stream_cref = ComponentRef::evaluateSubscripts(streamCref.clone())?;
     flowCref = associatedFlowCref(stream_cref.clone())?;
     flow_dir = evaluateFlowDirection(flowCref.clone(), variables.clone())?;

@@ -68,6 +68,19 @@ pub struct DateTime {
     pub year: i32,
 }
 
+impl Default for DateTime {
+    fn default() -> Self {
+        Self {
+            sec: Default::default(),
+            min: Default::default(),
+            hour: Default::default(),
+            mday: Default::default(),
+            mon: Default::default(),
+            year: Default::default(),
+        }
+    }
+}
+
 pub type DATETIME = DateTime;
 
 
@@ -483,7 +496,7 @@ pub fn applyOption<TI: Clone + 'static, TO: Clone + 'static>(mut inOption: Optio
     outOption
 }
 
-pub fn applyOption1<TI: Clone + 'static, TO: Clone + 'static, ArgT: Clone + 'static>(mut inOption: Option<TI>, mut inFunc: Arc<dyn ::std::ops::Fn(TI, ArgT) -> Result<TO> + 'static>, mut inArg: ArgT) -> Option<TO> {
+pub fn applyOption1<TI: Clone + 'static, ArgT: Clone + 'static, TO: Clone + 'static>(mut inOption: Option<TI>, mut inFunc: Arc<dyn ::std::ops::Fn(TI, ArgT) -> Result<TO> + 'static>, mut inArg: ArgT) -> Option<TO> {
     pub type FuncType<TI: Clone + 'static, ArgT: Clone + 'static, TO: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI, ArgT) -> Result<TO> + 'static>;
 
     let mut outOption: Option<TO> = None;
@@ -513,7 +526,7 @@ pub fn applyOptionOrDefault<TI: Clone + 'static, TO: Clone + 'static>(mut inValu
     outValue
 }
 
-pub fn applyOptionOrDefault1<TI: Clone + 'static, TO: Clone + 'static, ArgT: Clone + 'static>(mut inValue: Option<TI>, mut inFunc: Arc<dyn ::std::ops::Fn(TI, ArgT) -> Result<TO> + 'static>, mut inArg: ArgT, mut inDefaultValue: TO) -> TO {
+pub fn applyOptionOrDefault1<TI: Clone + 'static, ArgT: Clone + 'static, TO: Clone + 'static>(mut inValue: Option<TI>, mut inFunc: Arc<dyn ::std::ops::Fn(TI, ArgT) -> Result<TO> + 'static>, mut inArg: ArgT, mut inDefaultValue: TO) -> TO {
     pub type FuncType<TI: Clone + 'static, ArgT: Clone + 'static, TO: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI, ArgT) -> Result<TO> + 'static>;
 
     let mut outValue: TO;
@@ -528,7 +541,7 @@ pub fn applyOptionOrDefault1<TI: Clone + 'static, TO: Clone + 'static, ArgT: Clo
     outValue
 }
 
-pub fn applyOptionOrDefault2<TI: Clone + 'static, TO: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 'static>(mut inValue: Option<TI>, mut inFunc: Arc<dyn ::std::ops::Fn(TI, ArgT1, ArgT2) -> Result<TO> + 'static>, mut inArg1: ArgT1, mut inArg2: ArgT2, mut inDefaultValue: TO) -> TO {
+pub fn applyOptionOrDefault2<TI: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 'static, TO: Clone + 'static>(mut inValue: Option<TI>, mut inFunc: Arc<dyn ::std::ops::Fn(TI, ArgT1, ArgT2) -> Result<TO> + 'static>, mut inArg1: ArgT1, mut inArg2: ArgT2, mut inDefaultValue: TO) -> TO {
     pub type FuncType<TI: Clone + 'static, ArgT1: Clone + 'static, ArgT2: Clone + 'static, TO: Clone + 'static> = std::sync::Arc<dyn ::std::ops::Fn(TI, ArgT1, ArgT2) -> Result<TO> + 'static>;
 
     let mut outValue: TO;
@@ -862,7 +875,7 @@ pub fn stringAppendNonEmpty(mut inString1: ArcStr, mut inString2: ArcStr) -> Arc
 }
 
 pub fn getCurrentDateTime() -> DateTime {
-    let mut dt: DateTime;
+    let mut dt: DateTime = <DateTime as ::std::default::Default>::default();
     let mut sec: i32 = 0;
     let mut min: i32 = 0;
     let mut hour: i32 = 0;

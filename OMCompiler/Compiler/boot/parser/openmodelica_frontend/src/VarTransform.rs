@@ -75,7 +75,7 @@ pub struct VariableReplacements {
 
 impl PartialEq for VariableReplacements {
     fn eq(&self, other: &Self) -> bool {
-        std::sync::Arc::ptr_eq(&self.hashTable, &other.hashTable) && std::sync::Arc::ptr_eq(&self.invHashTable, &other.invHashTable)
+        (match ((&self.hashTable), (&other.hashTable)) { ((__lt0, __lt1, __lt2, __lt3), (__rt0, __rt1, __rt2, __rt3)) => (__lt0 == __rt0) && (__lt1 == __rt1) && (__lt2 == __rt2) && (match (__lt3, __rt3) { ((__lt0, __lt1, __lt2, __lt3), (__rt0, __rt1, __rt2, __rt3)) => std::sync::Arc::ptr_eq(__lt0, __rt0) && std::sync::Arc::ptr_eq(__lt1, __rt1) && std::sync::Arc::ptr_eq(__lt2, __rt2) && std::sync::Arc::ptr_eq(__lt3, __rt3) }) }) && (match ((&self.invHashTable), (&other.invHashTable)) { ((__lt0, __lt1, __lt2, __lt3), (__rt0, __rt1, __rt2, __rt3)) => (__lt0 == __rt0) && (__lt1 == __rt1) && (__lt2 == __rt2) && (match (__lt3, __rt3) { ((__lt0, __lt1, __lt2, __lt3), (__rt0, __rt1, __rt2, __rt3)) => std::sync::Arc::ptr_eq(__lt0, __rt0) && std::sync::Arc::ptr_eq(__lt1, __rt1) && std::sync::Arc::ptr_eq(__lt2, __rt2) && std::sync::Arc::ptr_eq(__lt3, __rt3) }) })
     }
 }
 impl Eq for VariableReplacements {}
@@ -84,15 +84,24 @@ impl PartialOrd for VariableReplacements {
 }
 impl Ord for VariableReplacements {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        (std::sync::Arc::as_ptr(&self.hashTable) as *const ()).cmp(&(std::sync::Arc::as_ptr(&other.hashTable) as *const ())).then_with(|| (std::sync::Arc::as_ptr(&self.invHashTable) as *const ()).cmp(&(std::sync::Arc::as_ptr(&other.invHashTable) as *const ())))
+        (match ((&self.hashTable), (&other.hashTable)) { ((__lt0, __lt1, __lt2, __lt3), (__rt0, __rt1, __rt2, __rt3)) => __lt0.cmp(__rt0).then_with(|| __lt1.cmp(__rt1).then_with(|| __lt2.cmp(__rt2).then_with(|| (match (__lt3, __rt3) { ((__lt0, __lt1, __lt2, __lt3), (__rt0, __rt1, __rt2, __rt3)) => (std::sync::Arc::as_ptr(__lt0) as *const ()).cmp(&(std::sync::Arc::as_ptr(__rt0) as *const ())).then_with(|| (std::sync::Arc::as_ptr(__lt1) as *const ()).cmp(&(std::sync::Arc::as_ptr(__rt1) as *const ())).then_with(|| (std::sync::Arc::as_ptr(__lt2) as *const ()).cmp(&(std::sync::Arc::as_ptr(__rt2) as *const ())).then_with(|| (std::sync::Arc::as_ptr(__lt3) as *const ()).cmp(&(std::sync::Arc::as_ptr(__rt3) as *const ()))))) })))) }).then_with(|| (match ((&self.invHashTable), (&other.invHashTable)) { ((__lt0, __lt1, __lt2, __lt3), (__rt0, __rt1, __rt2, __rt3)) => __lt0.cmp(__rt0).then_with(|| __lt1.cmp(__rt1).then_with(|| __lt2.cmp(__rt2).then_with(|| (match (__lt3, __rt3) { ((__lt0, __lt1, __lt2, __lt3), (__rt0, __rt1, __rt2, __rt3)) => (std::sync::Arc::as_ptr(__lt0) as *const ()).cmp(&(std::sync::Arc::as_ptr(__rt0) as *const ())).then_with(|| (std::sync::Arc::as_ptr(__lt1) as *const ()).cmp(&(std::sync::Arc::as_ptr(__rt1) as *const ())).then_with(|| (std::sync::Arc::as_ptr(__lt2) as *const ()).cmp(&(std::sync::Arc::as_ptr(__rt2) as *const ())).then_with(|| (std::sync::Arc::as_ptr(__lt3) as *const ()).cmp(&(std::sync::Arc::as_ptr(__rt3) as *const ()))))) })))) }))
     }
 }
 impl std::fmt::Debug for VariableReplacements {
     fn fmt(&self, __f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut __ds = __f.debug_struct("VariableReplacements");
-        __ds.field("hashTable", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(&self.hashTable)));
-        __ds.field("invHashTable", &format_args!("<fn@{:p}>", std::sync::Arc::as_ptr(&self.invHashTable)));
+        __ds.field("hashTable", &format_args!("<dyn-fn-container@{:p}>", (&self.hashTable) as *const _));
+        __ds.field("invHashTable", &format_args!("<dyn-fn-container@{:p}>", (&self.invHashTable) as *const _));
         __ds.finish()
+    }
+}
+
+impl Default for VariableReplacements {
+    fn default() -> Self {
+        Self {
+            hashTable: (Default::default(), Default::default(), Default::default(), ({ let __placeholder: HashTable2::FuncHashCref = std::sync::Arc::new(|_| panic!("default-constructed placeholder fn must not be called")); __placeholder }, { let __placeholder: HashTable2::FuncCrefEqual = std::sync::Arc::new(|_, _| panic!("default-constructed placeholder fn must not be called")); __placeholder }, { let __placeholder: HashTable2::FuncCrefStr = std::sync::Arc::new(|_| panic!("default-constructed placeholder fn must not be called")); __placeholder }, { let __placeholder: HashTable2::FuncExpStr = std::sync::Arc::new(|_| panic!("default-constructed placeholder fn must not be called")); __placeholder })),
+            invHashTable: (Default::default(), Default::default(), Default::default(), ({ let __placeholder: HashTable3::FuncHashCref = std::sync::Arc::new(|_| panic!("default-constructed placeholder fn must not be called")); __placeholder }, { let __placeholder: HashTable3::FuncCrefEqual = std::sync::Arc::new(|_, _| panic!("default-constructed placeholder fn must not be called")); __placeholder }, { let __placeholder: HashTable3::FuncCrefStr = std::sync::Arc::new(|_| panic!("default-constructed placeholder fn must not be called")); __placeholder }, { let __placeholder: HashTable3::FuncExpStr = std::sync::Arc::new(|_| panic!("default-constructed placeholder fn must not be called")); __placeholder })),
+        }
     }
 }
 
@@ -103,7 +112,7 @@ pub type REPLACEMENTS = VariableReplacements;
 pub fn applyReplacementsDAE(mut dae: DAE::DAElist, mut repl: VariableReplacements, mut condExpFunc: Option<Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<bool> + 'static>>) -> Result<DAE::DAElist> {
     pub type FuncTypeExp_ExpToBoolean = std::sync::Arc<dyn ::std::ops::Fn(Arc<DAE::Exp>) -> Result<bool> + 'static>;
 
-    let mut outDae: DAE::DAElist;
+    let mut outDae: DAE::DAElist = <DAE::DAElist as ::std::default::Default>::default();
     outDae = (match (dae.clone(), repl.clone(), condExpFunc.clone()) {
         (DAE::DAElist { elementLst: ref elts }, _, _) => {
             let mut elts = elts.clone();
@@ -475,7 +484,7 @@ fn emptyReplacementsArray2(mut n: i32) -> Result<Arc<metamodelica::List<Variable
         })() { break 'mc __v; }
         if let Ok(__v) = (|| -> Result<_> {
             let _ = __mc_input.clone() else { bail!("nomatch") };
-            let mut r: VariableReplacements;
+            let mut r: VariableReplacements = <VariableReplacements as ::std::default::Default>::default();
             let mut replLst: Arc<metamodelica::List<VariableReplacements>> = replLst.clone();
             let true = (n.clone() > 0) else { bail!("pattern mismatch") };
             r = emptyReplacements();
@@ -488,7 +497,7 @@ fn emptyReplacementsArray2(mut n: i32) -> Result<Arc<metamodelica::List<Variable
 }
 
 pub fn emptyReplacements() -> VariableReplacements {
-    let mut outVariableReplacements: VariableReplacements;
+    let mut outVariableReplacements: VariableReplacements = <VariableReplacements as ::std::default::Default>::default();
     outVariableReplacements = (match () {
         () => {
             let mut ht: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::Exp>)>>), i32, (HashTable2::FuncHashCref, HashTable2::FuncCrefEqual, HashTable2::FuncCrefStr, HashTable2::FuncExpStr));
@@ -502,7 +511,7 @@ pub fn emptyReplacements() -> VariableReplacements {
 }
 
 pub fn emptyReplacementsSized(mut size: i32) -> VariableReplacements {
-    let mut outVariableReplacements: VariableReplacements;
+    let mut outVariableReplacements: VariableReplacements = <VariableReplacements as ::std::default::Default>::default();
     outVariableReplacements = (match size.clone() {
         _ => {
             let mut ht: (metamodelica::Array<Arc<metamodelica::List<(Arc<DAE::ComponentRef>, i32)>>>, (i32, i32, metamodelica::Array<Option<(Arc<DAE::ComponentRef>, Arc<DAE::Exp>)>>), i32, (HashTable2::FuncHashCref, HashTable2::FuncCrefEqual, HashTable2::FuncCrefStr, HashTable2::FuncExpStr));
@@ -917,7 +926,7 @@ pub fn replacementTargets(mut repl: VariableReplacements) -> Result<Arc<metamode
 }
 
 pub fn addReplacementLst(mut inRepl: VariableReplacements, mut crs: Arc<metamodelica::List<Arc<DAE::ComponentRef>>>, mut dsts: Arc<metamodelica::List<Arc<DAE::Exp>>>) -> Result<VariableReplacements> {
-    let mut repl: VariableReplacements;
+    let mut repl: VariableReplacements = <VariableReplacements as ::std::default::Default>::default();
     repl = (::match_deref::match_deref! { match &((inRepl.clone(), crs.clone(), dsts.clone())) {
         (repl, Deref @ metamodelica::List::Nil, Deref @ metamodelica::List::Nil) => {
             repl.clone()
@@ -934,7 +943,7 @@ pub fn addReplacementLst(mut inRepl: VariableReplacements, mut crs: Arc<metamode
 }
 
 pub fn addReplacement(mut repl: VariableReplacements, mut inSrc: Arc<DAE::ComponentRef>, mut inDst: Arc<DAE::Exp>) -> Result<VariableReplacements> {
-    let mut outRepl: VariableReplacements;
+    let mut outRepl: VariableReplacements = <VariableReplacements as ::std::default::Default>::default();
     outRepl = 'mc: {
         let __mc_input = (repl.clone(), inSrc.clone(), inDst.clone());
         if let Ok(__v) = (|| -> Result<_> {
@@ -1027,10 +1036,10 @@ fn amortizeUnion(mut inCrefs: Arc<metamodelica::List<Arc<DAE::ComponentRef>>>) -
 }
 
 pub fn addReplacementIfNot(mut condition: bool, mut repl: VariableReplacements, mut inSrc: Arc<DAE::ComponentRef>, mut inDst: Arc<DAE::Exp>) -> Result<VariableReplacements> {
-    let mut outRepl: VariableReplacements;
+    let mut outRepl: VariableReplacements = <VariableReplacements as ::std::default::Default>::default();
     outRepl = (::match_deref::match_deref! { match &((condition.clone(), repl.clone(), inSrc.clone(), inDst.clone())) {
         (false, _, src, dst) => {
-            let mut repl_1: VariableReplacements;
+            let mut repl_1: VariableReplacements = <VariableReplacements as ::std::default::Default>::default();
             repl_1 = addReplacement(repl.clone(), src.clone(), dst.clone())?;
             repl_1.clone()
         },
@@ -1043,13 +1052,13 @@ pub fn addReplacementIfNot(mut condition: bool, mut repl: VariableReplacements, 
 }
 
 fn makeTransitive(mut repl: VariableReplacements, mut src: Arc<DAE::ComponentRef>, mut dst: Arc<DAE::Exp>) -> Result<(VariableReplacements, Arc<DAE::ComponentRef>, Arc<DAE::Exp>)> {
-    let mut outRepl: VariableReplacements;
+    let mut outRepl: VariableReplacements = <VariableReplacements as ::std::default::Default>::default();
     let mut outSrc: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
     let mut outDst: Arc<DAE::Exp>;
     (outRepl, outSrc, outDst) = (::match_deref::match_deref! { match &((repl.clone(), src.clone(), dst.clone())) {
         (_, _, _) => {
-            let mut repl_1: VariableReplacements;
-            let mut repl_2: VariableReplacements;
+            let mut repl_1: VariableReplacements = <VariableReplacements as ::std::default::Default>::default();
+            let mut repl_2: VariableReplacements = <VariableReplacements as ::std::default::Default>::default();
             let mut src_1: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
             let mut src_2: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
             let mut dst_1: Arc<DAE::Exp>;
@@ -1066,7 +1075,7 @@ fn makeTransitive(mut repl: VariableReplacements, mut src: Arc<DAE::ComponentRef
 }
 
 fn makeTransitive1(mut repl: VariableReplacements, mut src: Arc<DAE::ComponentRef>, mut dst: Arc<DAE::Exp>) -> Result<(VariableReplacements, Arc<DAE::ComponentRef>, Arc<DAE::Exp>)> {
-    let mut outRepl: VariableReplacements;
+    let mut outRepl: VariableReplacements = <VariableReplacements as ::std::default::Default>::default();
     let mut outSrc: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
     let mut outDst: Arc<DAE::Exp>;
     (outRepl, outSrc, outDst) = 'mc: {
@@ -1075,8 +1084,8 @@ fn makeTransitive1(mut repl: VariableReplacements, mut src: Arc<DAE::ComponentRe
             ::match_deref::match_deref! { match &__mc_input {
                 (VariableReplacements { hashTable: _, invHashTable: invHt }, _, _) => {
                     let mut lst: Arc<metamodelica::List<Arc<DAE::ComponentRef>>> = metamodelica::nil();
-                    let mut repl_1: VariableReplacements;
-                    let mut singleRepl: VariableReplacements;
+                    let mut repl_1: VariableReplacements = <VariableReplacements as ::std::default::Default>::default();
+                    let mut singleRepl: VariableReplacements = <VariableReplacements as ::std::default::Default>::default();
                     lst = BaseHashTable::get(src.clone(), invHt.clone())?;
                     singleRepl = addReplacementNoTransitive(emptyReplacementsSized(53), src.clone(), dst.clone())?;
                     repl_1 = makeTransitive12(lst.clone(), repl.clone(), singleRepl.clone())?;
@@ -1101,15 +1110,15 @@ fn makeTransitive1(mut repl: VariableReplacements, mut src: Arc<DAE::ComponentRe
 // NOTE: #[tailcall::tailcall] disabled: function body contains a `match_deref!{…}` match,
 // and the tailcall rewriter cannot see arms hidden behind the macro's `Deref @` patterns.
 fn makeTransitive12(mut lst: Arc<metamodelica::List<Arc<DAE::ComponentRef>>>, mut repl: VariableReplacements, mut singleRepl: VariableReplacements) -> Result<VariableReplacements> {
-    let mut outRepl: VariableReplacements;
+    let mut outRepl: VariableReplacements = <VariableReplacements as ::std::default::Default>::default();
     outRepl = (::match_deref::match_deref! { match &((lst.clone(), repl.clone(), singleRepl.clone())) {
         (Deref @ metamodelica::List::Nil, _, _) => {
             repl.clone()
         },
         (Deref @ metamodelica::List::Cons { head: cr, tail: crs }, VariableReplacements { hashTable: ht, .. }, _) => {
             let mut crDst: Arc<DAE::Exp>;
-            let mut repl1: VariableReplacements;
-            let mut repl2: VariableReplacements;
+            let mut repl1: VariableReplacements = <VariableReplacements as ::std::default::Default>::default();
+            let mut repl2: VariableReplacements = <VariableReplacements as ::std::default::Default>::default();
             crDst = BaseHashTable::get(cr.clone(), ht.clone())?;
             (crDst, _) = replaceExp(crDst.clone(), singleRepl.clone(), None)?;
             repl1 = addReplacementNoTransitive(repl.clone(), cr.clone(), crDst.clone())?;
@@ -1122,7 +1131,7 @@ fn makeTransitive12(mut lst: Arc<metamodelica::List<Arc<DAE::ComponentRef>>>, mu
 }
 
 fn makeTransitive2(mut repl: VariableReplacements, mut src: Arc<DAE::ComponentRef>, mut dst: Arc<DAE::Exp>) -> Result<(VariableReplacements, Arc<DAE::ComponentRef>, Arc<DAE::Exp>)> {
-    let mut outRepl: VariableReplacements;
+    let mut outRepl: VariableReplacements = <VariableReplacements as ::std::default::Default>::default();
     let mut outSrc: Arc<DAE::ComponentRef> = Arc::new(DAE::ComponentRef::WILD);
     let mut outDst: Arc<DAE::Exp>;
     (outRepl, outSrc, outDst) = 'mc: {

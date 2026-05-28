@@ -1588,6 +1588,26 @@ pub fn infer_exp<'a>(
                     Ty::Function { output, .. } => *output,
                     other => other,
                 };
+                // Tag unit-variant constructors with their parent enum so the
+                // expression's static type names a real Rust type (`Ty::RustEnum`
+                // via `fmt_ty`'s `UnionTypeVariant` arm) rather than `()`.
+                // `lookup_ty_in_hierarchy` returns the raw `RustUnitVariant`
+                // (no parent qname); recover the parent from the constructor's
+                // own canonical path. Codegen at the constructor emit site
+                // still uses the `name` field to spell `Parent::Variant`, so
+                // this only changes the static type of the value expression.
+                let ty = match ty {
+                    Ty::RustUnitVariant => {
+                        if let Some((parent, variant)) = canonical.rsplit_once('.')
+                            && matches!(lookup_ty_in_hierarchy(parent, top_level), Ty::RustEnum(_))
+                        {
+                            Ty::UnionTypeVariant(parent.to_string(), variant.to_string())
+                        } else {
+                            Ty::RustUnitVariant
+                        }
+                    }
+                    other => other,
+                };
                 let field_names = match &sig_ty {
                     Ty::RustStruct(qname) | Ty::RustEnum(qname) => {
                         record_field_tys(qname, top_level).into_iter().map(|(n, _)| n).collect()

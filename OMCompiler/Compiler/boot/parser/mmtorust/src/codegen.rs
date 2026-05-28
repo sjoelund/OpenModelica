@@ -6523,6 +6523,26 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
 
         TypedExp::Constructor { name, args, named_args, ty, field_names } => {
             let mut arg_strs = Vec::new();
+            // Normalise: a constructor whose static type is a
+            // `UnionTypeVariant(parent, variant)` — produced by the unit-variant
+            // promotion in typedexp — behaves the same here as a `RustEnum`
+            // value (the qname is the parent enum). Without this, the
+            // following `if let Ty::RustStruct | Ty::RustEnum = ty` arm
+            // wouldn't match and an enum-variant constructor with fields
+            // would fall through to an emit branch that lacks the
+            // variant-path machinery (e.g. `Arc::new(FunctionArgs { … })`
+            // instead of `Arc::new(FunctionArgs::FUNCTIONARGS { … })`).
+            let parent_qname_for_variant: Option<String> = match ty {
+                Ty::UnionTypeVariant(parent, _) => Some(parent.clone()),
+                _ => None,
+            };
+            let ty_for_emit: Ty = match (ty, &parent_qname_for_variant) {
+                (Ty::UnionTypeVariant(_, _), Some(p)) if !(args.is_empty() && named_args.is_empty() && field_names.is_empty()) => {
+                    Ty::RustEnum(p.clone())
+                }
+                _ => ty.clone(),
+            };
+            let ty: &Ty = &ty_for_emit;
             if let Ty::RustStruct(qname) | Ty::RustEnum(qname) = ty {
                 let remaining_named = named_args.clone();
                 // Look up the struct's declared field types so we can apply

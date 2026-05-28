@@ -6547,6 +6547,16 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                 let field_ty_lookup = |fname: &str| -> Option<Ty> {
                     field_tys_map.iter().find(|(n, _)| n == fname).map(|(_, t)| t.clone())
                 };
+                // A struct field typed as a function callback is stored as
+                // `Arc<dyn Fn(...) -> Result<_>>` (see [`fmt_param_ty`]).
+                // A PartEval / fresh closure value passed into such a slot
+                // must be wrapped in `Arc::new(...)`; the existing
+                // `struct_field_is_arc` check only catches Arc-wrapped value
+                // types (recursive uniontypes etc.), not function-typed
+                // fields.
+                let field_is_fn_callback = |fname: &str| -> bool {
+                    matches!(field_ty_lookup(fname), Some(Ty::Function { .. } | Ty::FunctionAlias { .. }))
+                };
                 for (i, fa) in args.iter().enumerate() {
                     let val = emit_cloned_call_arg(fa, is_const, ctx, top_level);
                     if i < field_names.len() {
@@ -6554,6 +6564,10 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                         let fname_safe = escape_ident(fname);
                         let val = if struct_field_is_arc(qname, fname, top_level, ctx)
                             && !value_emitted_as_arc(fa, ctx)
+                        {
+                            format!("Arc::new({val})")
+                        } else if field_is_fn_callback(fname)
+                            && matches!(fa, TypedExp::PartEval { .. })
                         {
                             format!("Arc::new({val})")
                         } else {
@@ -6575,6 +6589,10 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                     let val = emit_cloned_call_arg(&na, is_const, ctx, top_level);
                     let val = if struct_field_is_arc(qname, &n, top_level, ctx)
                         && !value_emitted_as_arc(&na, ctx)
+                    {
+                        format!("Arc::new({val})")
+                    } else if field_is_fn_callback(&n)
+                        && matches!(&na, TypedExp::PartEval { .. })
                     {
                         format!("Arc::new({val})")
                     } else {

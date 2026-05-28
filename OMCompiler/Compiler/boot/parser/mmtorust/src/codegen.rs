@@ -6356,9 +6356,25 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                         .collect()
                 }
             } else {
-                let mut parts: Vec<String> = args.iter().map(|a| emit_cloned_call_arg(a, is_const, ctx, top_level)).collect();
+                // Callee whose signature didn't resolve (e.g. a function reached
+                // through a private module import that this crate doesn't see
+                // through). We can't apply per-formal coercions, but PartEval
+                // actuals always evaluate to a bare closure, and every
+                // function-typed callback slot in the runtime is shaped
+                // `Arc<dyn Fn(...) -> Result<...>>` — so an unwrapped closure
+                // would fail to coerce. Wrap each PartEval arg eagerly in
+                // `Arc::new(...)`; everything else flows through the normal
+                // owned-clone path.
+                let wrap_part_eval = |a: &TypedExp, raw: String| -> String {
+                    if matches!(a, TypedExp::PartEval { .. }) { format!("Arc::new({raw})") } else { raw }
+                };
+                let mut parts: Vec<String> = args.iter().map(|a| {
+                    let raw = emit_cloned_call_arg(a, is_const, ctx, top_level);
+                    wrap_part_eval(a, raw)
+                }).collect();
                 for (n, v) in named_args {
-                    let v = emit_cloned_call_arg(v, is_const, ctx, top_level);
+                    let raw = emit_cloned_call_arg(v, is_const, ctx, top_level);
+                    let v = wrap_part_eval(v, raw);
                     parts.push(format!("{n}={v}"));
                 }
                 parts
@@ -8705,8 +8721,25 @@ fn emit_call_arg_with_formal<'a>(
     // and named module-level/nested aliases — now lower to `Arc<dyn Fn(...)
     // + 'static>` in [`fmt_param_ty`]. The argument-side wrap below mirrors
     // that: any function-typed slot accepts the same `Arc<dyn Fn>` shape.
-    let formal_is_arc_dyn = matches!(formal_ty, Some(Ty::Function { .. }));
-    if let Some(Ty::Function { inputs, output, .. }) = formal_ty
+    // A `partial function` declaration shows up as `Ty::FunctionAlias` at the
+    // formal slot, but the underlying parameter shape is still `Arc<dyn Fn>`
+    // — the alias just names the signature for documentation/dispatch.
+    // Resolve through the alias to the concrete `Ty::Function` so the
+    // `Arc::new(closure)` wrap below fires for PartEval/closure actuals
+    // passed into alias-typed callback slots (e.g. `FNode::RefTree::map`'s
+    // mapper, whose formal type is `MapFunc<K,V>`).
+    let resolved_formal_owned: Option<Ty> = match formal_ty {
+        Some(Ty::FunctionAlias { base, .. }) => {
+            let qn = resolve_call_qname(base, ctx, top_level).unwrap_or_else(|| base.clone());
+            crate::hierarchy::lookup_node_ty(&qn, top_level)
+                .filter(|t| matches!(t, Ty::Function { .. }))
+                .cloned()
+        }
+        _ => None,
+    };
+    let effective_formal_ty: Option<&Ty> = resolved_formal_owned.as_ref().or(formal_ty);
+    let formal_is_arc_dyn = matches!(effective_formal_ty, Some(Ty::Function { .. }));
+    if let Some(Ty::Function { inputs, output, .. }) = effective_formal_ty
         && formal_is_arc_dyn {
         if arg_is_input_fn_param(arg, ctx) {
             // case 1: `raw` is already `"inCompFunc.clone()"` (emit_exp appends
@@ -8786,6 +8819,18 @@ fn emit_call_arg_with_formal<'a>(
             return format!("(if ({cond_s}) {{ {then_s} }}{} else {{ {else_s} }})", elseif_parts.join(""));
         }
         // case 2 (default): wrap the fresh closure / fn-pointer in Arc::new.
+        return format!("Arc::new({raw})");
+    }
+    // Pattern-shape fallback for *unresolved* function-typed formals (e.g.
+    // a callee whose module-level partial-function alias couldn't be looked
+    // up because the alias's containing module is a private import). When
+    // the actual is itself a synthesised closure (PartEval or anonymous
+    // Function value), the surrounding callback slot is necessarily
+    // `Arc<dyn Fn>` — passing a bare closure value fails with E0308.
+    // Wrap eagerly; if the formal turns out to be a fn-pointer slot
+    // instead, that's a separate codegen bug at the receiver side worth
+    // surfacing explicitly.
+    if matches!(arg, TypedExp::PartEval { .. }) {
         return format!("Arc::new({raw})");
     }
     // Implicit Integer→Real promotion: MetaModelica silently widens i32 actuals

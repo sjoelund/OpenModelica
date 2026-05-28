@@ -8847,6 +8847,58 @@ fn emit_call_arg_with_formal<'a>(
             // `.clone()` or we'd produce `inCompFunc.clone().clone()`.
             return raw;
         }
+        // A bare reference to an *infallible* function passed into a
+        // `Result`-returning callback slot. typedexp leaves builtins (e.g.
+        // `listAppend`, `listArray`, `arrayList`) at `Ty::Unknown` because they
+        // are not hierarchy nodes, so emit_exp returns the bare fn-item path
+        // without the `fnptr!` Ok-wrapping that an `Arc<dyn Fn(...) -> Result<T>>`
+        // slot needs. The generic `Arc::new(raw)` fallback below would then hand
+        // the slot a fn returning `T` (not `Result<T>`) and the coercion fails
+        // (E0271). Wrap such references with `fnptr!` (which adds the `Ok(..)`)
+        // using the formal's arity. Fallible fn-items already carry an
+        // `Arc::new(... as Arc<dyn Fn -> Result>)` wrap from emit_exp, so guard
+        // on `raw` not already being wrapped.
+        if let TypedExp::Var { name, segments, .. } = arg
+            && !raw.contains("Arc::new")
+            && !raw.contains("fnptr!")
+        {
+            let dotted: String = if !segments.is_empty() {
+                segments.iter().map(|s| s.name.clone()).collect::<Vec<_>>().join(".")
+            } else {
+                name.clone()
+            };
+            let bare = dotted.rsplit('.').next().unwrap_or(&dotted);
+            let infallible = is_infallible_builtin(bare)
+                || resolve_call_qname(&dotted, ctx, top_level)
+                    .as_deref()
+                    .is_some_and(|q| ctx.is_known_infallible_user_fn(q, top_level));
+            if infallible {
+                // `raw` is the cloned form (`<path>.clone()` for a fn-item Var);
+                // strip the trailing `.clone()` to recover the path expression.
+                let path = raw.strip_suffix(".clone()").unwrap_or(&raw);
+                let in_tys: Vec<String> = inputs.iter().map(|i| {
+                    // Emit `_` for any input type that is not fully concrete — a
+                    // type variable, or one whose rendering still contains the
+                    // unknown-type placeholder (`/* ? */`, e.g. a generic HOF's
+                    // `List<FT>` formal). Rust then infers the closure parameter
+                    // from the wrapped function's signature and the `Arc<dyn Fn>`
+                    // coercion target.
+                    if ty_mentions_typevar(&i.ty) {
+                        "_".to_owned()
+                    } else {
+                        let s = fmt_param_ty(&i.ty, ctx);
+                        if s.contains("/* ? */") { "_".to_owned() } else { s }
+                    }
+                }).collect();
+                let _ = output;
+                let fnptr = if in_tys.is_empty() {
+                    format!("fnptr!({path})")
+                } else {
+                    format!("fnptr!({path}, {})", in_tys.join(", "))
+                };
+                return format!("Arc::new({fnptr})");
+            }
+        }
         // case 1b: the actual is a Var/Cref reference to a concrete fn-item
         // (or a named partial-function alias used as a value). [`emit_exp`]
         // already wrapped it as `Arc::new(name) as Arc<dyn Fn(...)>`, so
@@ -10086,7 +10138,10 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
     // We wrap the whole match in a block: `{ let id = expr; (match id.clone() { ... }) }`.
     let (input_str, as_prefix) = if let Some(name) = as_binding {
         let id = escape_ident(name);
-        let prefix = format!("{{ let {id} = {raw_input_str}; ");
+        // `match expr as id` binds `id` as a mutable alias of the scrutinee:
+        // MetaModelica allows mutating it in the arm body (e.g. `id.field := v`,
+        // lowered to `assign_variant_field!(id => …)`), so it must be `let mut`.
+        let prefix = format!("{{ let mut {id} = {raw_input_str}; ");
         (id, Some(prefix))
     } else {
         (raw_input_str, None)
@@ -14896,11 +14951,16 @@ fn emit_stmt<'a>(
             // Expand `return;` into the same shape that emit_function produces
             // at the tail: `Ok(tuple)` when the enclosing function is fallible,
             // bare `tuple` otherwise.
+            // Clone each output: a `return;` may sit inside a match arm where an
+            // output name is shadowed by a by-ref pattern binding (e.g. the case
+            // `DAE.VAR(binding = obnd)` rebinds the output `obnd` to `&Option<…>`),
+            // so the bare name would be a reference. Outputs are always Clone, and
+            // cloning an owned local is harmless, so clone unconditionally.
             let tail: String = match env.outputs.len() {
                 0 => "()".to_owned(),
-                1 => escape_ident(&env.outputs[0]),
+                1 => format!("{}.clone()", escape_ident(&env.outputs[0])),
                 _ => {
-                    let parts: Vec<String> = env.outputs.iter().map(|n| escape_ident(n)).collect();
+                    let parts: Vec<String> = env.outputs.iter().map(|n| format!("{}.clone()", escape_ident(n))).collect();
                     format!("({})", parts.join(", "))
                 }
             };

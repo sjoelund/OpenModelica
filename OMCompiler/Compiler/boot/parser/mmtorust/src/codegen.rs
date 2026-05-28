@@ -7384,10 +7384,14 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
                         let val_expr = emit_builtin_call_arg(func, 1, &args[1], is_const, ctx, top_level);
                         format!("Some({val_expr})")
                     };
-                    return Ok(format!("{var_path}.with(|__root| *__root.borrow_mut() = {rhs})"));
+                    // The RHS may contain `?`; the closure passed to `with`
+                    // returns `()` and cannot propagate it. Lift to a temp
+                    // before entering the closure so the `?` is evaluated in
+                    // the surrounding function's scope.
+                    return Ok(format!("{{ let __v = {rhs}; {var_path}.with(|__root| *__root.borrow_mut() = __v) }}"));
                 }
                 let val_expr = emit_builtin_call_arg(func, 1, &args[1], is_const, ctx, top_level);
-                return Ok(format!("{var_path}.with(|__root| *__root.borrow_mut() = {val_expr})"));
+                return Ok(format!("{{ let __v = {val_expr}; {var_path}.with(|__root| *__root.borrow_mut() = __v) }}"));
             }
             // Fallback: dynamic / unresolved index — keep the type-erased runtime call.
             let idx_expr = emit_builtin_call_arg_raw(func, 0, &args[0], is_const, ctx, top_level);

@@ -7201,6 +7201,22 @@ fn emit_reduction<'a>(
                 "__acc".to_owned(),
             )
         }
+        // Explicit integer fold operators usable as reduction functions
+        // (`intMul(dimSize(d) for d in dims)`, `intAdd(...)`). They fold with
+        // the corresponding identity element; the accumulator is always `i32`.
+        // Without these they fall through to the user-defined branch below,
+        // which can't find a default for a builtin and emits a `todo!()` that
+        // then fails to typecheck in the surrounding expression (E0277).
+        "intMul" => (
+            "let mut __acc: i32 = 1;".to_owned(),
+            "__acc *= __x;".to_owned(),
+            "__acc".to_owned(),
+        ),
+        "intAdd" => (
+            "let mut __acc: i32 = 0;".to_owned(),
+            "__acc += __x;".to_owned(),
+            "__acc".to_owned(),
+        ),
         _ => {
             // User-defined reduction: resolve the accumulator default from the
             // function's formal parameter list. We assume the accumulator is the

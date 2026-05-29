@@ -8297,6 +8297,20 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
             let arg = args.first().map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
             Ok(format!("metamodelica::arrayFromVec({}.borrow().clone())", arg))
         },
+        "arrayAppend" => {
+            // Non-destructive concatenation → a fresh `Array<A>` (the runtime
+            // `metamodelica::arrayAppend`). Lower it here, like `arrayCopy` /
+            // `arrayCreate`, so it does not fall through to the generic call
+            // path: there a bare `arrayAppend` resolves (in Rust) to the
+            // `metamodelica::*` glob builtin, but `resolve_call_qname` walks the
+            // MM scope to a *different*, fallibility-classified node (the
+            // `external "builtin"` declaration, or an unrelated user
+            // `arrayAppend`), wrapping the infallible call in `?` (E0277 on the
+            // `Array` result).
+            let arg1 = args.first().map(|a| emit_builtin_call_arg(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
+            let arg2 = args.get(1).map(|a| emit_builtin_call_arg(func, 1, a, is_const, ctx, top_level)).unwrap_or_default();
+            Ok(format!("metamodelica::arrayAppend({arg1}, {arg2})"))
+        },
         // MetaModelica.Dangerous.arrayCreateNoInit(size, dummy) — there is no
         // safe direct Rust equivalent. We rewrite the call here based on a
         // static "is the dummy a real value?" analysis:

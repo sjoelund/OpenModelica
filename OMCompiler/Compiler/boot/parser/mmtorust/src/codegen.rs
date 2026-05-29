@@ -3478,7 +3478,7 @@ fn case_uses_question_mark<'a>(
 /// hierarchy lookup, which we have not yet wired up here, or an irrefutable
 /// fallback case, which is handled by the leading `pat_is_irrefutable`
 /// check).
-fn pats_cover_ty(pats: &[&TypedPat], ty: &Ty) -> bool {
+fn pats_cover_ty(pats: &[&TypedPat], ty: &Ty, top_level: &BTreeMap<String, NameNode<'_>>) -> bool {
     if pats.iter().any(|p| pat_is_irrefutable(p)) { return true; }
     match ty {
         Ty::Bool => {
@@ -3508,20 +3508,66 @@ fn pats_cover_ty(pats: &[&TypedPat], ty: &Ty) -> bool {
             // covers its respective element type.
             pats.iter().any(|p| match p {
                 TypedPat::Tuple(ps) if ps.len() == elem_tys.len() => {
-                    ps.iter().zip(elem_tys.iter()).all(|(p, t)| pats_cover_ty(&[p], t))
+                    ps.iter().zip(elem_tys.iter()).all(|(p, t)| pats_cover_ty(&[p], t, top_level))
                 }
                 _ => false,
             })
         }
-        // TODO: Ty::RustEnum / Ty::AliasTo — would need to enumerate the
-        // variants via the hierarchy and check that each is covered by a
-        // Constructor pattern whose fields are themselves covering. Left
-        // unhandled for now; callers fall through to "non-exhaustive".
-        //
-        // TODO: Ty::Enumeration — same, need the enum's literal list.
-        //
+        // Multi-record uniontype (`Ty::RustEnum`) or single-record uniontype
+        // (`Ty::AliasTo`): exhaustive iff every record variant of the union is
+        // covered by some constructor pattern. Coverage of a variant is
+        // conservative — we require a single constructor pattern matching that
+        // variant whose field subpatterns are all irrefutable (so it matches
+        // every value of the variant). A variant covered only by a *union* of
+        // refutable-field patterns is conservatively reported as not covered,
+        // which keeps the match "non-exhaustive" (safe: the fallback stays).
+        Ty::RustEnum(qname) | Ty::AliasTo(qname) => {
+            let Some(node) = lookup_node(qname, top_level) else { return false };
+            let NodeKind::Class(c) = &node.kind else { return false };
+            if !matches!(c.restriction, Absyn::Restriction::R_UNIONTYPE) { return false; }
+            let variants: Vec<&str> = node.children.values()
+                .filter_map(|child| match &child.kind {
+                    NodeKind::Class(rc) if matches!(rc.restriction,
+                        Absyn::Restriction::R_RECORD | Absyn::Restriction::R_METARECORD { .. })
+                        => Some(rc.name.as_str()),
+                    _ => None,
+                })
+                .collect();
+            !variants.is_empty()
+                && variants.iter().all(|v| pats.iter().any(|p| pat_covers_variant(p, v)))
+        }
+        // Enumeration: exhaustive iff every declared literal is matched.
+        Ty::Enumeration(qname) => {
+            let Some(node) = lookup_node(qname, top_level) else { return false };
+            let NodeKind::Class(c) = &node.kind else { return false };
+            let MM::ClassDef::Enumeration { enum_literals, .. } = &c.body else { return false };
+            let Absyn::EnumDef::ENUMLITERALS { enumLiterals } = &**enum_literals else { return false };
+            let lits: Vec<String> = (&**enumLiterals).into_iter()
+                .map(|l| l.literal.to_string())
+                .collect();
+            !lits.is_empty()
+                && lits.iter().all(|lit| pats.iter().any(|p| pat_covers_variant(p, lit)))
+        }
         // Numeric / string scalars can only be made exhaustive by an
         // irrefutable case (handled at the top of this function).
+        _ => false,
+    }
+}
+
+/// True if `pat` (possibly through an `As` wrapper) is a constructor pattern
+/// for the record variant / enum literal named `variant_simple` (compared by
+/// simple name) whose field subpatterns are all irrefutable — i.e. it matches
+/// *every* value of that variant. Unit variants/literals are constructor
+/// patterns with no fields and so are covered unconditionally.
+fn pat_covers_variant(pat: &TypedPat, variant_simple: &str) -> bool {
+    match pat {
+        TypedPat::As { pat: inner, .. } => pat_covers_variant(inner, variant_simple),
+        TypedPat::Constructor { name, fields, named_fields, .. } => {
+            let simple = name.rsplit('.').next().unwrap_or(name);
+            simple == variant_simple
+                && fields.iter().all(pat_is_irrefutable)
+                && named_fields.iter().all(|(_, p)| pat_is_irrefutable(p))
+        }
         _ => false,
     }
 }
@@ -3531,13 +3577,13 @@ fn pats_cover_ty(pats: &[&TypedPat], ty: &Ty) -> bool {
 /// exhaustiveness sense). `matchcontinue` is never considered exhaustive
 /// because any arm body may `fail()` and fall through to the next arm,
 /// eventually exhausting all arms even with full pattern coverage.
-fn cases_exhaustive(kind: &MatchKind, cases: &[TypedCase], scrut_ty: &Ty) -> bool {
+fn cases_exhaustive(kind: &MatchKind, cases: &[TypedCase], scrut_ty: &Ty, top_level: &BTreeMap<String, NameNode<'_>>) -> bool {
     if !matches!(kind, MatchKind::Match) { return false; }
     let pats: Vec<&TypedPat> = cases.iter()
         .filter(|c| c.guard.is_none())
         .map(|c| &c.pattern)
         .collect();
-    pats_cover_ty(&pats, scrut_ty)
+    pats_cover_ty(&pats, scrut_ty, top_level)
 }
 
 /// Return true if `exp` contains a non-tail-position match whose cases do
@@ -3546,67 +3592,67 @@ fn cases_exhaustive(kind: &MatchKind, cases: &[TypedCase], scrut_ty: &Ty) -> boo
 /// [`emit_match`] — converting MM's "fail when no arm matches" semantics
 /// into a Rust panic. We refuse the lowering when that would happen so the
 /// generated code stays panic-free.
-fn exp_has_nonexhaustive_match(exp: &TypedExp) -> bool {
+fn exp_has_nonexhaustive_match(exp: &TypedExp, top_level: &BTreeMap<String, NameNode<'_>>) -> bool {
     match exp {
         TypedExp::Match { kind, input, cases, .. } => {
-            if !cases_exhaustive(kind, cases, &input.ty()) { return true; }
-            exp_has_nonexhaustive_match(input)
+            if !cases_exhaustive(kind, cases, &input.ty(), top_level) { return true; }
+            exp_has_nonexhaustive_match(input, top_level)
                 || cases.iter().any(|c| {
-                    c.guard.as_ref().is_some_and(exp_has_nonexhaustive_match)
-                        || c.locals.iter().any(|(_, _, d, _)| d.as_ref().is_some_and(exp_has_nonexhaustive_match))
-                        || c.stmts.iter().any(stmt_has_nonexhaustive_match)
-                        || exp_has_nonexhaustive_match(&c.result)
+                    c.guard.as_ref().is_some_and(|g| exp_has_nonexhaustive_match(g, top_level))
+                        || c.locals.iter().any(|(_, _, d, _)| d.as_ref().is_some_and(|d| exp_has_nonexhaustive_match(d, top_level)))
+                        || c.stmts.iter().any(|s| stmt_has_nonexhaustive_match(s, top_level))
+                        || exp_has_nonexhaustive_match(&c.result, top_level)
                 })
         }
         TypedExp::Call { args, named_args, .. }
         | TypedExp::Constructor { args, named_args, .. }
         | TypedExp::PartEval { args, named_args, .. } => {
-            args.iter().any(exp_has_nonexhaustive_match)
-                || named_args.iter().any(|(_, e)| exp_has_nonexhaustive_match(e))
+            args.iter().any(|e| exp_has_nonexhaustive_match(e, top_level))
+                || named_args.iter().any(|(_, e)| exp_has_nonexhaustive_match(e, top_level))
         }
-        TypedExp::BinOp { lhs, rhs, .. } => exp_has_nonexhaustive_match(lhs) || exp_has_nonexhaustive_match(rhs),
-        TypedExp::UnOp { operand, .. } => exp_has_nonexhaustive_match(operand),
+        TypedExp::BinOp { lhs, rhs, .. } => exp_has_nonexhaustive_match(lhs, top_level) || exp_has_nonexhaustive_match(rhs, top_level),
+        TypedExp::UnOp { operand, .. } => exp_has_nonexhaustive_match(operand, top_level),
         TypedExp::If { cond, then_, elseif, else_, .. } => {
-            exp_has_nonexhaustive_match(cond)
-                || exp_has_nonexhaustive_match(then_)
-                || elseif.iter().any(|(c, e)| exp_has_nonexhaustive_match(c) || exp_has_nonexhaustive_match(e))
-                || exp_has_nonexhaustive_match(else_)
+            exp_has_nonexhaustive_match(cond, top_level)
+                || exp_has_nonexhaustive_match(then_, top_level)
+                || elseif.iter().any(|(c, e)| exp_has_nonexhaustive_match(c, top_level) || exp_has_nonexhaustive_match(e, top_level))
+                || exp_has_nonexhaustive_match(else_, top_level)
         }
-        TypedExp::Cons { head, tail, .. } => exp_has_nonexhaustive_match(head) || exp_has_nonexhaustive_match(tail),
-        TypedExp::Tuple(es) => es.iter().any(exp_has_nonexhaustive_match),
-        TypedExp::Array { elems, .. } => elems.iter().any(exp_has_nonexhaustive_match),
+        TypedExp::Cons { head, tail, .. } => exp_has_nonexhaustive_match(head, top_level) || exp_has_nonexhaustive_match(tail, top_level),
+        TypedExp::Tuple(es) => es.iter().any(|e| exp_has_nonexhaustive_match(e, top_level)),
+        TypedExp::Array { elems, .. } => elems.iter().any(|e| exp_has_nonexhaustive_match(e, top_level)),
         TypedExp::Range { start, step, stop, .. } => {
-            exp_has_nonexhaustive_match(start)
-                || step.as_ref().is_some_and(|s| exp_has_nonexhaustive_match(s))
-                || exp_has_nonexhaustive_match(stop)
+            exp_has_nonexhaustive_match(start, top_level)
+                || step.as_ref().is_some_and(|s| exp_has_nonexhaustive_match(s, top_level))
+                || exp_has_nonexhaustive_match(stop, top_level)
         }
         TypedExp::Reduction { body, iterators, .. } => {
-            exp_has_nonexhaustive_match(body)
-                || iterators.iter().any(|it| exp_has_nonexhaustive_match(&it.range)
-                    || it.guard.as_ref().is_some_and(exp_has_nonexhaustive_match))
+            exp_has_nonexhaustive_match(body, top_level)
+                || iterators.iter().any(|it| exp_has_nonexhaustive_match(&it.range, top_level)
+                    || it.guard.as_ref().is_some_and(|g| exp_has_nonexhaustive_match(g, top_level)))
         }
         TypedExp::Var { segments, .. } => {
-            segments.iter().any(|s| s.subscripts.iter().any(exp_has_nonexhaustive_match))
+            segments.iter().any(|s| s.subscripts.iter().any(|e| exp_has_nonexhaustive_match(e, top_level)))
         }
         TypedExp::Lit(_) | TypedExp::Todo(_) => false,
     }
 }
 
-fn stmt_has_nonexhaustive_match(stmt: &typedexp::TypedStmt) -> bool {
+fn stmt_has_nonexhaustive_match(stmt: &typedexp::TypedStmt, top_level: &BTreeMap<String, NameNode<'_>>) -> bool {
     use typedexp::TypedStmt as S;
     match stmt {
-        S::Assign { rhs, .. } => exp_has_nonexhaustive_match(rhs),
-        S::NoRetCall { call } => exp_has_nonexhaustive_match(call),
+        S::Assign { rhs, .. } => exp_has_nonexhaustive_match(rhs, top_level),
+        S::NoRetCall { call } => exp_has_nonexhaustive_match(call, top_level),
         S::If { cond, then_, elseif, else_ } => {
-            exp_has_nonexhaustive_match(cond)
-                || then_.iter().any(stmt_has_nonexhaustive_match)
-                || elseif.iter().any(|(ec, eb)| exp_has_nonexhaustive_match(ec) || eb.iter().any(stmt_has_nonexhaustive_match))
-                || else_.iter().any(stmt_has_nonexhaustive_match)
+            exp_has_nonexhaustive_match(cond, top_level)
+                || then_.iter().any(|s| stmt_has_nonexhaustive_match(s, top_level))
+                || elseif.iter().any(|(ec, eb)| exp_has_nonexhaustive_match(ec, top_level) || eb.iter().any(|s| stmt_has_nonexhaustive_match(s, top_level)))
+                || else_.iter().any(|s| stmt_has_nonexhaustive_match(s, top_level))
         }
-        S::For { range, body, .. } => exp_has_nonexhaustive_match(range) || body.iter().any(stmt_has_nonexhaustive_match),
-        S::While { cond, body } => exp_has_nonexhaustive_match(cond) || body.iter().any(stmt_has_nonexhaustive_match),
-        S::Try { body, else_body } => body.iter().any(stmt_has_nonexhaustive_match) || else_body.iter().any(stmt_has_nonexhaustive_match),
-        S::Failure { body } => body.iter().any(stmt_has_nonexhaustive_match),
+        S::For { range, body, .. } => exp_has_nonexhaustive_match(range, top_level) || body.iter().any(|s| stmt_has_nonexhaustive_match(s, top_level)),
+        S::While { cond, body } => exp_has_nonexhaustive_match(cond, top_level) || body.iter().any(|s| stmt_has_nonexhaustive_match(s, top_level)),
+        S::Try { body, else_body } => body.iter().any(|s| stmt_has_nonexhaustive_match(s, top_level)) || else_body.iter().any(|s| stmt_has_nonexhaustive_match(s, top_level)),
+        S::Failure { body } => body.iter().any(|s| stmt_has_nonexhaustive_match(s, top_level)),
         S::Return | S::Break | S::Continue | S::Todo(_) => false,
     }
 }
@@ -3622,31 +3668,32 @@ fn tail_exp_has_nonexhaustive_nontail_match(
     exp: &TypedExp,
     self_name: &str,
     fallible: bool,
+    top_level: &BTreeMap<String, NameNode<'_>>,
 ) -> bool {
     match exp {
         // The tail-self-call's arguments are non-tail.
         TypedExp::Call { func, args, named_args, .. } if func == self_name => {
-            args.iter().any(exp_has_nonexhaustive_match)
-                || named_args.iter().any(|(_, e)| exp_has_nonexhaustive_match(e))
+            args.iter().any(|e| exp_has_nonexhaustive_match(e, top_level))
+                || named_args.iter().any(|(_, e)| exp_has_nonexhaustive_match(e, top_level))
         }
         TypedExp::If { cond, then_, elseif, else_, .. } => {
-            exp_has_nonexhaustive_match(cond)
-                || tail_exp_has_nonexhaustive_nontail_match(then_, self_name, fallible)
+            exp_has_nonexhaustive_match(cond, top_level)
+                || tail_exp_has_nonexhaustive_nontail_match(then_, self_name, fallible, top_level)
                 || elseif.iter().any(|(c, e)|
-                    exp_has_nonexhaustive_match(c)
-                    || tail_exp_has_nonexhaustive_nontail_match(e, self_name, fallible))
-                || tail_exp_has_nonexhaustive_nontail_match(else_, self_name, fallible)
+                    exp_has_nonexhaustive_match(c, top_level)
+                    || tail_exp_has_nonexhaustive_nontail_match(e, self_name, fallible, top_level))
+                || tail_exp_has_nonexhaustive_nontail_match(else_, self_name, fallible, top_level)
         }
         TypedExp::Match { kind, input, cases, .. } => {
             // Tail-position match: its own fallback is `Err(...)` (fallible)
             // or `unreachable!()` (infallible). Only the fallible case is
             // panic-free, so for an infallible tail-lowered function we
             // still reject a non-exhaustive tail-position match.
-            if !cases_exhaustive(kind, cases, &input.ty()) && !fallible { return true; }
-            if exp_has_nonexhaustive_match(input) { return true; }
+            if !cases_exhaustive(kind, cases, &input.ty(), top_level) && !fallible { return true; }
+            if exp_has_nonexhaustive_match(input, top_level) { return true; }
             cases.iter().any(|c| {
-                if c.guard.as_ref().is_some_and(exp_has_nonexhaustive_match) { return true; }
-                if c.locals.iter().any(|(_, _, d, _)| d.as_ref().is_some_and(exp_has_nonexhaustive_match)) { return true; }
+                if c.guard.as_ref().is_some_and(|g| exp_has_nonexhaustive_match(g, top_level)) { return true; }
+                if c.locals.iter().any(|(_, _, d, _)| d.as_ref().is_some_and(|d| exp_has_nonexhaustive_match(d, top_level))) { return true; }
                 // Detect algorithm-side tail (last stmt is `Assign(name, rhs)` + result `Var(name)`).
                 let algo_tail_rhs = if !c.stmts.is_empty() {
                     if let (typedexp::TypedStmt::Assign { lhs: TypedPat::Var(an), rhs }, TypedExp::Var { name: rn, .. }) =
@@ -3660,16 +3707,16 @@ fn tail_exp_has_nonexhaustive_nontail_match(
                 } else {
                     &c.stmts[..]
                 };
-                if stmts_to_check.iter().any(stmt_has_nonexhaustive_match) { return true; }
+                if stmts_to_check.iter().any(|s| stmt_has_nonexhaustive_match(s, top_level)) { return true; }
                 match algo_tail_rhs {
-                    Some(rhs) => tail_exp_has_nonexhaustive_nontail_match(rhs, self_name, fallible),
-                    None => tail_exp_has_nonexhaustive_nontail_match(&c.result, self_name, fallible),
+                    Some(rhs) => tail_exp_has_nonexhaustive_nontail_match(rhs, self_name, fallible, top_level),
+                    None => tail_exp_has_nonexhaustive_nontail_match(&c.result, self_name, fallible, top_level),
                 }
             })
         }
         // Any other leaf is non-tail-control-flow; recurse over it as a
         // non-tail subexpression.
-        _ => exp_has_nonexhaustive_match(exp),
+        _ => exp_has_nonexhaustive_match(exp, top_level),
     }
 }
 
@@ -3678,20 +3725,21 @@ fn body_has_nonexhaustive_nontail_match(
     out_name: &str,
     self_name: &str,
     fallible: bool,
+    top_level: &BTreeMap<String, NameNode<'_>>,
 ) -> bool {
     let Some((last, head)) = stmts.split_last() else { return false; };
-    if head.iter().any(stmt_has_nonexhaustive_match) { return true; }
+    if head.iter().any(|s| stmt_has_nonexhaustive_match(s, top_level)) { return true; }
     match last {
         typedexp::TypedStmt::Assign { lhs: TypedPat::Var(name), rhs } if name == out_name => {
-            tail_exp_has_nonexhaustive_nontail_match(rhs, self_name, fallible)
+            tail_exp_has_nonexhaustive_nontail_match(rhs, self_name, fallible, top_level)
         }
         typedexp::TypedStmt::If { cond, then_, elseif, else_ } => {
-            exp_has_nonexhaustive_match(cond)
-                || body_has_nonexhaustive_nontail_match(then_, out_name, self_name, fallible)
+            exp_has_nonexhaustive_match(cond, top_level)
+                || body_has_nonexhaustive_nontail_match(then_, out_name, self_name, fallible, top_level)
                 || elseif.iter().any(|(ec, eb)|
-                    exp_has_nonexhaustive_match(ec)
-                    || body_has_nonexhaustive_nontail_match(eb, out_name, self_name, fallible))
-                || body_has_nonexhaustive_nontail_match(else_, out_name, self_name, fallible)
+                    exp_has_nonexhaustive_match(ec, top_level)
+                    || body_has_nonexhaustive_nontail_match(eb, out_name, self_name, fallible, top_level))
+                || body_has_nonexhaustive_nontail_match(else_, out_name, self_name, fallible, top_level)
         }
         _ => true,
     }
@@ -3967,7 +4015,7 @@ fn plan_tail_call_lowering<'a>(
     // an `Err(...)` value, so the fallback would again have to panic.
     // Fallible tail-position matches are fine — their fallback is a
     // plain `Err(anyhow::anyhow!(...))` value.
-    if body_has_nonexhaustive_nontail_match(typed_stmts, out_name, fn_short_name, is_fallible_fn) {
+    if body_has_nonexhaustive_nontail_match(typed_stmts, out_name, fn_short_name, is_fallible_fn, top_level) {
         return None;
     }
 
@@ -10398,7 +10446,7 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
             // unreachable-pattern lint and to keep the lowered function
             // infallible (the fallibility analysis uses the same predicate
             // on the Absyn side; the two must agree).
-            let exhaustive = cases_exhaustive(kind, cases, &input_ty);
+            let exhaustive = cases_exhaustive(kind, cases, &input_ty, top_level);
             let arms: Vec<String> = cases.iter().map(|case| {
                 // Real-literal patterns lower to a binding + guard. Clear the
                 // accumulator before emitting the pattern, drain after so

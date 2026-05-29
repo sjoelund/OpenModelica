@@ -14210,6 +14210,24 @@ fn record_constructor_pattern_bindings<'a>(
         record_cons_subpattern(tail.as_ref(), scrut_ty, env, top_level, shapes, ctx);
         return;
     }
+    // A tuple pattern matched against a *single* tuple-typed scrutinee (e.g. a
+    // matchcontinue subject `__mc_input` whose pattern is `(Cons{..}, ht)`).
+    // `record_pattern_variants_inner` step (3) only pairs tuple elements when
+    // the scrutinee is itself a `TypedExp::Tuple`; when it is one variable of
+    // `Ty::Tuple`, the per-element bindings (e.g. `e @ CALL { .. }` nested in
+    // the first element) would otherwise never get their variant/shape
+    // recorded, leaving a downstream `e.path` as a plain field access on the
+    // enum (E0609). Pair each element pattern with its slot type and recurse.
+    if let TypedPat::Tuple(elems) = pat {
+        let elem_tys: Vec<Ty> = match scrut_ty {
+            Ty::Tuple(ts) if ts.len() == elems.len() => ts.clone(),
+            _ => vec![Ty::Unknown; elems.len()],
+        };
+        for (sub_pat, sub_ty) in elems.iter().zip(elem_tys.iter()) {
+            record_cons_subpattern(sub_pat, sub_ty, env, top_level, shapes, ctx);
+        }
+        return;
+    }
     let TypedPat::Constructor { name, fields, named_fields, .. } = pat else { return };
     // Resolve the record's qname so we can look up field types. The
     // pattern's `ty` may already carry it; otherwise look it up against

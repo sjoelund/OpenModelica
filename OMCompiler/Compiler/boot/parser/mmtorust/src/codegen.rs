@@ -10390,7 +10390,7 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
                 {
                     let mut tmp_env = LocalEnv::default();
                     let mut tmp_shapes: HashMap<String, VarShape> = HashMap::new();
-                    record_pattern_variants_with_shapes(&case.pattern, input, &mut tmp_env, top_level, &mut tmp_shapes, ctx);
+                    record_pattern_variants_with_shapes(&case.pattern, input, &mut tmp_env, top_level, &mut tmp_shapes, ctx, use_match_deref);
                     for (k, v) in tmp_env.variants {
                         ctx.variants.insert(k, v);
                     }
@@ -10899,7 +10899,7 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
                 {
                     let mut tmp_env = LocalEnv::default();
                     let mut tmp_shapes: HashMap<String, VarShape> = HashMap::new();
-                    record_pattern_variants_with_shapes(&case.pattern, input, &mut tmp_env, top_level, &mut tmp_shapes, ctx);
+                    record_pattern_variants_with_shapes(&case.pattern, input, &mut tmp_env, top_level, &mut tmp_shapes, ctx, arm_needs_match_deref);
                     for (k, v) in tmp_env.variants {
                         ctx.variants.insert(k, v);
                     }
@@ -14049,11 +14049,17 @@ fn record_pattern_variants<'a>(
     env: &mut LocalEnv,
     top_level: &'a BTreeMap<String, NameNode<'a>>,
 ) {
-    record_pattern_variants_inner(pat, scrutinee, env, top_level, &mut HashMap::new(), None);
+    // This wrapper only populates `env.variants` (shapes are discarded), so the
+    // `md` flag is irrelevant — pass `false`.
+    record_pattern_variants_inner(pat, scrutinee, env, top_level, &mut HashMap::new(), None, false);
 }
 
 /// Like `record_pattern_variants`, plus collects per-binding `VarShape` info
-/// for tracked variants. `shapes` is the output buffer.
+/// for tracked variants. `shapes` is the output buffer. `md` is true when the
+/// enclosing match lowers through `match_deref!{ match &subject … }`, in which
+/// case *every* binding is by-reference and a binding onto an `Arc<T>` field is
+/// `&Arc<T>` (VarShape::RefArc). When false the scrutinee is matched by value
+/// and an `Arc<T>` field binds to an owned `Arc<T>` (VarShape::Arc).
 fn record_pattern_variants_with_shapes<'a>(
     pat: &TypedPat,
     scrutinee: &TypedExp,
@@ -14061,8 +14067,9 @@ fn record_pattern_variants_with_shapes<'a>(
     top_level: &'a BTreeMap<String, NameNode<'a>>,
     shapes: &mut HashMap<String, VarShape>,
     ctx: &GenCtx,
+    md: bool,
 ) {
-    record_pattern_variants_inner(pat, scrutinee, env, top_level, shapes, Some(ctx));
+    record_pattern_variants_inner(pat, scrutinee, env, top_level, shapes, Some(ctx), md);
 }
 
 fn record_pattern_variants_inner<'a>(
@@ -14072,6 +14079,7 @@ fn record_pattern_variants_inner<'a>(
     top_level: &'a BTreeMap<String, NameNode<'a>>,
     shapes: &mut HashMap<String, VarShape>,
     ctx: Option<&GenCtx>,
+    md: bool,
 ) {
     let scrut_ty = scrutinee.ty();
     // (1) Outer `as` binding.
@@ -14086,7 +14094,7 @@ fn record_pattern_variants_inner<'a>(
         // (from fn_env_vars storing the *value* type) and emit `(*var).f`,
         // producing the wrong number of derefs.
         if let Some(c) = ctx {
-            if ty_needs_arc_match_deref(&scrut_ty, c) && is_arc_wrapped(&scrut_ty, c) {
+            if md && is_arc_wrapped(&scrut_ty, c) {
                 shapes.insert(var.clone(), VarShape::RefArc);
             }
         }
@@ -14109,7 +14117,7 @@ fn record_pattern_variants_inner<'a>(
     if let (TypedPat::Tuple(pat_elems), TypedExp::Tuple(scrut_elems)) = (inner_pat, scrutinee)
         && pat_elems.len() == scrut_elems.len() {
             for (sub_pat, sub_scrut) in pat_elems.iter().zip(scrut_elems.iter()) {
-                record_pattern_variants_inner(sub_pat, sub_scrut, env, top_level, shapes, ctx);
+                record_pattern_variants_inner(sub_pat, sub_scrut, env, top_level, shapes, ctx, md);
             }
         }
     // (4) Nested `As` bindings inside a Constructor pattern. The matched
@@ -14125,7 +14133,7 @@ fn record_pattern_variants_inner<'a>(
     //     record a shape when the caller provided a `ctx` (so we can
     //     consult `recursive_types`); without it, `emit_var` falls back to
     //     the type-table-driven default.
-    record_constructor_pattern_bindings(inner_pat, &scrut_ty, env, top_level, shapes, ctx);
+    record_constructor_pattern_bindings(inner_pat, &scrut_ty, env, top_level, shapes, ctx, md);
     // (5) List-cons patterns: walk through `head :: tail` (= TypedPat::Cons).
     //     `head` is a single element; `tail` is the same list type. When the
     //     scrutinee is `Arc<List<T>>` and the list crosses Arc (always true
@@ -14138,8 +14146,8 @@ fn record_pattern_variants_inner<'a>(
             Ty::List(t) => (**t).clone(),
             _ => Ty::Unknown,
         };
-        record_cons_subpattern(head.as_ref(), &elem_ty, env, top_level, shapes, ctx);
-        record_cons_subpattern(tail.as_ref(), &scrut_ty, env, top_level, shapes, ctx);
+        record_cons_subpattern(head.as_ref(), &elem_ty, env, top_level, shapes, ctx, md);
+        record_cons_subpattern(tail.as_ref(), &scrut_ty, env, top_level, shapes, ctx, md);
     }
 }
 
@@ -14154,6 +14162,7 @@ fn record_cons_subpattern<'a>(
     top_level: &'a BTreeMap<String, NameNode<'a>>,
     shapes: &mut HashMap<String, VarShape>,
     ctx: Option<&GenCtx>,
+    md: bool,
 ) {
     // Outer As / bare Var binding for this slot.
     if let Some(var) = match sub_pat {
@@ -14165,9 +14174,9 @@ fn record_cons_subpattern<'a>(
             env.variants.insert(var.clone(), (enum_q, variant));
         }
         if let Some(c) = ctx {
-            // `head`/`tail` slots inside `match_deref!` are reached through a
-            // `&Arc<…>` reference whenever the slot's own type is Arc-wrapped.
-            if is_arc_wrapped(slot_ty, c) {
+            // Slots reached under `match_deref!` are bound through a `&Arc<…>`
+            // reference whenever the slot's own type is Arc-wrapped.
+            if md && is_arc_wrapped(slot_ty, c) {
                 shapes.insert(var.clone(), VarShape::RefArc);
             }
         }
@@ -14176,15 +14185,15 @@ fn record_cons_subpattern<'a>(
         TypedPat::As { pat: inner_as, .. } => inner_as.as_ref(),
         other => other,
     };
-    record_constructor_pattern_bindings(next_pat, slot_ty, env, top_level, shapes, ctx);
+    record_constructor_pattern_bindings(next_pat, slot_ty, env, top_level, shapes, ctx, md);
     // Recurse into nested Cons (e.g. `_ :: rest :: _`).
     if let TypedPat::Cons { head, tail } = next_pat {
         let inner_elem_ty = match slot_ty {
             Ty::List(t) => (**t).clone(),
             _ => Ty::Unknown,
         };
-        record_cons_subpattern(head.as_ref(), &inner_elem_ty, env, top_level, shapes, ctx);
-        record_cons_subpattern(tail.as_ref(), slot_ty, env, top_level, shapes, ctx);
+        record_cons_subpattern(head.as_ref(), &inner_elem_ty, env, top_level, shapes, ctx, md);
+        record_cons_subpattern(tail.as_ref(), slot_ty, env, top_level, shapes, ctx, md);
     }
 }
 
@@ -14205,6 +14214,7 @@ fn record_constructor_pattern_bindings<'a>(
     top_level: &'a BTreeMap<String, NameNode<'a>>,
     shapes: &mut HashMap<String, VarShape>,
     ctx: Option<&GenCtx>,
+    md: bool,
 ) {
     // Option's `Some(inner)` pattern is represented separately (TypedPat::Some_).
     // Recurse into the payload using the inner type from `Option<T>`, so any
@@ -14226,7 +14236,7 @@ fn record_constructor_pattern_bindings<'a>(
             // instead of `(**e).field`, leaving a stray `&Arc<T>` where the
             // call site expects `Arc<T>`.
             if let Some(c) = ctx
-                && is_arc_wrapped(&inner_ty, c)
+                && md && is_arc_wrapped(&inner_ty, c)
             {
                 shapes.insert(var.clone(), VarShape::RefArc);
             }
@@ -14235,7 +14245,7 @@ fn record_constructor_pattern_bindings<'a>(
             TypedPat::As { pat: inner_as, .. } => inner_as.as_ref(),
             other => other,
         };
-        record_constructor_pattern_bindings(next_pat, &inner_ty, env, top_level, shapes, ctx);
+        record_constructor_pattern_bindings(next_pat, &inner_ty, env, top_level, shapes, ctx, md);
         return;
     }
     // A field whose pattern is a list-cons (e.g. `functions = fdef :: rest`,
@@ -14250,8 +14260,8 @@ fn record_constructor_pattern_bindings<'a>(
             Ty::List(t) => (**t).clone(),
             _ => Ty::Unknown,
         };
-        record_cons_subpattern(head.as_ref(), &elem_ty, env, top_level, shapes, ctx);
-        record_cons_subpattern(tail.as_ref(), scrut_ty, env, top_level, shapes, ctx);
+        record_cons_subpattern(head.as_ref(), &elem_ty, env, top_level, shapes, ctx, md);
+        record_cons_subpattern(tail.as_ref(), scrut_ty, env, top_level, shapes, ctx, md);
         return;
     }
     // A tuple pattern matched against a *single* tuple-typed scrutinee (e.g. a
@@ -14268,7 +14278,7 @@ fn record_constructor_pattern_bindings<'a>(
             _ => vec![Ty::Unknown; elems.len()],
         };
         for (sub_pat, sub_ty) in elems.iter().zip(elem_tys.iter()) {
-            record_cons_subpattern(sub_pat, sub_ty, env, top_level, shapes, ctx);
+            record_cons_subpattern(sub_pat, sub_ty, env, top_level, shapes, ctx, md);
         }
         return;
     }
@@ -14288,7 +14298,6 @@ fn record_constructor_pattern_bindings<'a>(
         }
     };
     if let Some(field_tys) = record_qname_opt {
-        let scrut_crosses_arc = ctx.map(|c| ty_needs_arc_match_deref(scrut_ty, c)).unwrap_or(false);
         // Positional fields align with `field_tys` by index. MetaModelica record
         // patterns like `Expression.CALL(call as Call.TYPED_CALL(...))` carry
         // the binding in `fields[0]`, not in `named_fields` — without this loop
@@ -14321,11 +14330,15 @@ fn record_constructor_pattern_bindings<'a>(
                     env.variants.insert(var.clone(), (enum_q, variant));
                 }
                 if let Some(c) = ctx {
-                    let field_is_arc = is_arc_wrapped(&field_ty, c);
-                    // Shape only matters for the combinations we know how to
-                    // emit. Other combinations leave the shape unset and let
-                    // emit_var's fallback handle them.
-                    if let (true, true) = (scrut_crosses_arc, field_is_arc) {
+                    // Under `match_deref!` every binding is by-reference, so a
+                    // binding onto an `Arc<T>` field is `&Arc<T>` (RefArc).
+                    // `md` (whether the whole match lowers through match_deref)
+                    // is the correct signal here — the *local* scrutinee type
+                    // crossing an Arc edge is not, since a binding may sit
+                    // inside a by-value record (e.g. `Sets`) that is itself
+                    // matched by reference only because a sibling field deeper
+                    // in the pattern forced match_deref on.
+                    if md && is_arc_wrapped(&field_ty, c) {
                         shapes.insert(var.clone(), VarShape::RefArc);
                     }
                 }
@@ -14341,7 +14354,7 @@ fn record_constructor_pattern_bindings<'a>(
                 TypedPat::As { pat: inner_as, .. } => inner_as.as_ref(),
                 other => other,
             };
-            record_constructor_pattern_bindings(sub_pat, &field_ty, env, top_level, shapes, ctx);
+            record_constructor_pattern_bindings(sub_pat, &field_ty, env, top_level, shapes, ctx, md);
         }
     }
 }

@@ -1728,9 +1728,34 @@ pub mod Dangerous {
         // SAFETY: Caller must ensure index is in bounds.
         unsafe { Ok((*str.as_bytes().get_unchecked(idx)) as i32) }
     }
-    /// Reverses a list in place.
+    /// Reverses a list in place, destructively.
+    ///
+    /// Walks the spine and repoints each `Cons` cell's `tail` at the cell that
+    /// preceded it, mutating the cells through a raw pointer (the same
+    /// dangerous mechanism as `listSetRest`). No new cells are allocated.
+    ///
+    /// SAFETY / semantics: this mirrors the MetaModelica runtime's destructive
+    /// `listReverseInPlace`. Every other holder of a clone of these cons cells
+    /// observes the reversal, and the input list head no longer denotes the
+    /// same sequence. Only call on a freshly built list that is not shared and
+    /// not read concurrently.
     pub fn listReverseInPlace<T: Clone>(list: Arc<List<T>>) -> Arc<List<T>> {
-        list.reverse()
+        let mut prev: Arc<List<T>> = nil();
+        let mut curr: Arc<List<T>> = list;
+        while let List::Cons { tail, .. } = &*curr {
+            let next = tail.clone();
+            // SAFETY: see the method doc — the caller guarantees the cells are
+            // uniquely owned (freshly built) and not read concurrently.
+            unsafe {
+                let p = Arc::as_ptr(&curr) as *mut List<T>;
+                if let List::Cons { tail, .. } = &mut *p {
+                    *tail = prev;
+                }
+            }
+            prev = curr;
+            curr = next;
+        }
+        prev
     }
     /// Overwrites the `tail` field of the given Cons cell.
     ///
@@ -2774,6 +2799,18 @@ mod tests {
             let s = "hello".to_string();
             assert_eq!(stringGetNoBoundsChecking(s.clone(), 1).unwrap(), b'h' as i32);
             assert_eq!(stringGetNoBoundsChecking(s, 5).unwrap(), b'o' as i32);
+        }
+
+        #[test]
+        fn test_list_reverse_in_place() {
+            use super::{cons, nil};
+            let l = cons(1, cons(2, cons(3, nil())));
+            let r = listReverseInPlace(l);
+            assert_eq!((&*r).into_iter().cloned().collect::<Vec<_>>(), vec![3, 2, 1]);
+            // Empty and singleton edge cases.
+            assert_eq!((&*listReverseInPlace(nil::<i32>())).into_iter().count(), 0);
+            let single = listReverseInPlace(cons(42, nil()));
+            assert_eq!((&*single).into_iter().cloned().collect::<Vec<_>>(), vec![42]);
         }
     }
 }

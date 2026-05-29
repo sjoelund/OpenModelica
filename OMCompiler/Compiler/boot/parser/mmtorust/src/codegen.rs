@@ -7852,9 +7852,18 @@ fn emit_builtin_call<'a>(func: &str, args: &[TypedExp], is_const: bool, ctx: &mu
         "isPresent" => {
             Ok("true /* isPresent not implemented in Rust */".to_string())
         },
-        "listReverse" | "listReverseInPlace" => {
+        "listReverse" => {
             let arg = args.first().map(|a| emit_builtin_call_arg_raw(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
             Ok(format!("{}.reverse()", arg))
+        },
+        "listReverseInPlace" => {
+            // The *destructive* reverse — mutates the cons cells in place.
+            // Route to the runtime's real implementation rather than the
+            // allocating `.reverse()`; the two are not interchangeable (the
+            // MetaModelica `Dangerous.listReverseInPlace` is chosen precisely
+            // when the caller wants the in-place mutation / no allocation).
+            let arg = args.first().map(|a| emit_builtin_call_arg_raw(func, 0, a, is_const, ctx, top_level)).unwrap_or_default();
+            Ok(format!("metamodelica::Dangerous::listReverseInPlace({})", arg))
         },
         "arrayCopy" => {
             // Deep (by-element) copy: a fresh Array not aliasing the source.

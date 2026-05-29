@@ -1587,9 +1587,11 @@ pub fn isSome<A>(opt: Option<A>) -> bool {
 // ============================================================================
 
 /// Sets the stack overflow signal to the given value and returns the old one.
-/// In this translation, simply returns the input value.
-pub fn setStackOverflowSignal(in_signal: bool) -> Result<bool> {
-    Ok(in_signal)
+/// In this translation, simply returns the input value. Infallible (see the
+/// `Infallible` classification in mmtorust's fallibility analysis), so it
+/// returns a bare `bool` — call sites do not add `?`.
+pub fn setStackOverflowSignal(in_signal: bool) -> bool {
+    in_signal
 }
 
 /// Returns true if the formal output argument is present as an actual argument.
@@ -2705,8 +2707,8 @@ mod tests {
 
         #[test]
         fn test_set_stack_overflow_signal() {
-            assert!(setStackOverflowSignal(true).unwrap());
-            assert!(!setStackOverflowSignal(false).unwrap());
+            assert!(setStackOverflowSignal(true));
+            assert!(!setStackOverflowSignal(false));
         }
 
         #[test]

@@ -224,6 +224,17 @@ struct GenCtx {
     /// the same prefix (e.g. `NFConnections.BrokenEdge` is a separate
     /// single-record uniontype, not a variant of `NFConnections`).
     rust_enum_qnames: BTreeSet<String>,
+    /// Fully-qualified names of the *variant records* of multi-record
+    /// uniontypes (the `R_RECORD`/`R_METARECORD` children of a `RustEnum`
+    /// node). Used by [`constructor_needs_arc`] to confirm that a
+    /// `Ty::RustStruct("Parent.X")` whose parent is a recursive `RustEnum` is
+    /// genuinely a *variant* of that enum (→ stored behind `Arc<Parent>`, so
+    /// its constructor needs `Arc::new`) and not a *sibling nested uniontype*
+    /// declared inside it (e.g. `NBStrongComponent.CountCollector`, a separate
+    /// single-record uniontype that is its own owned struct). The
+    /// `rust_enum_qnames` parent check alone cannot tell these apart when the
+    /// enclosing uniontype is itself a recursive enum.
+    variant_record_qnames: BTreeSet<String>,
     /// Maps fully-qualified function/partial-function names to their effective type variables
     /// (collected from inputs and output). Used at codegen time to emit generic arguments when
     /// a FunctionAlias type is referenced as a parameter type (e.g. `toStringT` → `toStringT<T>`).
@@ -460,6 +471,7 @@ impl GenCtx {
             const_fn_getters: BTreeSet::new(),
             no_mod_uniontypes: HashSet::new(),
             rust_enum_qnames: BTreeSet::new(),
+            variant_record_qnames: BTreeSet::new(),
             fn_type_vars,
             qmode: QMode::Function,
             uninit_arrays: HashSet::new(),
@@ -1563,16 +1575,33 @@ fn generate_file<'a>(top_name: &str, node: &NameNode<'_>, crate_map: &BTreeMap<S
         nodes: &BTreeMap<String, NameNode<'_>>,
         prefix: &str,
         out: &mut BTreeSet<String>,
+        variants_out: &mut BTreeSet<String>,
     ) {
         for (name, node) in nodes {
             let qname = if prefix.is_empty() { name.clone() } else { format!("{prefix}.{name}") };
             if matches!(node.ty, Ty::RustEnum(_)) {
                 out.insert(qname.clone());
+                // Record this enum's genuine variant records (its directly
+                // declared `R_RECORD`/`R_METARECORD` children) so a sibling
+                // nested uniontype/type under the same enum is not mistaken
+                // for a variant by `constructor_needs_arc`.
+                for (cname, child) in &node.children {
+                    if let NodeKind::Class(cc) = &child.kind
+                        && matches!(cc.restriction,
+                            Absyn::Restriction::R_RECORD | Absyn::Restriction::R_METARECORD { .. })
+                    {
+                        variants_out.insert(format!("{qname}.{cname}"));
+                    }
+                }
             }
-            collect_rust_enum_qnames(&node.children, &qname, out);
+            collect_rust_enum_qnames(&node.children, &qname, out, variants_out);
         }
     }
-    collect_rust_enum_qnames(top_level, "", &mut ctx.rust_enum_qnames);
+    {
+        let mut variant_qnames = BTreeSet::new();
+        collect_rust_enum_qnames(top_level, "", &mut ctx.rust_enum_qnames, &mut variant_qnames);
+        ctx.variant_record_qnames = variant_qnames;
+    }
     // Pre-walk the *whole* hierarchy (not just this file's node) so that
     // function-nested partial-function aliases are recognised regardless of
     // whether they live in the file currently being emitted or in a sibling.
@@ -13385,7 +13414,14 @@ fn constructor_needs_arc(ty: &Ty, ctx: &GenCtx) -> bool {
     // bare `BrokenEdge`, tripping E0308.
     let parent_qname_is_recursive_enum = |qname: &str| -> bool {
         let Some((parent, _)) = qname.rsplit_once('.') else { return false; };
-        ctx.rust_enum_qnames.contains(parent) && ctx.recursive_types.contains(parent)
+        // `qname` must be a genuine *variant record* of `parent` — not merely a
+        // type nested under it. A sibling uniontype declared inside a recursive
+        // uniontype (e.g. `NBStrongComponent.CountCollector`) shares the prefix
+        // but is its own owned struct, so the parent's recursiveness is
+        // irrelevant to its constructor wrapping.
+        ctx.variant_record_qnames.contains(qname)
+            && ctx.rust_enum_qnames.contains(parent)
+            && ctx.recursive_types.contains(parent)
     };
     match ty {
         // Direct enum type: wrapped when the type itself is recursive.
@@ -14372,7 +14408,17 @@ impl<'s> FieldAssignPlan<'s> {
             } else {
                 FieldAssignKind::OwnedVariant { base: base_safe, variant_path, field: field_safe, value }
             }
-        } else if constructor_needs_arc(&base_ty, ctx) {
+        } else if is_arc_wrapped(&base_ty, ctx) {
+            // `assign_field!` does `(*base).clone()` then `base = Arc::new(..)`,
+            // so it is valid only when `base` is *stored* behind an `Arc<T>`.
+            // Key on the storage shape (`is_arc_wrapped`), mirroring the variant
+            // branch above — NOT on `constructor_needs_arc`, whose
+            // recursive-parent heuristic also fires for a *sibling* single-record
+            // uniontype declared inside a recursive uniontype (e.g.
+            // `NBStrongComponent.CountCollector`, which is its own owned struct,
+            // not a variant of `NBStrongComponent`). Using it here emitted
+            // `assign_field!` on an owned struct → "CountCollector cannot be
+            // dereferenced".
             FieldAssignKind::ArcStruct { base: base_safe, field: field_safe, value }
         } else {
             FieldAssignKind::Plain { base: base_safe, field: field_safe, value }

@@ -1853,8 +1853,15 @@ pub(crate) fn lookup_record_through_unions<'a>(
     dotted: &str,
     top_level: &'a BTreeMap<String, NameNode<'a>>,
 ) -> Option<(String, &'a NameNode<'a>)> {
-    // Fast path: direct lookup succeeds.
-    if let Some(node) = lookup_node(dotted, top_level) {
+    // Fast path: direct lookup succeeds and names a real declaration. A package
+    // that `import`s a same-named package (e.g. `BackendDAE` does `import DAE;`)
+    // has an `Import` child `DAE`, so a `BackendDAE.DAE` lookup would otherwise
+    // return that import node — masking the package's own uniontype record `DAE`,
+    // which in MetaModelica shadows the import. Skip import children so the
+    // uniontype walk below recovers the local record.
+    if let Some(node) = lookup_node(dotted, top_level)
+        && !matches!(&node.kind, NodeKind::Import(_))
+    {
         return Some((dotted.to_owned(), node));
     }
 

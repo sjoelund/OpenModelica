@@ -546,6 +546,27 @@ pub fn resolve_call_node<'a>(
         }
     }
 
+    // 1b. A qualified `Package.Record` reference whose trailing segment names a
+    //     record exported by one of the package's own uniontypes is a *local*
+    //     member and shadows any same-named import the package declares. Resolve
+    //     it before the import-following walk in step 2, which would otherwise
+    //     resolve the trailing segment through that import. Example:
+    //     `BackendDAE.DAE` — the record `DAE` of uniontype `BackendDAE` is
+    //     shadowed by the enclosing package's own `import DAE;`, so step 2
+    //     mis-resolves the constructor to the frontend `DAE` package, yielding a
+    //     positional call on a named-field struct alias (E0423) and a pattern
+    //     whose "fields" are the package's members (E0574).
+    //     `lookup_record_through_unions` is a pure child walk (it never follows
+    //     imports), and we only short-circuit when it lands on a non-package
+    //     node, so bare package names and sub-package paths still fall through to
+    //     the import-aware walk below.
+    if func.contains('.')
+        && let Some((qname, node)) = crate::hierarchy::lookup_record_through_unions(func, top_level)
+        && !matches!(&node.kind, NodeKind::Class(c) if matches!(c.restriction, Absyn::Restriction::R_PACKAGE))
+    {
+        return Some((qname, node));
+    }
+
     // 2. Direct lookup (handles fully-qualified top-level names not shadowed
     //    by any scope-local alias).
     if let Some(r) = walk_dotted_with_imports(func, top_level, 0) {
@@ -695,6 +716,40 @@ fn lookup_ty_in_hierarchy<'a>(dotted: &str, top_level: &'a BTreeMap<String, Name
         node = child;
     }
     node.ty.clone()
+}
+
+/// Like [`lookup_ty_in_hierarchy`], but recovers a record whose enclosing
+/// uniontype shares its package's name. For `BackendDAE.DAE` the record `DAE`
+/// lives inside the uniontype `BackendDAE` (itself in package `BackendDAE`), so
+/// it is not a direct child of the package and the plain walk returns
+/// `Unknown`. MetaModelica exports a uniontype's records into the enclosing
+/// scope, so fall back to [`lookup_record_through_unions`]. Without this the
+/// constructor is misclassified as a plain function call (positional call on a
+/// named-field struct alias — E0423) and its pattern mis-binds the bare last
+/// segment to a same-named top-level package, listing that package's members as
+/// "fields" (E0574).
+fn lookup_ctor_ty<'a>(dotted: &str, top_level: &'a BTreeMap<String, NameNode<'a>>) -> Ty {
+    match lookup_ty_in_hierarchy(dotted, top_level) {
+        Ty::Unknown => crate::hierarchy::lookup_record_through_unions(dotted, top_level)
+            .map(|(_, n)| n.ty.clone())
+            .unwrap_or(Ty::Unknown),
+        other => other,
+    }
+}
+
+/// Canonical fully-qualified qname for a constructor call. Uses the
+/// import-aware [`resolve_call_node`] result when available, then falls back to
+/// a record exported through an enclosing uniontype (see [`lookup_ctor_ty`]),
+/// and finally to the source path. Keeps the downstream field/struct lookups
+/// pointed at the real record rather than a same-named package.
+fn canonical_ctor_qname<'a>(
+    func: &str,
+    resolved: &Option<(String, &NameNode<'a>)>,
+    top_level: &'a BTreeMap<String, NameNode<'a>>,
+) -> String {
+    resolved.as_ref().map(|(q, _)| q.clone())
+        .or_else(|| crate::hierarchy::lookup_record_through_unions(func, top_level).map(|(q, _)| q))
+        .unwrap_or_else(|| func.to_owned())
 }
 
 /// Extract the Rust-form (`::`-separated) name from a resolved nominal type,
@@ -1563,7 +1618,7 @@ pub fn infer_exp<'a>(
                 };
             }
             let (args, named_args) = extract_call_args(functionArgs, env, top_level, pkg_prefix, type_vars);
-            let sig_ty = lookup_ty_in_hierarchy(&func, top_level);
+            let sig_ty = lookup_ctor_ty(&func, top_level);
             // Resolve the call node using import-aware lookup so that dotted names whose
             // first segment is an import alias (e.g. `LookupTree.Tree.EMPTY` where
             // `import LookupTree = NFLookupTree`) and names relative to the current
@@ -1583,7 +1638,7 @@ pub fn infer_exp<'a>(
             if is_constructor {
                 // Use the canonical (fully-qualified) name so downstream codegen can
                 // look up fields, even when the call site used a shorter path.
-                let canonical = resolved.as_ref().map(|(q, _)| q.clone()).unwrap_or(func.clone());
+                let canonical = canonical_ctor_qname(&func, &resolved, top_level);
                 let ty = match lookup_ty_in_hierarchy(&canonical, top_level) {
                     Ty::Function { output, .. } => *output,
                     other => other,
@@ -2014,7 +2069,7 @@ fn infer_case<'a>(
             Absyn::Equation::EQ_NORETCALL { functionName, functionArgs } => {
                 let func = cref_to_dotted(functionName);
                 let (args, named_args) = extract_call_args(functionArgs, env, top_level, pkg_prefix, type_vars);
-                let sig_ty = lookup_ty_in_hierarchy(&func, top_level);
+                let sig_ty = lookup_ctor_ty(&func, top_level);
                 let resolved = resolve_call_node(&func, top_level, pkg_prefix);
                 let is_constructor = match &sig_ty {
                     Ty::RustStruct(_) | Ty::RustEnum(_) => true,
@@ -2027,7 +2082,7 @@ fn infer_case<'a>(
                     }
                 };
                 let call = if is_constructor {
-                    let canonical = resolved.as_ref().map(|(q, _)| q.clone()).unwrap_or(func.clone());
+                    let canonical = canonical_ctor_qname(&func, &resolved, top_level);
                     let ty = match lookup_ty_in_hierarchy(&canonical, top_level) {
                         Ty::Function { output, .. } => *output,
                         other => other,
@@ -2708,7 +2763,18 @@ pub fn infer_pat<'a>(
                             .map(|(qname, _)| qname)
                             .unwrap_or_else(|| func.clone())
                     };
-                    let ty = lookup_ty_in_hierarchy(&canonical, top_level);
+                    // A record whose enclosing uniontype shares its package's
+                    // name (e.g. `BackendDAE.DAE`: the record `DAE` lives inside
+                    // the uniontype `BackendDAE`, itself in package `BackendDAE`)
+                    // is not a *direct* child of the package, so the plain
+                    // hierarchy walk returns `Unknown`. MetaModelica exports a
+                    // uniontype's records into the enclosing scope, so resolve
+                    // through the package's uniontypes to recover the record's
+                    // type (`RustStruct(...)`); without this the codegen pattern
+                    // emitter mis-binds the bare last segment to a same-named
+                    // top-level package and lists that package's members as
+                    // "fields" (E0574).
+                    let ty = lookup_ctor_ty(&canonical, top_level);
                     TypedPat::Constructor { name: canonical, fields, named_fields, ty }
                 }
             }
@@ -3016,7 +3082,7 @@ fn infer_stmt<'a>(
         Absyn::Algorithm::ALG_NORETCALL { functionCall, functionArgs } => {
             let func = cref_to_dotted(functionCall);
             let (args, named_args) = extract_call_args(functionArgs, env, top_level, pkg_prefix, type_vars);
-            let sig_ty = lookup_ty_in_hierarchy(&func, top_level);
+            let sig_ty = lookup_ctor_ty(&func, top_level);
             let resolved = resolve_call_node(&func, top_level, pkg_prefix);
             let is_constructor = match &sig_ty {
                 Ty::RustStruct(_) | Ty::RustEnum(_) => true,
@@ -3029,7 +3095,7 @@ fn infer_stmt<'a>(
                 }
             };
             let call = if is_constructor {
-                let canonical = resolved.as_ref().map(|(q, _)| q.clone()).unwrap_or(func.clone());
+                let canonical = canonical_ctor_qname(&func, &resolved, top_level);
                 let ty = match lookup_ty_in_hierarchy(&canonical, top_level) {
                     Ty::Function { output, .. } => *output,
                     other => other,

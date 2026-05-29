@@ -15755,7 +15755,14 @@ fn typedexp_lookup_node<'a>(
 /// places MM source code can require structural equality on a generic
 /// type, so a body that never reaches one of these (and never uses `==`
 /// directly) genuinely does not need `PartialEq` on its type parameters.
-const PARTIAL_EQ_REQUIRING_BUILTINS: &[&str] = &["valueEq", "listMember", "referenceEq"];
+// NOTE: `referenceEq` is deliberately NOT here. The runtime `referenceEq<A>`
+// (metamodelica/src/lib.rs) does a pure pointer comparison and carries *no*
+// `A: PartialEq` bound — requiring PartialEq on the caller's type vars is
+// spurious and locks out types embedding `Arc<dyn Fn(..)>` callbacks (which
+// cannot derive PartialEq), e.g. `traverseSubexpressionsHelper`'s `Type_a`
+// instantiated with a closure-carrying tuple (E0277). It remains in
+// STATIC_REQUIRING_BUILTINS because the pointer comparison does need `'static`.
+const PARTIAL_EQ_REQUIRING_BUILTINS: &[&str] = &["valueEq", "listMember"];
 
 /// Builtins that require `T: 'static` on the type vars flowing into them.
 /// These cross a `dyn Any` type-erased boundary in the metamodelica runtime:

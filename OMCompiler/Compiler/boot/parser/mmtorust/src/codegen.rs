@@ -7252,16 +7252,24 @@ fn emit_reduction<'a>(
     // Register iterator bindings in fn_env_vars so the body's emit_exp can
     // resolve their types (e.g. for `var_field!` shape selection on Arc-wrapped
     // element types). Saved + restored so iterators don't leak.
-    let saved_iter_tys: Vec<(String, Option<Ty>)> = iterators.iter().map(|it| {
+    let saved_iter_tys: Vec<(String, Option<Ty>, bool)> = iterators.iter().map(|it| {
         let elem_ty = match it.range.ty() {
             Ty::List(t) | Ty::Array(t) | Ty::Range(t) => *t,
             _ => Ty::Unknown,
         };
         let prev = ctx.fn_env_vars.insert(it.name.clone(), elem_ty);
-        (it.name.clone(), prev)
+        // Comprehension iterators are always initialised inside the body, the
+        // same as a `for`-statement variable. Record that so a nested
+        // match/matchcontinue scrutinising the iterator (e.g.
+        // `matchcontinue fn ... fn.f := ..` in `inlineCallsInFunctions`)
+        // seeds its arm shadow with `= fn.clone()` rather than a bare
+        // `let mut fn: T;` that reads uninitialised memory (E0381).
+        let iter_newly_init = ctx.fn_initialized_vars.insert(it.name.clone());
+        (it.name.clone(), prev, iter_newly_init)
     }).collect();
     let mut body_s = emit_exp(body, is_const, ctx, top_level);
-    for (name, prev) in saved_iter_tys.into_iter().rev() {
+    for (name, prev, iter_newly_init) in saved_iter_tys.into_iter().rev() {
+        if iter_newly_init { ctx.fn_initialized_vars.remove(&name); }
         match prev {
             Some(t) => { ctx.fn_env_vars.insert(name, t); }
             None => { ctx.fn_env_vars.remove(&name); }
@@ -14733,7 +14741,14 @@ fn emit_stmt<'a>(
             // Arc-wrapped element and select VarShape::Arc for var_field!).
             // Saved/restored so sibling scopes don't see the binding.
             let saved_arg_ty = ctx.fn_env_vars.insert(var.clone(), elem_ty);
+            // The loop variable is always initialised inside the body. Record
+            // that so a nested match/matchcontinue whose arm reassigns the
+            // iterator (a common MM idiom: `matchcontinue x ... x.f := ..`)
+            // seeds its shadow with `= x.clone()` rather than a bare
+            // `let mut x: T;` that reads uninitialised memory (E0381).
+            let iter_newly_init = ctx.fn_initialized_vars.insert(var.clone());
             emit_stmts(out, &format!("{indent}    "), body, fail_mode, ctx, &mut inner, top_level, fresh);
+            if iter_newly_init { ctx.fn_initialized_vars.remove(var); }
             match saved_arg_ty {
                 Some(t) => { ctx.fn_env_vars.insert(var.clone(), t); }
                 None => { ctx.fn_env_vars.remove(var); }

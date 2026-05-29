@@ -137,6 +137,17 @@ struct GenCtx {
     pkg_shadowing_aliases: HashSet<String>,
     /// Explicit imports: dotted qualified name → local name.""
     named: BTreeMap<String, String>,
+    /// Renamed module imports (`import L = Pkg.Path;`): local alias → effective
+    /// dotted target. Kept *separately* from [`Self::named`] (which is keyed by
+    /// the import *target*) so that a renamed import does not collapse with a
+    /// plain `import Pkg;` of the same target — both must produce a `use` line
+    /// (`use crate::Pkg;` *and* `use crate::Pkg as L;`). The target-keyed `named`
+    /// map can only hold one binding per target, so without this the alias line
+    /// is silently dropped and every `L::member` / `L.member` reference fails to
+    /// resolve. Consulted only by [`Self::use_lines`]; reference resolution for
+    /// the alias name itself flows through `shorten`'s `'.' → "::"` fallthrough,
+    /// which is valid once the `use … as L;` line exists.
+    aliased_modules: BTreeMap<String, String>,
     /// Local names that alias the current module itself (e.g. `import Type = NFType;`
     /// inside `NFType.mo`). MetaModelica lets you self-alias a uniontype so the
     /// source can refer to it as `Type.ANY` instead of `NFType.ANY`. We don't emit
@@ -433,6 +444,7 @@ impl GenCtx {
             self_members: HashSet::new(),
             pkg_shadowing_aliases: HashSet::new(),
             named: BTreeMap::new(),
+            aliased_modules: BTreeMap::new(),
             self_aliases: BTreeSet::new(),
             uniontype_imports: HashSet::new(),
             implicit_modules: BTreeSet::new(),
@@ -759,6 +771,20 @@ impl GenCtx {
                 lines.push(format!("use {rust} as {local};"));
             }
         }
+        // Renamed module imports (`import L = Pkg;`). Emitted here rather than
+        // via the target-keyed `named` loop above so the alias `use … as L;`
+        // line survives even when `Pkg` is also plain-imported (which would
+        // otherwise win the single `named` slot for that target). The same
+        // `pkg_shadowing_aliases` suppression as the `named` loop applies: a
+        // local that collides with a single-record record alias is bound by
+        // that alias already and a `use … as L;` would redefine the name (E0255).
+        for (local, target) in &self.aliased_modules {
+            if self.pkg_shadowing_aliases.contains(local) {
+                continue;
+            }
+            let rust = self.dotted_to_rust_path(target);
+            lines.push(format!("use {rust} as {local};"));
+        }
         // Import uniontypes that are referenced via UnionTypeVariant syntax.
         for uniontype_qname in &self.uniontype_imports {
             let rust = self.dotted_to_rust_path(uniontype_qname);
@@ -946,6 +972,19 @@ fn apply_import<'a>(m: &MM::ImportMember, ctx: &mut GenCtx, top_level: &'a BTree
                     _ => effective,
                 };
                 if effective != ctx.top_name && !effective.starts_with(&same_file_prefix) {
+                    // Record the alias in its own local-keyed map so it survives
+                    // even when the same target is *also* plain-imported
+                    // (`import Pkg;` + `import L = Pkg;`): the target-keyed
+                    // `named` map can only retain one of the two, so emitting the
+                    // alias `use` line from here guarantees `use … as L;` is
+                    // produced regardless of import order. Only record genuine
+                    // renames (`L != last segment`); an `import Foo = Bar.Foo;`
+                    // whose local matches the last segment already emits the
+                    // correct line through `named`.
+                    let last = effective.rsplit('.').next().unwrap_or(&effective);
+                    if name.as_str() != last {
+                        ctx.aliased_modules.insert(name.to_string(), effective.clone());
+                    }
                     ctx.named.insert(effective, name.to_string());
                 }
             }
@@ -976,6 +1015,7 @@ fn apply_import<'a>(m: &MM::ImportMember, ctx: &mut GenCtx, top_level: &'a BTree
 /// [`apply_local_imports`] and consumed by [`restore_imports`].
 struct ImportScope {
     named: BTreeMap<String, String>,
+    aliased_modules: BTreeMap<String, String>,
     unqual_modules: HashSet<String>,
     wildcard_members: BTreeMap<String, String>,
     self_aliases: BTreeSet<String>,
@@ -988,6 +1028,7 @@ struct ImportScope {
 fn apply_local_imports<'a>(node: &NameNode<'_>, ctx: &mut GenCtx, top_level: &'a BTreeMap<String, NameNode<'a>>) -> ImportScope {
     let saved = ImportScope {
         named: ctx.named.clone(),
+        aliased_modules: ctx.aliased_modules.clone(),
         unqual_modules: ctx.unqual_modules.clone(),
         wildcard_members: ctx.wildcard_members.clone(),
         self_aliases: ctx.self_aliases.clone(),
@@ -1002,6 +1043,7 @@ fn apply_local_imports<'a>(node: &NameNode<'_>, ctx: &mut GenCtx, top_level: &'a
 
 fn restore_imports(ctx: &mut GenCtx, saved: &ImportScope) {
     ctx.named = saved.named.clone();
+    ctx.aliased_modules = saved.aliased_modules.clone();
     ctx.unqual_modules = saved.unqual_modules.clone();
     ctx.wildcard_members = saved.wildcard_members.clone();
     ctx.self_aliases = saved.self_aliases.clone();
@@ -5024,6 +5066,15 @@ fn emit_function<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::
         } else {
             writeln!(out, "{body_indent}use {rust} as {local};").unwrap();
         }
+    }
+    // Renamed module imports declared function-locally — see the file-level
+    // `aliased_modules` emission in [`GenCtx::use_lines`] for why these are
+    // tracked separately from `named`.
+    for (local, target) in &ctx.aliased_modules {
+        if saved_imports.aliased_modules.contains_key(local) { continue; }
+        if ctx.pkg_shadowing_aliases.contains(local) { continue; }
+        let rust = ctx.dotted_to_rust_path(target);
+        writeln!(out, "{body_indent}use {rust} as {local};").unwrap();
     }
     for module in &ctx.unqual_modules {
         if saved_imports.unqual_modules.contains(module) { continue; }

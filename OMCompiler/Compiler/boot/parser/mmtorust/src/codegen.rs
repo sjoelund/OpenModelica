@@ -9954,6 +9954,16 @@ fn resolve_call_qname<'a>(
     //     infallible), and
     // (b) the fallibility analysis can't propagate "infallibility of
     //     `make_result`" to the caller because the call doesn't resolve.
+    // Skip candidates that resolve to an *import node* (e.g. the
+    // `import writeCref = ComponentReference.writeCref;` declaration appears as
+    // a child node `SerializeModelInfo.writeCref`): returning that qname makes
+    // `resolve_call_formals`/fallibility see a non-`Class` node and bail,
+    // dropping named-argument reordering (so `f(..., escape=JSON)` mis-emits
+    // the literal `escape=JSON`). Letting the scope walks fall through to the
+    // `ctx.named` alias loop below resolves the import to its real target.
+    let exists_non_import = |name: &str| -> bool {
+        lookup_node(name, top_level).is_some_and(|n| !matches!(n.kind, NodeKind::Import(_)))
+    };
     if !ctx.current_fn_qname.is_empty() {
         // Walk outward through enclosing function scopes. The current FQN is
         // e.g. `NFComponentRef.isTopLevel.isTopLevelRecord` when emitting the
@@ -9964,7 +9974,7 @@ fn resolve_call_qname<'a>(
         let mut scope: &str = &ctx.current_fn_qname;
         loop {
             let candidate = format!("{scope}.{func}");
-            if exists(&candidate) {
+            if exists_non_import(&candidate) {
                 return Some(candidate);
             }
             match scope.rfind('.') {
@@ -9978,7 +9988,7 @@ fn resolve_call_qname<'a>(
     let mut scope: &str = &cur_prefix;
     loop {
         let candidate = format!("{scope}.{func}");
-        if exists(&candidate) {
+        if exists_non_import(&candidate) {
             return Some(candidate);
         }
         match scope.rfind('.') {

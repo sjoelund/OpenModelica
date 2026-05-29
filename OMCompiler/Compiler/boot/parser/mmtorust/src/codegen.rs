@@ -16377,7 +16377,13 @@ fn collect_concrete_qnames_in_ty(ty: &Ty, out: &mut HashSet<String>) {
         // like `UnorderedSet` IS in there and must be recorded here for the
         // emission gate to fire. Recurse through the args either way.
         Ty::Generic(name, args) => {
-            out.insert(name.clone());
+            // `Ty::Generic` stores its base name in `::`-rendered form (it is
+            // emitted verbatim by `fmt_ty`), whereas every other qname-keyed
+            // set in the codegen (incl. `defaultable_struct_qnames`) uses the
+            // canonical dotted MM qname. Normalise so a generic user type like
+            // `DoubleEnded.MutableList<T>` matches the dotted key and its
+            // `impl Default` is actually emitted.
+            out.insert(name.replace("::", "."));
             for t in args { collect_concrete_qnames_in_ty(t, out); }
         }
         _ => {}
@@ -16562,6 +16568,14 @@ fn is_ty_defaultable(ty: &Ty, defaultable_qnames: &HashSet<String>) -> bool {
         Ty::I32 | Ty::F64 | Ty::Bool | Ty::Str => true,
         Ty::Option(_) | Ty::List(_) | Ty::Array(_) => true,
         Ty::Tuple(elems) => elems.iter().all(|t| is_ty_defaultable(t, defaultable_qnames)),
+        // `Mutable<T>`'s `Default` impl is `impl<T: Clone + Default>` — it
+        // stores a `T`, so it is defaultable only when `T` is. (Contrast the
+        // empty-container generics below, whose default is element-agnostic.)
+        // Getting this wrong makes the codegen emit an `impl Default` for a
+        // record carrying a `Mutable<non-Default>` field, which then fails to
+        // satisfy `Mutable`'s own bound (e.g. `NFDuplicateTree.Tree`).
+        Ty::Generic(name, args) if name == "Mutable" =>
+            args.iter().all(|t| is_ty_defaultable(t, defaultable_qnames)),
         // Container generics (Vec, HashMap, HashSet, ExpandableArray, ...) — empty
         // containers default fine regardless of element type.
         Ty::Generic(_, _) => true,
@@ -16908,6 +16922,29 @@ fn ty_default_init_with_hier<'a>(ty: &Ty, ctx: &mut GenCtx, top_level: &'a BTree
             let inner = if is_arc { rendered[4..rendered.len()-1].to_owned() } else { rendered };
             let bare = format!("<{inner} as ::std::default::Default>::default()");
             if is_arc { Some(format!("Arc::new({bare})")) } else { Some(bare) }
+        }
+        // Generic single-record uniontypes (e.g. `DoubleEnded.MutableList<T>`)
+        // lower to a generic struct for which the codegen emits a self-
+        // contained `impl<T: Clone> Default` (every field defaults
+        // independently of `T`). Like the `RustStruct`/`AliasTo` branch, gate
+        // on the workspace having actually emitted that impl (dotted qname in
+        // both sets). Exclude hand-written runtime packages (`Mutable<T>`,
+        // `Pointer<T>`, …): their `Default` impl is bounded on the *inner*
+        // type being `Default` (`impl<T: Clone + Default>`), so a concrete
+        // instantiation like `Mutable<Arc<Tree>>` is only defaultable when
+        // `Tree` is — a condition this branch cannot verify. Such locals stay
+        // bare (their MM code assigns them before use).
+        Ty::Generic(name, _args)
+            if {
+                let dotted = name.replace("::", ".");
+                let top_pkg = dotted.split('.').next().unwrap_or("");
+                !HANDWRITTEN_TOP_PACKAGES.contains(&top_pkg)
+                    && ctx.types_needing_default.contains(&dotted)
+                    && ctx.defaultable_struct_qnames.contains(&dotted)
+            } =>
+        {
+            let rendered = fmt_ty(ty, ctx);
+            Some(format!("<{rendered} as ::std::default::Default>::default()"))
         }
         _ => None,
     }

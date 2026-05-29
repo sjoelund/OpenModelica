@@ -817,11 +817,20 @@ pub fn stringCharListString(strs: Arc<List<ArcStr>>) -> ArcStr {
 // ============================================================================
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[derive(Default)]
 pub enum List<T: Clone> {
     Cons{head: T, tail: Arc<List<T>>},
-    #[default]
     Nil,
+}
+
+// Hand-written instead of `#[derive(Default)]`: the derive emits
+// `impl<T: Clone + Default> Default for List<T>`, but the empty list is a
+// valid default for *any* element type. The spurious `T: Default` bound
+// otherwise blocks defaulting containers like `DoubleEnded.MutableList<T>`
+// (whose fields are `Mutable<Arc<List<T>>>`) at `T: Clone`.
+impl<T: Clone> Default for List<T> {
+    fn default() -> Self {
+        List::Nil
+    }
 }
 use List::{Cons, Nil};
 

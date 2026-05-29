@@ -7268,13 +7268,13 @@ fn emit_reduction<'a>(
         (it.name.clone(), prev, iter_newly_init)
     }).collect();
     let mut body_s = emit_exp(body, is_const, ctx, top_level);
-    for (name, prev, iter_newly_init) in saved_iter_tys.into_iter().rev() {
-        if iter_newly_init { ctx.fn_initialized_vars.remove(&name); }
-        match prev {
-            Some(t) => { ctx.fn_env_vars.insert(name, t); }
-            None => { ctx.fn_env_vars.remove(&name); }
-        }
-    }
+    // NOTE: iterator bindings stay registered in fn_env_vars until *after* the
+    // loop-building block below. The iterator guards (`guard_check`) and the
+    // ranges of nested Combine iterators reference the iterator variables, so
+    // they must see the same `var_field!` shape information the body does.
+    // Restoring here (before guard/range emission) made a guard's
+    // `var_field!(it.f, …)` fall back to VarShape::Owned and emit the wrong
+    // deref form (E0308/E0614).
 
     // MetaModelica implicitly takes the first output of a multi-return call
     // when the result flows into a scalar slot. The reduction body here is
@@ -7363,6 +7363,16 @@ fn emit_reduction<'a>(
                 s.push_str(&indents[i]);
                 s.push_str("}\n");
             }
+        }
+    }
+
+    // Restore the iterator bindings now that the body, guards and ranges have
+    // all been emitted (see the NOTE above the body emission).
+    for (name, prev, iter_newly_init) in saved_iter_tys.into_iter().rev() {
+        if iter_newly_init { ctx.fn_initialized_vars.remove(&name); }
+        match prev {
+            Some(t) => { ctx.fn_env_vars.insert(name, t); }
+            None => { ctx.fn_env_vars.remove(&name); }
         }
     }
 
@@ -10440,6 +10450,40 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
                     if let Some(g) = user_guard { parts.push(format!("({g})")); }
                     if parts.is_empty() { String::new() } else { format!(" if {}", parts.join(" && ")) }
                 };
+                // Pre-update variant shapes for any `@`-bound name that the arm
+                // body reassigns (including via `name.field := …`). The body
+                // prologue below emits `let mut name = (*name).clone();`,
+                // dropping a `&Arc<T>` (RefArc) binding to an owned `Arc<T>`
+                // (Arc). That rebind must be reflected in `ctx.variant_shapes`
+                // *before* the result expression is emitted — otherwise a
+                // `var_field!` on `name` in the result (emitted below, ahead of
+                // the prologue) still uses the `(**name)` RefArc form and
+                // over-derefs (E0614). It must happen *after* the guard, since
+                // the guard runs against the original (pre-rebind) RefArc
+                // bindings — the `let mut name = …` shadow only takes effect in
+                // the arm body. The prologue's own shape update is then
+                // idempotent. Only names actually rebound (deref-bound AND
+                // assigned) are touched, mirroring the prologue's condition.
+                {
+                    let mut deref_names: Vec<String> = Vec::new();
+                    if use_match_deref {
+                        pat_collect_all_bindings(&case.pattern, &mut deref_names);
+                    } else {
+                        pat_deref_bindings(&case.pattern, &input_ty, ctx, top_level, &mut deref_names);
+                    }
+                    if !deref_names.is_empty() {
+                        let mut assigned: HashSet<String> = HashSet::new();
+                        stmts_assigned_var_names(&case.stmts, &mut assigned);
+                        for n in &deref_names {
+                            if assigned.contains(n)
+                                && let Some(shape) = ctx.variant_shapes.get_mut(n)
+                                && matches!(*shape, VarShape::RefArc)
+                            {
+                                *shape = VarShape::Arc;
+                            }
+                        }
+                    }
+                }
                 // Tail-call lowering: detect the algorithm-side terminal
                 // self-assign pattern. When the case ends with
                 // `<name> := <rhs>;` and the case `result` is just

@@ -308,6 +308,16 @@ struct GenCtx {
     /// time. We do the same in codegen rather than at runtime so the constant
     /// is folded directly into the call site.
     current_fn_qname: String,
+    /// The (already type-variable-instantiated) formal type of the call
+    /// argument currently being emitted, when that formal is a function type
+    /// (`Arc<dyn Fn(...)>`). Set by [`emit_call_arg_with_formal`] around the
+    /// per-argument emission so that a fn-item reference being passed into a
+    /// higher-order callback slot can decide which of *its own* type variables
+    /// are genuinely free (unconstrained by the call) and default those to the
+    /// unit type `()` via a turbofish — rather than leaving them as `_` cast
+    /// slots that rustc cannot resolve (E0283). See the fn-item-reference arms
+    /// in [`emit_var`]. `None` outside of higher-order argument emission.
+    expected_arg_fn_formal: Option<Ty>,
     /// Fully-qualified names of `partial function` declarations whose parent
     /// is itself a `function` (i.e. nested inside a function body rather than
     /// declared at module / package / uniontype scope). MetaModelica permits
@@ -441,6 +451,7 @@ impl GenCtx {
             types_needing_default,
             current_fn_fallible: true,
             current_fn_qname: String::new(),
+            expected_arg_fn_formal: None,
             nested_partial_aliases: BTreeSet::new(),
             hoisted_nested_fns: HashMap::new(),
             in_tail_lowered_fn: false,
@@ -575,6 +586,15 @@ impl GenCtx {
         let saved = std::mem::replace(&mut self.qmode, mode);
         let r = body(self);
         self.qmode = saved;
+        r
+    }
+
+    /// Run `body` with `expected_arg_fn_formal` temporarily set, restoring the
+    /// previous value on exit. See the field doc on [`GenCtx`].
+    fn with_arg_fn_formal<R>(&mut self, formal: Option<Ty>, body: impl FnOnce(&mut Self) -> R) -> R {
+        let saved = std::mem::replace(&mut self.expected_arg_fn_formal, formal);
+        let r = body(self);
+        self.expected_arg_fn_formal = saved;
         r
     }
 
@@ -5305,6 +5325,116 @@ fn ty_mentions_typevar(ty: &Ty) -> bool {
     !tvs.is_empty()
 }
 
+/// Build the type-variable substitution for a call by unifying each formal
+/// parameter against the corresponding actual argument's static type. `slots`
+/// holds the (already positionally-resolved) actual arguments, `formals` the
+/// callee's declared parameters (name, type, default), and `type_vars` the
+/// callee's own type-variable names. When `exclude` is `Some(i)`, slot `i` does
+/// not contribute — used to instantiate a higher-order argument's formal from
+/// its *sibling* arguments only (see the `formal_at` closure in `emit_call`).
+///
+/// Two passes, first-binding-wins: pass 1 binds from unambiguous slots; pass 2
+/// fills remaining variables from ambiguous slots (a `Tuple` actual lined up
+/// against a bare `TypeVar` formal, which may be a multi-output call whose first
+/// output is the value MetaModelica passes, not the whole tuple).
+fn build_call_subst(
+    slots: &[Option<TypedExp>],
+    formals: &[CallFormal],
+    type_vars: &[String],
+    exclude: Option<usize>,
+) -> HashMap<String, Ty> {
+    let mut subst: HashMap<String, Ty> = HashMap::new();
+    let is_ambiguous = |slot: &Option<TypedExp>, formal: Option<&CallFormal>| -> bool {
+        matches!(slot.as_ref().map(|a| a.ty()), Some(Ty::Tuple(_)))
+            && matches!(formal.map(|f| &f.1), Some(Ty::TypeVar(_)))
+    };
+    for (i, slot) in slots.iter().enumerate() {
+        if exclude == Some(i) || is_ambiguous(slot, formals.get(i)) { continue; }
+        if let (Some(actual), Some(formal)) = (slot.as_ref(), formals.get(i)) {
+            typedexp::unify_collect(&formal.1, &actual.ty(), type_vars, &mut subst);
+        }
+    }
+    for (i, slot) in slots.iter().enumerate() {
+        if exclude == Some(i) || !is_ambiguous(slot, formals.get(i)) { continue; }
+        if let (Some(actual), Some(formal)) = (slot.as_ref(), formals.get(i)) {
+            typedexp::unify_collect(&formal.1, &actual.ty(), type_vars, &mut subst);
+        }
+    }
+    subst
+}
+
+/// Compute an explicit turbofish for a concrete fn-item reference `qname` that
+/// is being wrapped as `Arc<dyn Fn(..)>` and passed into a higher-order
+/// callback slot whose (already type-variable-instantiated) formal type is
+/// `ctx.expected_arg_fn_formal`.
+///
+/// MetaModelica functions polymorphic in `replaceable type T subtypeof Any`
+/// are sometimes referenced at call sites that do not constrain `T` at all —
+/// e.g. `ExpressionDump.printExp2Str` passed to `List.map3` with its
+/// `opcreffunc`/`opcallfunc` (the only `T`-bearing parameters) fed `NONE()`.
+/// Rust cannot infer such a `T` through the `Arc<dyn Fn(..)>` coercion: each
+/// `_` cast slot becomes its own unconstrained inference variable and the
+/// `T: Clone` bound is unsatisfiable (E0283). We default these genuinely free
+/// type variables to the unit type `()` — the canonical monomorphization of an
+/// unconstrained `Any`. Type variables the call *does* pin (discovered by
+/// unifying the reference's own signature against the instantiated formal) are
+/// left as `_` so rustc resolves them from context exactly as before.
+///
+/// Returns `Some("::<…>")` only when (a) the function has type variables AND
+/// (b) we have a concrete function formal to unify against. Without a formal we
+/// cannot tell free from pinned, so we emit no turbofish and leave the existing
+/// `_`-cast behaviour untouched.
+fn fn_ref_turbofish(
+    qname: &str,
+    ctx: &GenCtx,
+    top_level: &BTreeMap<String, NameNode<'_>>,
+) -> Option<String> {
+    let tvs = ctx.fn_type_vars.get(qname)?.clone();
+    if tvs.is_empty() {
+        return None;
+    }
+    let sig = crate::hierarchy::lookup_node_ty(qname, top_level)?;
+    if !matches!(sig, Ty::Function { .. }) {
+        return None;
+    }
+    // Resolve the expected formal (through any `partial function` alias) to a
+    // concrete `Ty::Function`. No function formal ⇒ no way to classify the
+    // type variables ⇒ leave them to inference (return None).
+    let formal_owned: Ty = match ctx.expected_arg_fn_formal.as_ref()? {
+        f @ Ty::Function { .. } => f.clone(),
+        Ty::FunctionAlias { base, .. } => {
+            let qn = resolve_call_qname(base, ctx, top_level).unwrap_or_else(|| base.clone());
+            crate::hierarchy::lookup_node_ty(&qn, top_level)
+                .filter(|t| matches!(t, Ty::Function { .. }))
+                .cloned()?
+        }
+        _ => return None,
+    };
+    let mut subst: HashMap<String, Ty> = HashMap::new();
+    typedexp::unify_collect(sig, &formal_owned, &tvs, &mut subst);
+    // We only force the turbofish when EVERY one of the reference's type
+    // variables is left UNBOUND by unification against the (sibling-instantiated)
+    // formal — i.e. the function is genuinely polymorphic-but-unconstrained at
+    // this call, the `printExp2Str`-into-`map3`-with-`NONE()` situation, where
+    // rustc cannot infer the variables either and the `T: Clone` bound is
+    // unsatisfiable (E0283). All such variables default to the unit type `()` —
+    // the canonical monomorphization of an unconstrained `subtypeof Any`.
+    //
+    // If ANY type variable IS bound, the reference is used in a determinable
+    // context (the others pin it, or our inference simply lost a binding through
+    // an upstream generic such as `List.select` whose return type flows through
+    // a type variable). Defaulting the still-unbound ones to `()` there would be
+    // wrong (e.g. `Util.tuple22<T1,T2>` extracting the second element of a
+    // `(Path, Option<Function>)` tuple — `T2` binds via the result chain but
+    // `T1` is lost, yet `T1` is NOT free). In that case we emit no turbofish and
+    // leave the existing `_`-cast behaviour, which rustc resolves as before.
+    if tvs.iter().any(|v| subst.contains_key(v)) {
+        return None;
+    }
+    let args: Vec<String> = tvs.iter().map(|_| "()".to_owned()).collect();
+    Some(format!("::<{}>", args.join(", ")))
+}
+
 /// Resolve a top-level dotted name from the current emission context AND return the
 /// fully-qualified path that succeeded. Mirrors `resolve_fully_qualified` but also
 /// hands back the resolved path so callers can use the *target's* package as the
@@ -5838,6 +5968,13 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                     } else {
                         fmt_param_ty(output, ctx)
                     };
+                    // Default genuinely free type variables of the referenced
+                    // function to `()` (see [`fn_ref_turbofish`]); the dropped
+                    // cast in the `has_typevars` branch below cannot ground them.
+                    let tf = resolved_fn_qname.as_deref()
+                        .and_then(|q| fn_ref_turbofish(q, ctx, top_level))
+                        .unwrap_or_default();
+                    let var_str = format!("{var_str}{tf}");
                     let closure = if input_tys.is_empty() {
                         format!("fnptr!({var_str})")
                     } else {
@@ -5940,15 +6077,31 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                 // `Arc<dyn Fn(...)>` cast lands on the same trait object,
                 // so the arms unify.
                 Ty::Function { inputs, output, .. } => {
+                    // Use `fmt_param_ty` (not `fmt_ty`) for the cast's parameter
+                    // and result slots: a function-typed parameter of the
+                    // referenced function (e.g. `filter`'s `inFilter` callback)
+                    // is itself an `Arc<dyn Fn(...)>` in the emitted signature,
+                    // not a bare `fn(...)` pointer. Rendering it with `fmt_ty`
+                    // produces `fn(...)`, so the cast target disagrees with the
+                    // function's real signature and the unsize coercion fails
+                    // (E0631/E0308). This mirrors the infallible-ref arm above,
+                    // which already uses `fmt_param_ty` for exactly this reason.
                     let input_tys: Vec<String> = inputs.iter().map(|i| {
-                        if ty_mentions_typevar(&i.ty) { "_".to_owned() } else { fmt_ty(&i.ty, ctx) }
+                        if ty_mentions_typevar(&i.ty) { "_".to_owned() } else { fmt_param_ty(&i.ty, ctx) }
                     }).collect();
                     let out_ty = if ty_mentions_typevar(output) {
                         "_".to_owned()
                     } else {
-                        fmt_ty(output, ctx)
+                        fmt_param_ty(output, ctx)
                     };
-                    format!("(std::sync::Arc::new({var_str}) as std::sync::Arc<dyn ::std::ops::Fn({}) -> Result<{out_ty}> + 'static>)",
+                    // Default any of the referenced function's *genuinely free*
+                    // type variables (unconstrained by this call) to `()` via a
+                    // turbofish — see [`fn_ref_turbofish`]. The `_` cast slots
+                    // alone cannot resolve such variables (E0283).
+                    let tf = resolved_fn_qname.as_deref()
+                        .and_then(|q| fn_ref_turbofish(q, ctx, top_level))
+                        .unwrap_or_default();
+                    format!("(std::sync::Arc::new({var_str}{tf}) as std::sync::Arc<dyn ::std::ops::Fn({}) -> Result<{out_ty}> + 'static>)",
                         input_tys.join(", "))
                 }
                 // `Ty::FunctionAlias { base, .. }` — e.g.
@@ -6420,26 +6573,41 @@ fn emit_exp<'a>(exp: &TypedExp, is_const: bool, ctx: &mut GenCtx, top_level: &'a
                     // anything left unbound (preserving the prior "bare
                     // TypeVar receives a Tuple actual" semantics when no
                     // other slot constrained the var).
-                    let is_ambiguous = |slot: &Option<TypedExp>, formal: Option<&CallFormal>| -> bool {
-                        matches!(slot.as_ref().map(|a| a.ty()), Some(Ty::Tuple(_)))
-                            && matches!(formal.map(|f| &f.1), Some(Ty::TypeVar(_)))
-                    };
-                    for (i, slot) in slots.iter().enumerate() {
-                        if is_ambiguous(slot, formals.get(i)) { continue; }
-                        if let (Some(actual), Some(formal)) = (slot.as_ref(), formals.get(i)) {
-                            typedexp::unify_collect(&formal.1, &actual.ty(), &type_vars, &mut subst);
-                        }
-                    }
-                    for (i, slot) in slots.iter().enumerate() {
-                        if !is_ambiguous(slot, formals.get(i)) { continue; }
-                        if let (Some(actual), Some(formal)) = (slot.as_ref(), formals.get(i)) {
-                            typedexp::unify_collect(&formal.1, &actual.ty(), &type_vars, &mut subst);
-                        }
-                    }
+                    subst = build_call_subst(&slots, &formals, &type_vars, None);
                 }
+                // For a *function-typed* argument we recompute the substitution
+                // with that argument excluded, then use it to instantiate that
+                // argument's own formal. A higher-order argument carries its own
+                // `subtypeof Any` type variables in its signature; if those were
+                // allowed to bind the callee's type variables (e.g.
+                // `List.map1`'s `A1 := Array<Type_a>` from a `getArrayElem`
+                // actual), the resulting formal would echo the argument's own
+                // parameter back at it and the free-vs-pinned classification in
+                // [`fn_ref_turbofish`] could no longer distinguish a genuinely
+                // free `subtypeof Any` (defaulted to `()`) from one the *other*
+                // arguments pin. Excluding the argument lets the concrete
+                // sibling arguments (the list, the array, the collector tuple)
+                // determine its formal. Non-function arguments use the shared
+                // substitution unchanged, preserving existing coercions.
                 let formal_at = |i: usize| -> Option<Ty> {
-                    formals.get(i).map(|f| if subst.is_empty() { f.1.clone() } else { typedexp::apply_subst(&f.1, &subst) })
+                    let f = formals.get(i)?;
+                    let actual_is_fn = matches!(
+                        slots.get(i).and_then(|s| s.as_ref()).map(|a| a.ty()),
+                        Some(Ty::Function { .. } | Ty::FunctionAlias { .. })
+                    );
+                    let s: HashMap<String, Ty> = if actual_is_fn && !type_vars.is_empty() {
+                        build_call_subst(&slots, &formals, &type_vars, Some(i))
+                    } else {
+                        subst.clone()
+                    };
+                    Some(if s.is_empty() { f.1.clone() } else { typedexp::apply_subst(&f.1, &s) })
                 };
+                // Materialise the per-parameter instantiated formals up front so
+                // the `formal_at` closure's borrow of `slots` is released before
+                // the non-failed branch consumes `slots` via `into_iter`.
+                let arg_formals: Vec<Option<Ty>> =
+                    (0..formals.len()).map(formal_at).collect();
+                let formal_at = |i: usize| -> Option<Ty> { arg_formals.get(i).cloned().flatten() };
 
                 if failed {
                     // Last resort: emit positional args followed by `n=v`
@@ -8875,8 +9043,22 @@ fn emit_call_arg_with_formal<'a>(
     // would corrupt a legitimately-tupled argument.
     let needs_first = matches!(arg.ty(), Ty::Tuple(_))
         && matches!(formal_ty, Some(t) if !matches!(t, Ty::Tuple(_) | Ty::Unknown | Ty::TypeVar(_)));
+    // When the formal is a (possibly alias-named) function type, publish it to
+    // `ctx.expected_arg_fn_formal` for the duration of this argument's emission.
+    // A fn-item reference being wrapped as `Arc<dyn Fn(...)>` in `emit_var`
+    // consults it to decide which of its own type variables are genuinely free
+    // at this call site and must be defaulted to `()` (see `emit_var`'s
+    // fn-item-reference arms). The formal is already type-variable-instantiated
+    // by the caller (`formal_at` in `emit_call`), so any type variable still
+    // present in it after instantiation is one the call does not pin.
+    let arg_fn_formal: Option<Ty> = match formal_ty {
+        Some(t @ (Ty::Function { .. } | Ty::FunctionAlias { .. })) => Some(t.clone()),
+        _ => None,
+    };
     let raw = if !needs_first {
-        emit_cloned_call_arg(arg, is_const, ctx, top_level)
+        ctx.with_arg_fn_formal(arg_fn_formal.clone(), |ctx| {
+            emit_cloned_call_arg(arg, is_const, ctx, top_level)
+        })
     } else {
         // Emit the call (with `?` propagation already attached by emit_exp via ctx.q),
         // wrap in parens so `.0` binds to the whole call result, then re-apply the
@@ -12916,20 +13098,28 @@ fn type_destructure_needs_borrow(ty: &Ty, ctx: &GenCtx) -> bool {
 /// `type_destructure_needs_borrow(scrut_ty)` returns false even though the
 /// pattern itself — `Cons`, `EmptyList`, `Some_`, `None_` — could only succeed
 /// against an Arc-wrapped value.
-fn pat_requires_arc_deref(pat: &TypedPat) -> bool {
+fn pat_requires_arc_deref(pat: &TypedPat, ctx: &GenCtx) -> bool {
     match pat {
         TypedPat::Cons { .. } | TypedPat::EmptyList => true,
         TypedPat::Some_(_) | TypedPat::None_ => true,
-        TypedPat::As { pat, .. } => pat_requires_arc_deref(pat),
-        TypedPat::Tuple(ps) => ps.iter().any(pat_requires_arc_deref),
-        // A Constructor whose nested field is itself an Arc-edge pattern
-        // (e.g. a `FCore::Cache { …, scope: List::Cons{…}, .. }` destructure)
-        // needs the same match_deref! treatment as a bare Cons over a list
-        // — the inner List::Cons is on an Arc<List<_>> field even though
-        // the outer Constructor's own type is a plain struct.
-        TypedPat::Constructor { fields, named_fields, .. } => {
-            fields.iter().any(pat_requires_arc_deref)
-                || named_fields.iter().any(|(_, p)| pat_requires_arc_deref(p))
+        TypedPat::As { pat, .. } => pat_requires_arc_deref(pat, ctx),
+        TypedPat::Tuple(ps) => ps.iter().any(|p| pat_requires_arc_deref(p, ctx)),
+        // A Constructor pattern crosses an Arc edge when EITHER:
+        //   * its own variant belongs to a recursive uniontype — those values
+        //     live behind `Arc<Enum>` everywhere, so destructuring the variant
+        //     requires peeling the Arc (this is the type-driven signal the
+        //     normal `match` path gets from the scrutinee type, but a
+        //     pattern-let against a value whose type didn't infer — e.g. a
+        //     callback `fun()` whose return type is `Ty::Unknown` — has no such
+        //     scrutinee type, so we recover it from the pattern's own `ty`); or
+        //   * a nested field is itself an Arc-edge pattern (e.g. a
+        //     `FCore::Cache { …, scope: List::Cons{…}, .. }` destructure) —
+        //     the inner List::Cons is on an `Arc<List<_>>` field even though
+        //     the outer Constructor's own type is a plain struct.
+        TypedPat::Constructor { fields, named_fields, ty, .. } => {
+            is_arc_wrapped(ty, ctx)
+                || fields.iter().any(|p| pat_requires_arc_deref(p, ctx))
+                || named_fields.iter().any(|(_, p)| pat_requires_arc_deref(p, ctx))
         }
         _ => false,
     }
@@ -13221,11 +13411,26 @@ fn emit_pat_assign<'a>(
             // `Deref @ …` instead of follow-up `emit_pat_assign` calls.
             let pat_needs_match_deref =
                 !pat_is_irrefutable(pat_for_render)
-                && !matches!(fail_mode, FailureMode::IfLetElse(_))
                 && (type_destructure_needs_borrow(scrut_ty, ctx)
                     || pat_has_str_lit(pat_for_render)
-                    || pat_requires_arc_deref(pat_for_render));
+                    || pat_requires_arc_deref(pat_for_render, ctx));
             if pat_needs_match_deref {
+                // Under `IfLetElse` fail-mode the scrutinee was emitted in Bare
+                // mode (a raw `Result<T>`) and an else-recovery block exists.
+                // A refutable Arc-crossing pattern there (e.g.
+                // `(outCache, cls as SCode.CLASS(), cenv) := Lookup.lookupClass(...)`
+                // inside a `try … else … end try`) must run that recovery on
+                // BOTH the `Err` case and a variant mismatch (lookup succeeded
+                // but returned a non-CLASS element). So we wrap the pattern in
+                // `Ok(…)` and match the raw Result through `match_deref!`, with
+                // the `_` arm running the else-recovery (which always diverges,
+                // as Rust's let-else requires). For all other fail-modes the
+                // scrutinee is the already-unwrapped value and the fail action
+                // is a `bail!`/labeled-break.
+                let ifletelse_else: Option<&str> = match &fail_mode {
+                    FailureMode::IfLetElse(else_code) => Some(else_code.as_str()),
+                    _ => None,
+                };
                 let fail_owned;
                 let fail: &str = match &fail_mode {
                     FailureMode::Function => "bail!(\"pattern mismatch\")",
@@ -13237,7 +13442,13 @@ fn emit_pat_assign<'a>(
                         _ => "bail!(\"pattern mismatch\")",
                     },
                     FailureMode::Failure => "()",
-                    FailureMode::IfLetElse(_) => unreachable!(),
+                    FailureMode::IfLetElse(else_code) => {
+                        // The else-recovery, used as the `_`-arm body. It is a
+                        // sequence of statements that diverges, so wrapping it
+                        // in a block expression type-checks against the Ok arm.
+                        fail_owned = format!("{{\n{else_code}{indent}    }}");
+                        &fail_owned
+                    }
                 };
                 // Collect all binding names introduced by the (possibly
                 // re-named) pattern, together with their owned types. The
@@ -13269,27 +13480,35 @@ fn emit_pat_assign<'a>(
                 for (n, t) in &bindings {
                     env.vars.insert(n.clone(), t.clone());
                 }
+                // Under IfLetElse the scrutinee is a raw `Result<T>`, so the
+                // pattern must be wrapped in `Ok(…)`; otherwise the scrutinee is
+                // the already-unwrapped value and the pattern matches it directly.
+                let md_pat = if ifletelse_else.is_some() {
+                    format!("Ok({inner_pat})")
+                } else {
+                    inner_pat.clone()
+                };
                 if bindings.is_empty() {
                     // Pattern destructures only for the side effect of the
                     // refutability check (no names bound). Use `match` with
                     // unit-valued arms; the let-binding to `()` would be
                     // wasteful, so emit a bare match expression.
                     writeln!(out, "{indent}::match_deref::match_deref! {{ match &({scrut_expr}) {{").unwrap();
-                    writeln!(out, "{indent}    {inner_pat} => (),").unwrap();
+                    writeln!(out, "{indent}    {md_pat} => (),").unwrap();
                     writeln!(out, "{indent}    _ => {fail},").unwrap();
                     writeln!(out, "{indent}}} }};").unwrap();
                 } else if bindings.len() == 1 {
                     let (n, _) = &bindings[0];
                     let id = escape_ident(n);
                     writeln!(out, "{indent}let {id} = ::match_deref::match_deref! {{ match &({scrut_expr}) {{").unwrap();
-                    writeln!(out, "{indent}    {inner_pat} => {id}.clone(),").unwrap();
+                    writeln!(out, "{indent}    {md_pat} => {id}.clone(),").unwrap();
                     writeln!(out, "{indent}    _ => {fail},").unwrap();
                     writeln!(out, "{indent}}} }};").unwrap();
                 } else {
                     let lhs: Vec<String> = bindings.iter().map(|(n, _)| escape_ident(n)).collect();
                     let rhs: Vec<String> = bindings.iter().map(|(n, _)| format!("{}.clone()", escape_ident(n))).collect();
                     writeln!(out, "{indent}let ({}) = ::match_deref::match_deref! {{ match &({scrut_expr}) {{", lhs.join(", ")).unwrap();
-                    writeln!(out, "{indent}    {inner_pat} => ({}),", rhs.join(", ")).unwrap();
+                    writeln!(out, "{indent}    {md_pat} => ({}),", rhs.join(", ")).unwrap();
                     writeln!(out, "{indent}    _ => {fail},").unwrap();
                     writeln!(out, "{indent}}} }};").unwrap();
                 }

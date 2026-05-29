@@ -1618,7 +1618,37 @@ pub fn infer_exp<'a>(
                 };
                 TypedExp::Constructor { name: canonical, args, named_args, ty, field_names }
             } else {
-                let ty = call_ty(&func, &args, top_level, pkg_prefix);
+                // A call whose callee is a function-typed LOCAL variable — e.g.
+                // a `partial function` parameter `fun` invoked as `fun()`, as in
+                // `Types.getMetaRecordFields`'s `DAE.T_METARECORD(..) := fun();`.
+                // `call_ty` only consults the hierarchy, so it returns `Unknown`
+                // for a local; resolve the result type from the variable's
+                // declared function type in `env` instead. Without this the
+                // scrutinee of a downstream pattern-let infers as `Unknown` and
+                // the `match_deref!` Arc-peeling for a recursive uniontype
+                // pattern (`Arc<DAE::Type>`) is skipped (E0308).
+                let local_fn_output: Option<Ty> = if !func.contains('.') {
+                    let resolve_fn_output = |t: &Ty| -> Option<Ty> {
+                        match t {
+                            Ty::Function { output, .. } => Some((**output).clone()),
+                            Ty::FunctionAlias { base, .. } => {
+                                let base_ty = resolve_call_node(base, top_level, pkg_prefix)
+                                    .map(|(_, n)| n.ty.clone())
+                                    .unwrap_or_else(|| lookup_ty_in_hierarchy(base, top_level));
+                                match base_ty {
+                                    Ty::Function { output, .. } => Some(*output),
+                                    _ => None,
+                                }
+                            }
+                            _ => None,
+                        }
+                    };
+                    env.get(&func).and_then(resolve_fn_output)
+                } else {
+                    None
+                };
+                let ty = local_fn_output
+                    .unwrap_or_else(|| call_ty(&func, &args, top_level, pkg_prefix));
                 TypedExp::Call { func, args, named_args, ty, sig_ty }
             }
         }

@@ -10898,6 +10898,15 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
                     }
                 }
                 for (n, t) in typedexp::pat_bindings_with_scrut_ty(&case.pattern, &input_ty) {
+                    // Pattern bindings are guaranteed initialised once the arm body
+                    // runs (the successful match bound them). Record this so a
+                    // *nested* match/matchcontinue whose arm reassigns the same
+                    // name seeds its shadow with `= n.clone()` rather than a bare
+                    // `let mut n: T;` (which would read uninitialised memory and
+                    // trip E0381). Without this, an outer matchcontinue arm's
+                    // pattern binding (e.g. `cache`, `env`) reused inside an inner
+                    // matchcontinue is wrongly treated as uninitialised.
+                    ctx.fn_initialized_vars.insert(n.clone());
                     if !matches!(t, Ty::Unknown) {
                         ctx.fn_env_vars.insert(n, t);
                     }

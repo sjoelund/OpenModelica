@@ -10161,7 +10161,14 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
     // expands to `match &cls { … }` — but `cls: Arc<Enum>` doesn't auto-deref
     // through Arc on stable Rust, so the variant match fails to bind fields.
     let saved_as_binding_env = if let Some(name) = as_binding {
-        Some((name.to_string(), ctx.fn_env_vars.insert(name.to_string(), input_ty.clone())))
+        // The `as`-binding is materialised as `let mut {name} = {scrutinee};`
+        // (see the `as_prefix` above), so it is initialised for the whole
+        // match. Record that so an arm that reassigns it (e.g.
+        // `ty.typeVars := ..` lowering to a field-assign on the binding)
+        // seeds its shadow with `= {name}.clone()` instead of a bare
+        // `let mut {name}: T;` reading uninitialised memory (E0381).
+        let newly_init = ctx.fn_initialized_vars.insert(name.to_string());
+        Some((name.to_string(), ctx.fn_env_vars.insert(name.to_string(), input_ty.clone()), newly_init))
     } else {
         None
     };
@@ -10810,6 +10817,12 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
                     }
                 }
                 s.push_str(&format!("        let __mc_input = ({});\n", parts.join(", ")));
+            } else if as_prefix.is_some() {
+                // `input_str` is the `as`-binding local (`let mut ty = …;`).
+                // Clone it into `__mc_input` so the binding itself stays live
+                // for arm bodies that read or shadow it (mirrors the
+                // `.clone()` the MatchKind::Match subject uses for as-bindings).
+                s.push_str(&format!("        let __mc_input = {input_str}.clone();\n"));
             } else {
                 s.push_str(&format!("        let __mc_input = {input_str};\n"));
             }
@@ -11154,7 +11167,8 @@ fn emit_match<'a>(kind: &MatchKind, input: &TypedExp, cases: &[TypedCase], as_bi
             s
         }
     };
-    if let Some((name, prev)) = saved_as_binding_env {
+    if let Some((name, prev, newly_init)) = saved_as_binding_env {
+        if newly_init { ctx.fn_initialized_vars.remove(&name); }
         match prev {
             Some(t) => { ctx.fn_env_vars.insert(name, t); }
             None => { ctx.fn_env_vars.remove(&name); }

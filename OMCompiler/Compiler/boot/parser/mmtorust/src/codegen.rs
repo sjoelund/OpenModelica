@@ -2757,13 +2757,26 @@ fn emit_dyn_field_eq(ty: &Ty, l: &str, r: &str) -> String {
             let inner_eq = emit_dyn_field_eq(inner, "__lo", "__ro");
             format!("(match ({l}, {r}) {{ (Some(__lo), Some(__ro)) => {inner_eq}, (None, None) => true, _ => false }})")
         }
+        // `Mutable<T>`'s own `PartialEq` delegates to `T`, but a
+        // function-bearing `T` (e.g. a `HashTable` typedef whose last tuple
+        // element is a tuple of `partial function` callbacks) has no `==`.
+        // Lock both wrappers via the public `access` clone and compare the
+        // inner values structurally with the same recursion.
+        Ty::Generic(name, args) if name == "Mutable" && args.len() == 1 => {
+            let inner_eq = emit_dyn_field_eq(&args[0], "(&__lmut)", "(&__rmut)");
+            format!("{{ let __lmut = Mutable::access({l}.clone()); let __rmut = Mutable::access({r}.clone()); {inner_eq} }}")
+        }
         _ => {
             // Function-tainted container we can't structurally descend
             // (e.g. a list / array of dyn-fn-bearing elements). The
             // codegen has no way to compare these without a per-element
             // call into the helpers; bail loudly rather than emit code
-            // that won't compile silently.
-            format!("compile_error!(\"emit_dyn_field_eq: unsupported dyn-fn-bearing shape: {ty:?}\")")
+            // that won't compile silently. Sanitise the `{ty:?}` debug
+            // text: it contains `"`/`\` (e.g. `RustEnum("DAE.ComponentRef")`)
+            // which would otherwise terminate the string literal and cascade
+            // into dozens of bogus lexer errors instead of one clear message.
+            let shape = format!("{ty:?}").replace('\\', "/").replace('"', "'");
+            format!("compile_error!(\"emit_dyn_field_eq: unsupported dyn-fn-bearing shape: {shape}\")")
         }
     }
 }
@@ -2796,7 +2809,15 @@ fn emit_dyn_field_cmp(ty: &Ty, l: &str, r: &str) -> String {
             let inner_cmp = emit_dyn_field_cmp(inner, "__lo", "__ro");
             format!("(match ({l}, {r}) {{ (Some(__lo), Some(__ro)) => {inner_cmp}, (None, None) => std::cmp::Ordering::Equal, (None, Some(_)) => std::cmp::Ordering::Less, (Some(_), None) => std::cmp::Ordering::Greater }})")
         }
-        _ => format!("compile_error!(\"emit_dyn_field_cmp: unsupported dyn-fn-bearing shape: {ty:?}\")"),
+        // `Mutable<T>` — see the `emit_dyn_field_eq` Mutable arm.
+        Ty::Generic(name, args) if name == "Mutable" && args.len() == 1 => {
+            let inner_cmp = emit_dyn_field_cmp(&args[0], "(&__lmut)", "(&__rmut)");
+            format!("{{ let __lmut = Mutable::access({l}.clone()); let __rmut = Mutable::access({r}.clone()); {inner_cmp} }}")
+        }
+        _ => {
+            let shape = format!("{ty:?}").replace('\\', "/").replace('"', "'");
+            format!("compile_error!(\"emit_dyn_field_cmp: unsupported dyn-fn-bearing shape: {shape}\")")
+        }
     }
 }
 
@@ -2819,7 +2840,18 @@ fn emit_dyn_field_hash(ty: &Ty, v: &str, state: &str) -> String {
             let inner_h = emit_dyn_field_hash(inner, "__ho", state);
             format!("match {v} {{ Some(__ho) => {{ 1u8.hash({state}); {inner_h} }}, None => 0u8.hash({state}), }}")
         }
-        _ => format!("compile_error!(\"emit_dyn_field_hash: unsupported dyn-fn-bearing shape: {ty:?}\");"),
+        // `Mutable<T>` deliberately does not impl `Hash`, so a type carrying
+        // one has `supports_hash == false` and no `Hash` impl is emitted —
+        // this arm is defensive (descend into the inner value) for the case a
+        // future change does request it.
+        Ty::Generic(name, args) if name == "Mutable" && args.len() == 1 => {
+            let inner_h = emit_dyn_field_hash(&args[0], "(&__hmut)", state);
+            format!("{{ let __hmut = Mutable::access({v}.clone()); {inner_h} }}")
+        }
+        _ => {
+            let shape = format!("{ty:?}").replace('\\', "/").replace('"', "'");
+            format!("compile_error!(\"emit_dyn_field_hash: unsupported dyn-fn-bearing shape: {shape}\");")
+        }
     }
 }
 
@@ -3164,13 +3196,26 @@ fn default_value_expr_for_field_ty(fty: &Ty, ctx: &mut GenCtx, top_level: &BTree
                 // never needs a `T` value.
                 return "None".to_owned();
             }
+            // `Mutable<T>` wraps a single `T`; construct it from the
+            // structurally-defaulted inner value (the function leaves inside
+            // `T` become panicking placeholders via the recursion). Used by
+            // e.g. the `MidCode` env struct's `vars: Mutable<HashTableMidVar>`
+            // field, whose `HashTableMidVar` is a function-bearing tuple.
+            Ty::Generic(gname, gargs) if gname == "Mutable" && gargs.len() == 1 => {
+                let inner = default_value_expr_for_field_ty(&gargs[0], ctx, top_level);
+                return format!("Mutable::create({inner})");
+            }
             _ => {
                 // Unsupported function-tainted container at this position
                 // (e.g. `list<partial function>`). Falling through to
                 // `Default::default()` would emit a misleading error at
-                // the use site; surface the gap explicitly instead.
+                // the use site; surface the gap explicitly instead. Sanitise
+                // the `{fty:?}` text (it embeds `"`/`\`) so the `todo!` string
+                // literal cannot terminate early and cascade into bogus
+                // lexer errors.
+                let shape = format!("{fty:?}").replace('\\', "/").replace('"', "'");
                 return format!(
-                    "todo!(\"default value for dyn-fn-bearing field type {fty:?} is not yet emitted by mmtorust\")"
+                    "todo!(\"default value for dyn-fn-bearing field type {shape} is not yet emitted by mmtorust\")"
                 );
             }
         }

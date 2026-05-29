@@ -8926,6 +8926,25 @@ fn resolve_fully_qualified<'a>(prefix_dotted: &str, ctx: &GenCtx, top_level: &'a
             }
         }
     }
+    // 3b. Renamed module imports (`import L = Pkg;`). These are tracked in
+    // `aliased_modules` (local → target) rather than `named` so that an alias
+    // colliding with a plain `import Pkg;` is not lost (see `aliased_modules`
+    // doc). Resolve the alias head to its target so e.g. `BVariable.isState`
+    // resolves to `NBVariable.isState` — without this the head falls through to
+    // `find_record_split`'s bare-name fallback and emits field-access (`.`)
+    // against a module path, producing `expected value, found module`.
+    for (local, target) in &ctx.aliased_modules {
+        if prefix_dotted == local {
+            if let Some(n) = lookup_node(target, top_level) {
+                return Some(n);
+            }
+        } else if let Some(rest) = prefix_dotted.strip_prefix(&format!("{}.", local)) {
+            let path = format!("{}.{}", target, rest);
+            if let Some(n) = lookup_node(&path, top_level) {
+                return Some(n);
+            }
+        }
+    }
     // 4. Unqualified modules (.* imports)
     for unq in &ctx.unqual_modules {
         let path = format!("{}.{}", unq, prefix_dotted);
@@ -9567,6 +9586,22 @@ fn resolve_call_qname<'a>(
                     dotted.clone()
                 } else {
                     format!("{dotted}.{alias_tail}")
+                };
+                if exists(&candidate) {
+                    return Some(candidate);
+                }
+            }
+        }
+        // Renamed module imports (`import L = Pkg;`) tracked in `aliased_modules`
+        // rather than `named` (see its doc). Same alias-head precedence as the
+        // `named` loop above so a callback reference like `BVariable.isState`
+        // resolves to `NBVariable.isState` and is classified/typed as a function.
+        for (local, target) in &ctx.aliased_modules {
+            if local == alias_head {
+                let candidate = if alias_tail.is_empty() {
+                    target.clone()
+                } else {
+                    format!("{target}.{alias_tail}")
                 };
                 if exists(&candidate) {
                     return Some(candidate);

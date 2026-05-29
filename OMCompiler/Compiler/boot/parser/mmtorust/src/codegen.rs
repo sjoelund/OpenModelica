@@ -9195,6 +9195,45 @@ fn resolve_alias_base_at_alias_scope<'a>(
 
 /// Resolve a function name as written at a call site to a fully-qualified dotted
 /// name in the hierarchy.
+/// Resolve a dotted call path that travels *through* a qualified/named import
+/// of some module. For `A.B.C…` where `A` (or a longer prefix) resolves to a
+/// module whose child `B` is an `import`, substitute the import's target for
+/// `A.B` and return `<target>.C…` if that names a real node.
+///
+/// Example: `FNode.RefTree.map` with `FNode` containing `import FCore.RefTree;`
+/// resolves to `FCore.RefTree.map`. Returns `None` when no segment is an import
+/// or the substituted path doesn't resolve.
+fn resolve_through_import(func: &str, top_level: &BTreeMap<String, NameNode<'_>>) -> Option<String> {
+    let segs: Vec<&str> = func.split('.').collect();
+    // Longest module prefix first so a deeper import wins over a shallower
+    // same-named one.
+    for i in (0..segs.len().saturating_sub(1)).rev() {
+        let prefix = segs[..=i].join(".");
+        let Some(node) = lookup_node(&prefix, top_level) else { continue };
+        let import_name = segs[i + 1];
+        let Some(child) = node.children.get(import_name) else { continue };
+        let NodeKind::Import(m) = &child.kind else { continue };
+        let target = match &m.import {
+            Absyn::Import::QUAL_IMPORT { path } | Absyn::Import::NAMED_IMPORT { path, .. } => {
+                path_to_dotted(path)
+            }
+            // Unqualified/group imports don't bind a single named alias we can
+            // substitute here.
+            _ => continue,
+        };
+        let rest = &segs[i + 2..];
+        let candidate = if rest.is_empty() {
+            target
+        } else {
+            format!("{target}.{}", rest.join("."))
+        };
+        if lookup_node(&candidate, top_level).is_some() {
+            return Some(candidate);
+        }
+    }
+    None
+}
+
 fn resolve_call_qname<'a>(
     func: &str,
     ctx: &GenCtx,
@@ -9249,6 +9288,17 @@ fn resolve_call_qname<'a>(
         }
         if exists(func) {
             return Some(func.to_owned());
+        }
+        // A path segment may be a *qualified/named import* of some module
+        // rather than a child of it. `FNode.RefTree.map` references `RefTree`
+        // through `FNode`, which has `import FCore.RefTree;` — so `FNode.RefTree`
+        // denotes `FCore.RefTree` and the call is `FCore.RefTree.map`. Resolve
+        // the import alias along the path. Without this the call doesn't resolve,
+        // the path is emitted verbatim (`FNode::RefTree::map`, a private import,
+        // E0603) and fallibility can't classify the callee, so an infallible
+        // call wrongly gets `.unwrap()` (E0599).
+        if let Some(resolved) = resolve_through_import(func, top_level) {
+            return Some(resolved);
         }
         // For qualified calls whose head segment names a *nested* package or
         // class of the current module (e.g. `CacheTree.add` from inside

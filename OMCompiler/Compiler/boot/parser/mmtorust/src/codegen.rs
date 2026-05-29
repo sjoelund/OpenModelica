@@ -122,6 +122,19 @@ struct GenCtx {
     /// (where `InnerOuter` is a sibling uniontype) would pull in
     /// `openmodelica_frontend::InnerOuter` via `implicit_modules`.
     self_members: HashSet<String>,
+    /// Simple names that are BOTH a top-level MM package (present in
+    /// `crate_map`) AND the name of a single-record uniontype's record that was
+    /// folded into a differently-named struct in this file (e.g. the
+    /// `BackendDAE` uniontype's only record `DAE`, folded into struct
+    /// `BackendDAE`, while the file also references the top-level `DAE` package).
+    /// Such a name is bound locally by the `pub type DAE = BackendDAE;` record
+    /// alias, so a package member reference written `DAE.X` (in MetaModelica
+    /// always the fully-qualified `.DAE.X`, i.e. resolved from the top scope)
+    /// must be emitted as a full crate path (`openmodelica_frontend_types::DAE::X`)
+    /// to avoid binding to the local record alias, and the colliding
+    /// `use …::DAE;` import must be suppressed. Consulted by [`Self::shorten`]
+    /// and [`Self::use_lines`].
+    pkg_shadowing_aliases: HashSet<String>,
     /// Explicit imports: dotted qualified name → local name.""
     named: BTreeMap<String, String>,
     /// Local names that alias the current module itself (e.g. `import Type = NFType;`
@@ -418,6 +431,7 @@ impl GenCtx {
             unqual_modules: HashSet::new(),
             wildcard_members: BTreeMap::new(),
             self_members: HashSet::new(),
+            pkg_shadowing_aliases: HashSet::new(),
             named: BTreeMap::new(),
             self_aliases: BTreeSet::new(),
             uniontype_imports: HashSet::new(),
@@ -647,6 +661,23 @@ impl GenCtx {
             return rest.replace('.', "::");
         }
 
+        // Package member reference whose head names a top-level package that is
+        // shadowed locally by a single-record record alias (e.g. `DAE.Constraint`
+        // where the `BackendDAE` uniontype's record `DAE` is folded into a struct
+        // and `pub type DAE = BackendDAE;` is in scope). Emit the full crate path
+        // so the reference binds to the package, not the record alias. Only
+        // qualified references (`DAE.X`) are redirected — a bare `DAE` head is a
+        // record reference, resolved through its struct qname elsewhere.
+        {
+            let head = dotted.split('.').next().unwrap_or(dotted);
+            if dotted.len() > head.len()
+                && head != self.top_name
+                && self.pkg_shadowing_aliases.contains(head)
+            {
+                return self.dotted_to_rust_path(dotted);
+            }
+        }
+
         // Named / qualified import (exact match: e.g. `FUnit` → `Unit`).
         if let Some(local) = self.named.get(dotted) {
             return local.clone();
@@ -712,6 +743,14 @@ impl GenCtx {
             lines.push(format!("use {rust}::*;"));
         }
         for (dotted, local) in &self.named {
+            // Suppress a `use …::DAE;` that would collide with a local
+            // single-record record alias of the same name (see
+            // `pkg_shadowing_aliases`): references to that package are emitted
+            // as full crate paths by `shorten`, so the import is unneeded and
+            // would otherwise redefine the name in the type namespace (E0255).
+            if self.pkg_shadowing_aliases.contains(local) {
+                continue;
+            }
             let rust = self.dotted_to_rust_path(dotted);
             let last = dotted.rsplit('.').next().unwrap_or(dotted);
             if local == last {
@@ -1513,6 +1552,37 @@ fn generate_file<'a>(top_name: &str, node: &NameNode<'_>, crate_map: &BTreeMap<S
     for child_name in node.children.keys() {
         ctx.self_members.insert(child_name.clone());
     }
+    // Package-shadowing record aliases: a single-record uniontype anywhere in
+    // this file whose record was folded into a differently-named struct emits a
+    // `pub type <Record> = <Uniontype>;` alias (see `emit_uniontype`). When that
+    // record name also names a top-level package (`crate_map`), the alias
+    // collides with the package in Rust's shared type/module namespace. Record
+    // those names so `shorten`/`use_lines` route package member references to a
+    // full crate path and drop the conflicting `use`. See the field doc.
+    fn collect_pkg_shadowing_aliases(self_name: &str, node: &NameNode<'_>, crate_map: &BTreeMap<String, String>, out: &mut HashSet<String>) {
+        if let NodeKind::Class(c) = &node.kind
+            && matches!(c.restriction, Absyn::Restriction::R_UNIONTYPE)
+        {
+            let records: Vec<&String> = node.children.iter()
+                .filter(|(_, ch)| matches!(&ch.kind, NodeKind::Class(cc)
+                    if matches!(cc.restriction, Absyn::Restriction::R_RECORD | Absyn::Restriction::R_METARECORD { .. })))
+                .map(|(n, _)| n)
+                .collect();
+            // Single-record uniontype whose record name differs from the
+            // uniontype's own name → the record is folded into a struct named
+            // after the uniontype, and `pub type <Record> = <Uniontype>;` is
+            // emitted. Flag the record name if it shadows a top-level package.
+            if records.len() == 1 && records[0].as_str() != self_name && crate_map.contains_key(records[0].as_str()) {
+                out.insert(records[0].clone());
+            }
+        }
+        for (child_name, child) in &node.children {
+            collect_pkg_shadowing_aliases(child_name, child, crate_map, out);
+        }
+    }
+    let mut pkg_shadowing = HashSet::new();
+    collect_pkg_shadowing_aliases(top_name, node, &ctx.crate_map, &mut pkg_shadowing);
+    ctx.pkg_shadowing_aliases = pkg_shadowing;
 
     // First pass: emit the body so that shorten() can populate implicit_modules.
     let mut body = String::new();
@@ -12345,6 +12415,19 @@ fn emit_pat_with_implicit_bind_md<'a>(pat: &TypedPat, allow_implicit_bind: bool,
             };
             let rust_raw = match ty {
                 Ty::RustStruct(qname) if name.contains('.') => shorten_struct_qname(ctx, qname, name),
+                // Bare constructor name whose `RustStruct` qname was *renamed*
+                // during single-record-uniontype folding (e.g. the `BackendDAE`
+                // uniontype's only record `DAE` is folded into the struct
+                // `BackendDAE`). The bare record name `DAE` no longer names a Rust
+                // item — and worse, may collide with an imported package of the
+                // same name (`import DAE;`), so emitting it bare resolves to that
+                // module (E0574). Resolve through the struct's qname instead.
+                // Restricted to the rename case (struct simple-name != record
+                // name) so ordinary bare records keep their existing path.
+                Ty::RustStruct(qname)
+                    if qname.rsplit('.').next() != Some(name.as_str())
+                        && lookup_node(qname, top_level).is_some() =>
+                    shorten_struct_qname(ctx, qname, name),
                 _ if folded_parent_qname.is_some() => ctx.shorten(folded_parent_qname.as_ref().unwrap()),
                 _ if name.contains('.') => ctx.shorten(&canonical_ctor_name),
                 _ => normalize_builtin_ctor_name(name),

@@ -12642,23 +12642,71 @@ fn is_static_const_emittable(exp: &TypedExp, ctx: &GenCtx, top_level: &BTreeMap<
             // `is_sourceinfo_ctor` covers the SOURCEINFO builtin whose definition
             // lives in MetaModelicaBuiltin.mo (not in the user-visible scope).
             let recognized_ctor = is_constructor(func, ctx, top_level) || is_sourceinfo_ctor(func);
-            recognized_ctor
-                && args.iter().all(|a| is_static_const_emittable(a, ctx, top_level))
+            if !recognized_ctor { return false; }
+            // Field-by-field Arc check (mirrors the `Constructor` arm and the
+            // two constructor-emission sites): a field whose declared type is
+            // Arc-wrapped but whose value is not already an Arc gets an
+            // `Arc::new(...)` wrap, which is not const — route to the non-const
+            // getter path instead. Resolve the record's field types the same
+            // way emit_exp does.
+            let qn = resolve_call_qname(func, ctx, top_level).unwrap_or_else(|| func.clone());
+            let field_tys: Vec<(String, Ty)> = record_field_tys(func, top_level)
+                .filter(|v| !v.is_empty())
+                .or_else(|| record_field_tys(&qn, top_level))
+                .or_else(|| {
+                    lookup_record_through_unions(&qn, top_level)
+                        .and_then(|(canonical, _)| record_field_tys(&canonical, top_level))
+                })
+                .unwrap_or_default();
+            // A field whose declared type is Arc-wrapped is stored as `Arc<T>`,
+            // and the constructor value supplied for it (a fresh constructor /
+            // unit variant) must be wrapped with a non-const `Arc::new(...)`.
+            // Such a constant cannot be `pub const`; rejecting here routes it to
+            // the `thread_local!`/`LazyLock` getter path, which lowers the value
+            // with `is_const = false` and emits the `Arc::new`. Conservative:
+            // any Arc-wrapped field disqualifies the const form.
+            if field_tys.iter().any(|(_, t)| is_arc_wrapped(t, ctx)) { return false; }
+            args.iter().all(|a| is_static_const_emittable(a, ctx, top_level))
                 && named_args.iter().all(|(_, a)| is_static_const_emittable(a, ctx, top_level))
         }
-        TypedExp::Constructor { ty, args, named_args, .. } => {
+        TypedExp::Constructor { name, ty, args, named_args, field_names } => {
             // A constructor whose value would be Arc::new-wrapped at codegen time
             // (recursive uniontype variants) cannot be a const expression.
             if constructor_needs_arc(ty, ctx) { return false; }
-            // Same for any individual field that gets wrapped in Arc::new
-            // (struct_field_is_arc) — Arc::new is not const.
-            // We approximate by rejecting if the struct stores any Arc-wrapped
-            // field; a future refinement could check field-by-field.
             if let Ty::RustStruct(qname) | Ty::RustEnum(qname) = ty {
                 if ctx.recursive_types.contains(qname.as_str()) { return false; }
                 if let Some((parent, _)) = qname.rsplit_once('.')
                     && ctx.recursive_types.contains(parent) { return false; }
             }
+            // Field-by-field: a field whose *declared* type is Arc-wrapped but
+            // whose value is not already an Arc gets an `Arc::new(...)` wrap in
+            // emit_exp's constructor arm — and `Arc::new` is not a const fn. Such
+            // a constant cannot be a `pub const`/`pub static`; rejecting here
+            // routes it to the non-const `thread_local!`/`LazyLock` getter path
+            // (which lowers the value with `is_const = false`, emitting the
+            // needed `Arc::new`). Mirrors the exact condition used at the two
+            // constructor-emission sites (`struct_field_is_arc && !value_emitted_as_arc`).
+            // Resolve the variant record's field types the same way emit_exp's
+            // constructor arm does: the value's `ty` often carries the *enum*
+            // qname (fields live on the variant record, not the enum), so try
+            // the constructor `name` first, then the enum qname, then fold a
+            // single-record uniontype.
+            let qname_from_ty = match ty {
+                Ty::RustStruct(q) | Ty::RustEnum(q) => Some(q.clone()),
+                Ty::UnionTypeVariant(parent, _) => Some(parent.clone()),
+                _ => None,
+            };
+            let field_tys: Vec<(String, Ty)> = record_field_tys(name, top_level)
+                .filter(|v| !v.is_empty())
+                .or_else(|| qname_from_ty.as_deref().and_then(|q| record_field_tys(q, top_level)))
+                .or_else(|| qname_from_ty.as_deref().and_then(|q| {
+                    lookup_record_through_unions(q, top_level)
+                        .and_then(|(canonical, _)| record_field_tys(&canonical, top_level))
+                }))
+                .unwrap_or_default();
+            // See the `Call` arm: any Arc-wrapped field needs a non-const
+            // `Arc::new(...)`, so the constant cannot be `pub const`.
+            if field_tys.iter().any(|(_, t)| is_arc_wrapped(t, ctx)) { return false; }
             args.iter().all(|a| is_static_const_emittable(a, ctx, top_level))
                 && named_args.iter().all(|(_, a)| is_static_const_emittable(a, ctx, top_level))
         }

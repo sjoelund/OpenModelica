@@ -437,6 +437,16 @@ pub fn realNeg(x: Real) -> Real {
     -x
 }
 
+/// Modelica `sign(v)` builtin: the signum of a Real, returning an Integer
+/// `-1`, `0`, or `1` (see ModelicaBuiltin.mo `function sign`). Note this is
+/// NOT `f64::signum`, which returns `±1.0` for zero/negative-zero; Modelica
+/// requires `sign(0) == 0`. Integer arguments are coerced to Real at the call
+/// site (the builtin's formal is `Real v`), so a single Real overload suffices.
+#[inline(always)]
+pub fn sign(v: Real) -> i32 {
+    if v.0 > 0.0 { 1 } else if v.0 < 0.0 { -1 } else { 0 }
+}
+
 // ============================================================================
 // Real comparison functions
 // ============================================================================

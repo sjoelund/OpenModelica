@@ -14,6 +14,10 @@ openmodelica_util_datatypes_basic.workspace=true
 openmodelica_ast_collections.workspace = true
 openmodelica_frontend_inst.workspace = true
 openmodelica_script_util.workspace = true
+# Needed only so the hand-maintained Globals.rs can name the NF
+# instantiation-cache global-root value type `NFInstNode::InstNode`. The
+# dependency is acyclic (nf_frontend does not depend on the old frontend).
+openmodelica_nf_frontend.workspace = true
 anyhow.workspace = true
 const-str.workspace=true
 tailcall.workspace=true

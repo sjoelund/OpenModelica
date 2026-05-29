@@ -28,7 +28,7 @@ thread_local! {
     // NF instantiation cache (instance path → SCode elements, name, InstNode).
     pub static instNFInstCacheIndex: RefCell<Arc<metamodelica::List<(
         (openmodelica_ast::Absyn::Program, Arc<openmodelica_ast::Absyn::Path>),
-        (Arc<metamodelica::List<Arc<openmodelica_frontend_types::SCode::Element>>>, ArcStr, Arc<crate::NFInstNode::InstNode>),
+        (Arc<metamodelica::List<Arc<openmodelica_frontend_types::SCode::Element>>>, ArcStr, Arc<openmodelica_nf_frontend::NFInstNode::InstNode::InstNode>),
     )>>> = RefCell::new(metamodelica::nil());
 
     // Index 11 — instNFNodeCacheIndex
@@ -36,7 +36,7 @@ thread_local! {
     // NF node cache (program → SCode elements, InstNode).
     pub static instNFNodeCacheIndex: RefCell<Arc<metamodelica::List<(
         openmodelica_ast::Absyn::Program,
-        (Arc<metamodelica::List<Arc<openmodelica_frontend_types::SCode::Element>>>, Arc<crate::NFInstNode::InstNode>),
+        (Arc<metamodelica::List<Arc<openmodelica_frontend_types::SCode::Element>>>, Arc<openmodelica_nf_frontend::NFInstNode::InstNode::InstNode>),
     )>>> = RefCell::new(metamodelica::nil());
 
     // Index 12 — instNFLookupCacheIndex
@@ -44,7 +44,7 @@ thread_local! {
     // NF lookup cache. Same type as instNFInstCacheIndex (index 10).
     pub static instNFLookupCacheIndex: RefCell<Arc<metamodelica::List<(
         (openmodelica_ast::Absyn::Program, Arc<openmodelica_ast::Absyn::Path>),
-        (Arc<metamodelica::List<Arc<openmodelica_frontend_types::SCode::Element>>>, ArcStr, Arc<crate::NFInstNode::InstNode>),
+        (Arc<metamodelica::List<Arc<openmodelica_frontend_types::SCode::Element>>>, ArcStr, Arc<openmodelica_nf_frontend::NFInstNode::InstNode::InstNode>),
     )>>> = RefCell::new(metamodelica::nil());
 
     // Index 13 — builtinIndex

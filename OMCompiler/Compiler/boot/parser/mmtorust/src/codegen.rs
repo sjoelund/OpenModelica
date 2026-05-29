@@ -14761,7 +14761,24 @@ fn emit_stmt<'a>(
             // they were a live Arc<T> value.
             let rhs_is_no_init = matches!(rhs, TypedExp::Call { func, .. } if func == "arrayCreateNoInit");
             let scrut_ty = rhs.ty();
-            let scrut_expr = emit_exp(rhs, /*is_const=*/false, ctx, top_level);
+            // A list/array literal assigned to a `List<T>`/`Array<T>` slot must
+            // coerce each element to the LHS element type. Routing the literal
+            // through `emit_call_arg_with_formal` (with the LHS type as the
+            // formal) applies MetaModelica's implicit first-output (`.0`)
+            // extraction to multi-output calls used as single-value elements —
+            // e.g. `expl := {simplify1(e1), simplify1(e2)}` where `simplify1`
+            // returns `(Exp, Bool)` but the element type is `Exp`. Plain
+            // `emit_exp` infers the element type from the elements (the tuple)
+            // and skips the coercion, leaving `(Exp, Bool)` where `Exp` is
+            // expected (E0308).
+            let lhs_ty_for_rhs = lhs_assignment_ty(lhs, env);
+            let scrut_expr = if matches!(rhs, TypedExp::Array { .. })
+                && matches!(lhs_ty_for_rhs, Some(Ty::List(_)) | Some(Ty::Array(_)))
+            {
+                emit_call_arg_with_formal(rhs, lhs_ty_for_rhs.as_ref(), /*is_const=*/false, ctx, top_level)
+            } else {
+                emit_exp(rhs, /*is_const=*/false, ctx, top_level)
+            };
             // For irrefutable patterns we still want a single binding form.
             // But MetaModelica often assigns to *existing* variables (declared as outputs
             // or `protected` components). For a Var pattern we emit a plain `<name> = expr;`

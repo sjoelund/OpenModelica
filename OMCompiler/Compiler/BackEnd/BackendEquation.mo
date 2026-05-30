@@ -1206,7 +1206,13 @@ algorithm
       DAE.Exp e1, e2;
       DAE.ComponentRef cr;
       list<BackendDAE.WhenOperator> rest;
-      T extArg;
+      // Initialise to the passthrough accumulator: when `inCont` is false the
+      // `if inCont` guard leaves extArg unassigned, but `b` then stays false and
+      // the case returns `(b, extArg) = (false, inTypeA)` — the unchanged
+      // accumulator. (OMC's C backend tolerates the read of an unassigned local
+      // here since the result is discarded once cont is false; an explicit
+      // initialiser makes the intent — and the value — well defined.)
+      T extArg = inTypeA;
       Boolean b = false;
 
     case {} then (inCont,inTypeA);

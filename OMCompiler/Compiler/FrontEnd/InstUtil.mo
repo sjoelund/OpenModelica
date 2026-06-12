@@ -7546,7 +7546,7 @@ algorithm
     local
       list<DAE.Element> rest;
       list<DAE.Statement> stmts;
-      list<String> unbound,outputs,names,outNames;
+      list<String> unbound,maybeUnbound,outputs,names,outNames;
       String name;
       DAE.InstDims dims;
       DAE.VarDirection dir;
@@ -7558,8 +7558,19 @@ algorithm
       then inUnbound;
     case ({}, SOME(stmts), unbound, outputs)
       algorithm
-        (_,_,unbound) := List.fold1(stmts, checkFunctionDefUseStmt, false, (false,false,unbound));
+        (_,_,unbound,maybeUnbound) := List.fold1(stmts, checkFunctionDefUseStmt, false, (false,false,unbound,{}));
         unbound := List.fold1(outputs, checkOutputDefUse, inInfo, unbound);
+        // Outputs that are only assigned on some control flow paths cannot be
+        // proven to be initialized; the specification recommends a warning when
+        // the static check is not possible. Only enabled on request to avoid
+        // flooding existing code with warnings.
+        if Flags.isSet(Flags.CHECK_DEF_USE) then
+          for name in outputs loop
+            if listMember(name, maybeUnbound) then
+              Error.addSourceMessage(Error.UNASSIGNED_FUNCTION_OUTPUT_UNPROVEN, {name}, inInfo);
+            end if;
+          end for;
+        end if;
       then unbound;
     case (DAE.VAR(direction=DAE.INPUT())::rest, _, unbound, _)
       algorithm
@@ -7610,11 +7621,14 @@ algorithm
 end checkOutputDefUse;
 
 protected function checkFunctionDefUseStmt
-  "Find any variable that might be used in the statement without prior definition. Any defined variables are removed from undefined."
+  "Find any variable that might be used in the statement without prior definition. Any defined variables are removed from undefined.
+  The fourth element of the state tuple tracks variables that are assigned on
+  some but not all control flow paths: uses of those cannot be proven to be
+  defined (reported separately, only for MetaModelica)."
   input DAE.Statement inStmt;
   input Boolean inLoop;
-  input tuple<Boolean,Boolean,list<String>> inUnbound "Return or Break ; Returned for sure ; Unbound";
-  output tuple<Boolean,Boolean,list<String>> outUnbound "";
+  input tuple<Boolean,Boolean,list<String>,list<String>> inUnbound "Return or Break ; Returned for sure ; Unbound ; Possibly unbound";
+  output tuple<Boolean,Boolean,list<String>,list<String>> outUnbound "";
 algorithm
   outUnbound := match (inStmt, inUnbound)
     local
@@ -7622,96 +7636,121 @@ algorithm
       String str,iter;
       DAE.Exp exp,lhs,rhs,exp1,exp2;
       list<DAE.Exp> lhss;
-      list<String> unbound;
+      list<String> unbound,maybe,maybeBody,unboundBefore;
       Boolean b,b1,b2;
       DAE.Else else_;
       list<DAE.Statement> stmts;
       SourceInfo info;
 
-    case (_, (true,_,_)) then inUnbound;
-    case (_, (false,true,_))
+    case (_, (true,_,_,_)) then inUnbound;
+    case (_, (false,true,_,_))
       algorithm
         info := ElementSource.getElementSourceFileInfo(ElementSource.getStatementSource(inStmt));
         Error.addSourceMessage(Error.INTERNAL_ERROR,
           {"InstUtil.checkFunctionDefUseStmt failed"}, info);
       then fail();
-    case (DAE.STMT_ASSIGN(exp1=lhs,exp=rhs,source=source), (_,_,unbound))
+    case (DAE.STMT_ASSIGN(exp1=lhs,exp=rhs,source=source), (_,_,unbound,maybe))
       algorithm
         info := ElementSource.getElementSourceFileInfo(source);
-        (_,(unbound,_)) := Expression.traverseExpTopDown(rhs,findUnboundVariableUse,(unbound,info));
+        (_,(unbound,maybe,_)) := Expression.traverseExpTopDown(rhs,findUnboundVariableUse,(unbound,maybe,info));
         // Traverse subs too! arr[x] := ..., x unbound
-        unbound := traverseCrefSubs(lhs,info,unbound);
+        (unbound,maybe) := traverseCrefSubs(lhs,info,unbound,maybe);
         unbound := crefFiltering(lhs,unbound);
-      then ((false,false,unbound));
-    case (DAE.STMT_TUPLE_ASSIGN(expExpLst=lhss,exp=rhs,source=source), (_,_,unbound))
+        maybe := crefFiltering(lhs,maybe);
+      then ((false,false,unbound,maybe));
+    case (DAE.STMT_TUPLE_ASSIGN(expExpLst=lhss,exp=rhs,source=source), (_,_,unbound,maybe))
       algorithm
         info := ElementSource.getElementSourceFileInfo(source);
-        (_,(unbound,_)) := Expression.traverseExpTopDown(rhs,findUnboundVariableUse,(unbound,info));
+        (_,(unbound,maybe,_)) := Expression.traverseExpTopDown(rhs,findUnboundVariableUse,(unbound,maybe,info));
         // Traverse subs too! arr[x] := ..., x unbound
-        unbound := List.fold1(lhss,traverseCrefSubs,info,unbound);
+        for l in lhss loop
+          (unbound,maybe) := traverseCrefSubs(l,info,unbound,maybe);
+        end for;
         unbound := List.fold(lhss,crefFiltering,unbound);
-      then ((false,false,unbound));
-    case (DAE.STMT_ASSIGN_ARR(lhs=lhs,exp=rhs,source=source), (_,_,unbound))
+        maybe := List.fold(lhss,crefFiltering,maybe);
+      then ((false,false,unbound,maybe));
+    case (DAE.STMT_ASSIGN_ARR(lhs=lhs,exp=rhs,source=source), (_,_,unbound,maybe))
       algorithm
         info := ElementSource.getElementSourceFileInfo(source);
-        (_,(unbound,_)) := Expression.traverseExpTopDown(rhs,findUnboundVariableUse,(unbound,info));
+        (_,(unbound,maybe,_)) := Expression.traverseExpTopDown(rhs,findUnboundVariableUse,(unbound,maybe,info));
         // Traverse subs too! arr[x] := ..., x unbound
-        unbound := traverseCrefSubs(lhs,info,unbound);
+        (unbound,maybe) := traverseCrefSubs(lhs,info,unbound,maybe);
         unbound := crefFiltering(lhs,unbound);
-      then ((false,false,unbound));
-    case (DAE.STMT_IF(exp,stmts,else_,source), (_,_,unbound))
+        maybe := crefFiltering(lhs,maybe);
+      then ((false,false,unbound,maybe));
+    case (DAE.STMT_IF(exp,stmts,else_,source), (_,_,unbound,maybe))
       algorithm
         info := ElementSource.getElementSourceFileInfo(source);
-        (b1,b2,unbound) := checkFunctionDefUseElse(DAE.ELSEIF(exp,stmts,else_),unbound,inLoop,info);
-      then ((b1,b2,unbound));
-    case (DAE.STMT_FOR(iter=iter,range=exp,statementLst=stmts,source=source), (_,_,unbound))
-      algorithm
-        info := ElementSource.getElementSourceFileInfo(source);
-        unbound := List.filter1OnTrue(unbound,Util.stringNotEqual,iter);
-        (_,(unbound,_)) := Expression.traverseExpTopDown(exp,findUnboundVariableUse,(unbound,info));
-        (_,b,unbound) := List.fold1(stmts, checkFunctionDefUseStmt, true, (false,false,unbound));
-      then ((b,b,unbound));
-    case (DAE.STMT_PARFOR(iter=iter,range=exp,statementLst=stmts,source=source), (_,_,unbound))
+        (b1,b2,unbound,maybe) := checkFunctionDefUseElse(DAE.ELSEIF(exp,stmts,else_),unbound,maybe,inLoop,info);
+      then ((b1,b2,unbound,maybe));
+    case (DAE.STMT_FOR(iter=iter,range=exp,statementLst=stmts,source=source), (_,_,unbound,maybe))
       algorithm
         info := ElementSource.getElementSourceFileInfo(source);
         unbound := List.filter1OnTrue(unbound,Util.stringNotEqual,iter);
-        (_,(unbound,_)) := Expression.traverseExpTopDown(exp,findUnboundVariableUse,(unbound,info));
-        (_,b,unbound) := List.fold1(stmts, checkFunctionDefUseStmt, true, (false,false,unbound));
-      then ((b,b,unbound));
-    case (DAE.STMT_WHILE(exp=exp,statementLst=stmts,source=source), (_,_,unbound))
+        maybe := List.filter1OnTrue(maybe,Util.stringNotEqual,iter);
+        (_,(unbound,maybe,_)) := Expression.traverseExpTopDown(exp,findUnboundVariableUse,(unbound,maybe,info));
+        unboundBefore := unbound;
+        (_,b,unbound,maybeBody) := List.fold1(stmts, checkFunctionDefUseStmt, true, (false,false,unbound,maybe));
+        // the loop body may run zero times, so anything assigned in it cannot
+        // be proven to be assigned afterwards
+        maybe := List.unionOnTrue(maybe, maybeBody, stringEq);
+        maybe := List.unionOnTrue(maybe, List.setDifferenceOnTrue(unboundBefore, unbound, stringEq), stringEq);
+      then ((b,b,unbound,maybe));
+    case (DAE.STMT_PARFOR(iter=iter,range=exp,statementLst=stmts,source=source), (_,_,unbound,maybe))
       algorithm
         info := ElementSource.getElementSourceFileInfo(source);
-        (_,(unbound,_)) := Expression.traverseExpTopDown(exp,findUnboundVariableUse,(unbound,info));
-        (_,b,unbound) := List.fold1(stmts, checkFunctionDefUseStmt, true, (false,false,unbound));
-      then ((b,b,unbound));
+        unbound := List.filter1OnTrue(unbound,Util.stringNotEqual,iter);
+        maybe := List.filter1OnTrue(maybe,Util.stringNotEqual,iter);
+        (_,(unbound,maybe,_)) := Expression.traverseExpTopDown(exp,findUnboundVariableUse,(unbound,maybe,info));
+        unboundBefore := unbound;
+        (_,b,unbound,maybeBody) := List.fold1(stmts, checkFunctionDefUseStmt, true, (false,false,unbound,maybe));
+        maybe := List.unionOnTrue(maybe, maybeBody, stringEq);
+        maybe := List.unionOnTrue(maybe, List.setDifferenceOnTrue(unboundBefore, unbound, stringEq), stringEq);
+      then ((b,b,unbound,maybe));
+    case (DAE.STMT_WHILE(exp=exp,statementLst=stmts,source=source), (_,_,unbound,maybe))
+      algorithm
+        info := ElementSource.getElementSourceFileInfo(source);
+        (_,(unbound,maybe,_)) := Expression.traverseExpTopDown(exp,findUnboundVariableUse,(unbound,maybe,info));
+        unboundBefore := unbound;
+        (_,b,unbound,maybeBody) := List.fold1(stmts, checkFunctionDefUseStmt, true, (false,false,unbound,maybe));
+        // the loop body may run zero times, so anything assigned in it cannot
+        // be proven to be assigned afterwards
+        maybe := List.unionOnTrue(maybe, maybeBody, stringEq);
+        maybe := List.unionOnTrue(maybe, List.setDifferenceOnTrue(unboundBefore, unbound, stringEq), stringEq);
+      then ((b,b,unbound,maybe));
     case (DAE.STMT_ASSERT(cond=DAE.BCONST(false)), _) // TODO: Re-write these earlier from assert(false,msg) to terminate(msg)
-      then ((true,true,{}));
-    case (DAE.STMT_ASSERT(cond=exp1,msg=exp2,source=source), (_,_,unbound))
+      then ((true,true,{},{}));
+    case (DAE.STMT_ASSERT(cond=exp1,msg=exp2,source=source), (_,_,unbound,maybe))
       algorithm
         info := ElementSource.getElementSourceFileInfo(source);
-        (_,(unbound,_)) := Expression.traverseExpTopDown(exp1,findUnboundVariableUse,(unbound,info));
-        (_,(unbound,_)) := Expression.traverseExpTopDown(exp2,findUnboundVariableUse,(unbound,info));
-      then ((false,false,unbound));
-    case (DAE.STMT_TERMINATE(msg=exp,source=source), (_,_,unbound))
+        (_,(unbound,maybe,_)) := Expression.traverseExpTopDown(exp1,findUnboundVariableUse,(unbound,maybe,info));
+        (_,(unbound,maybe,_)) := Expression.traverseExpTopDown(exp2,findUnboundVariableUse,(unbound,maybe,info));
+      then ((false,false,unbound,maybe));
+    case (DAE.STMT_TERMINATE(msg=exp,source=source), (_,_,unbound,maybe))
       algorithm
         info := ElementSource.getElementSourceFileInfo(source);
-        (_,(unbound,_)) := Expression.traverseExpTopDown(exp,findUnboundVariableUse,(unbound,info));
-      then ((true,true,unbound));
+        (_,(unbound,maybe,_)) := Expression.traverseExpTopDown(exp,findUnboundVariableUse,(unbound,maybe,info));
+      then ((true,true,unbound,maybe));
     case (DAE.STMT_NORETCALL(exp=DAE.CALL(path=Absyn.IDENT("fail"),expLst={})), _)
-      then ((true,true,{}));
-    case (DAE.STMT_NORETCALL(exp=exp,source=source), (_,_,unbound))
+      then ((true,true,{},{}));
+    case (DAE.STMT_NORETCALL(exp=exp,source=source), (_,_,unbound,maybe))
       algorithm
         info := ElementSource.getElementSourceFileInfo(source);
-        (_,(unbound,_)) := Expression.traverseExpTopDown(exp,findUnboundVariableUse,(unbound,info));
-      then ((false,false,unbound));
-    case (DAE.STMT_BREAK(), (_,_,unbound)) then ((true,false,unbound));
-    case (DAE.STMT_RETURN(), (_,_,unbound)) then ((true,true,unbound));
-    case (DAE.STMT_CONTINUE(), (_,_,unbound)) then ((false,false,unbound));
+        (_,(unbound,maybe,_)) := Expression.traverseExpTopDown(exp,findUnboundVariableUse,(unbound,maybe,info));
+      then ((false,false,unbound,maybe));
+    case (DAE.STMT_BREAK(), (_,_,unbound,maybe)) then ((true,false,unbound,maybe));
+    case (DAE.STMT_RETURN(), (_,_,unbound,maybe)) then ((true,true,unbound,maybe));
+    case (DAE.STMT_CONTINUE(), (_,_,unbound,maybe)) then ((false,false,unbound,maybe));
     case (DAE.STMT_ARRAY_INIT(), _) then inUnbound;
-    case (DAE.STMT_FAILURE(body=stmts), (_,_,unbound))
+    case (DAE.STMT_FAILURE(body=stmts), (_,_,unbound,maybe))
       algorithm
-        (_,b,unbound) := List.fold1(stmts, checkFunctionDefUseStmt, inLoop, (false,false,unbound));
-      then ((b,b,unbound));
+        unboundBefore := unbound;
+        (_,b,unbound,maybeBody) := List.fold1(stmts, checkFunctionDefUseStmt, inLoop, (false,false,unbound,maybe));
+        // the failure body is expected to fail partway through, so anything
+        // assigned in it cannot be proven to be assigned afterwards
+        maybe := List.unionOnTrue(maybe, maybeBody, stringEq);
+        maybe := List.unionOnTrue(maybe, List.setDifferenceOnTrue(unboundBefore, unbound, stringEq), stringEq);
+      then ((b,b,unbound,maybe));
 
     // STMT_WHEN not in functions
     // STMT_REINIT not in functions
@@ -7728,34 +7767,52 @@ end checkFunctionDefUseStmt;
 protected function checkFunctionDefUseElse
   input DAE.Else inElse;
   input list<String> inUnbound;
+  input list<String> inMaybeUnbound;
   input Boolean inLoop;
   input SourceInfo info;
-  output tuple<Boolean,Boolean,list<String>> outUnbound;
+  output tuple<Boolean,Boolean,list<String>,list<String>> outUnbound;
 algorithm
   outUnbound := match (inElse, inUnbound, inLoop)
     local
       DAE.Exp exp;
       list<DAE.Statement> stmts;
       DAE.Else else_;
-      list<String> unbound,unboundBranch;
-      Boolean b1,b2,b3,b4,iloop;
-    case (DAE.NOELSE(), _, _) then ((false,false,inUnbound));
-    case (DAE.ELSEIF(exp,stmts,else_), unbound, iloop)
+      list<String> unbound,unboundBranch,maybe,maybeBranch,assignedThen,assignedElse,proven,entryUnbound;
+      Boolean b1,b2,b3,b4;
+    case (DAE.NOELSE(), _, _) then ((false,false,inUnbound,inMaybeUnbound));
+    case (DAE.ELSEIF(exp,stmts,else_), unbound, _)
       algorithm
-        (_,(unbound,_)) := Expression.traverseExpTopDown(exp,findUnboundVariableUse,(unbound,info));
-        (b1,b2,unboundBranch) := checkFunctionDefUseElse(else_,unbound,inLoop,info);
-        (b3,b4,unbound) := List.fold1(stmts, checkFunctionDefUseStmt, inLoop, (false,false,unbound));
-        iloop := true "We find a few false positives if we are too conservative, so let's do it non-exact";
-        unbound := if iloop then List.intersectionOnTrue(unboundBranch, unbound, stringEq) else unbound;
-        unbound := if not (iloop or b1) then List.union(unboundBranch, unbound) else unbound;
+        maybe := inMaybeUnbound;
+        (_,(unbound,maybe,_)) := Expression.traverseExpTopDown(exp,findUnboundVariableUse,(unbound,maybe,info));
+        entryUnbound := unbound;
+        (b1,b2,unboundBranch,maybeBranch) := checkFunctionDefUseElse(else_,unbound,maybe,inLoop,info);
+        (b3,b4,unbound,maybe) := List.fold1(stmts, checkFunctionDefUseStmt, inLoop, (false,false,unbound,maybe));
+        // Pessimistic bookkeeping: anything that is assigned in only some of
+        // the branches (ignoring branches that surely return or fail) cannot
+        // be proven to be assigned after the if-statement.
+        assignedThen := if b4 then {} else List.setDifferenceOnTrue(entryUnbound, unbound, stringEq);
+        assignedElse := if b2 then {} else List.setDifferenceOnTrue(entryUnbound, unboundBranch, stringEq);
+        if b2 and not b4 then
+          proven := assignedThen; // only the then-branch continues
+        elseif b4 and not b2 then
+          proven := assignedElse; // only the else-branch continues
+        else
+          proven := List.intersectionOnTrue(assignedThen, assignedElse, stringEq);
+        end if;
+        maybe := List.unionOnTrue(if b4 then {} else maybe, if b2 then {} else maybeBranch, stringEq);
+        maybe := List.unionOnTrue(maybe,
+          List.setDifferenceOnTrue(List.unionOnTrue(assignedThen, assignedElse, stringEq), proven, stringEq), stringEq);
+        // Optimistic merge for the hard warnings: a variable assigned in any
+        // branch is treated as assigned afterwards to avoid false positives.
+        unbound := List.intersectionOnTrue(unboundBranch, unbound, stringEq);
         /* Merge the state of the two branches. Either they can break/return or not */
         b1 := b1 and b3;
         b2 := b2 and b4;
-      then ((b1,b2,unbound));
+      then ((b1,b2,unbound,maybe));
     case (DAE.ELSE(stmts), unbound, _)
       algorithm
-        (b1,b2,unbound) := List.fold1(stmts, checkFunctionDefUseStmt, inLoop, (false,false,unbound));
-      then ((b1,b2,unbound));
+        (b1,b2,unbound,maybe) := List.fold1(stmts, checkFunctionDefUseStmt, inLoop, (false,false,unbound,inMaybeUnbound));
+      then ((b1,b2,unbound,maybe));
   end match;
 end checkFunctionDefUseElse;
 
@@ -7816,70 +7873,106 @@ protected function traverseCrefSubs
   input DAE.Exp exp;
   input SourceInfo info;
   input list<String> inUnbound;
+  input list<String> inMaybeUnbound;
   output list<String> outUnbound;
+  output list<String> outMaybeUnbound;
 algorithm
-  outUnbound := match (exp, inUnbound)
+  (outUnbound,outMaybeUnbound) := match (exp, inUnbound)
     local
-      list<String> unbound;
+      list<String> unbound,maybe;
       DAE.ComponentRef cr;
     case (DAE.CREF(componentRef=cr), unbound)
       algorithm
-        (_,(unbound,_)) := Expression.traverseExpTopDownCrefHelper(cr,findUnboundVariableUse,(unbound,info));
-      then unbound;
-    else inUnbound;
+        (_,(unbound,maybe,_)) := Expression.traverseExpTopDownCrefHelper(cr,findUnboundVariableUse,(unbound,inMaybeUnbound,info));
+      then (unbound,maybe);
+    else (inUnbound,inMaybeUnbound);
   end match;
 end traverseCrefSubs;
 
 protected function findUnboundVariableUse "Check if the expression is used before it is defined"
   input DAE.Exp inExp;
-  input tuple<list<String>,SourceInfo> inTpl;
+  input tuple<list<String>,list<String>,SourceInfo> inTpl;
   output DAE.Exp outExp;
   output Boolean cont;
-  output tuple<list<String>,SourceInfo> outTpl;
+  output tuple<list<String>,list<String>,SourceInfo> outTpl;
 algorithm
   (outExp,cont,outTpl) := match (inExp,inTpl)
     local
       DAE.Exp exp;
-      list<String> unbound,unboundLocal;
+      list<String> unbound,maybe,unboundLocal,assigned,assignedUnion,proven,maybeMerged,caseUnbound,caseMaybe;
       SourceInfo info;
       String str,name;
       DAE.ComponentRef cr;
-      Boolean b;
-      tuple<list<String>,SourceInfo> arg;
+      Boolean b,caseReturns,provenInit;
+      tuple<list<String>,list<String>,SourceInfo> arg;
       list<DAE.Exp> inputs;
       list<DAE.Element> localDecls;
       list<DAE.MatchCase> cases;
-      list<list<String>> unbounds;
+      list<tuple<list<String>,list<String>,Boolean>> caseResults;
     case (exp as DAE.SIZE(),arg) then (exp,false,arg);
     case (exp as DAE.CALL(path=Absyn.IDENT("isPresent"), attr = DAE.CALL_ATTR(builtin = true)),arg)
       then (exp,false,arg);
-    case (DAE.CREF(componentRef = DAE.WILD()), (_, info))
+    case (DAE.CREF(componentRef = DAE.WILD()), (_, _, info))
       algorithm
         // _ shouldn't be allowed to be used like a variable, but until that's
         // enforced just give an error message here instead of just failing.
         Error.addSourceMessage(Error.WARNING_DEF_USE, {"_"}, info);
       then (inExp, true, inTpl);
-    case (exp as DAE.CREF(componentRef=cr),(unbound,info))
+    case (exp as DAE.CREF(componentRef=cr),(unbound,maybe,info))
       algorithm
-        b := listMember(ComponentReferenceBasics.crefFirstIdent(cr),unbound);
         str := ComponentReferenceBasics.crefFirstIdent(cr);
-        Error.assertionOrAddSourceMessage(not b, Error.WARNING_DEF_USE, {str}, info);
-        unbound := List.filter1OnTrue(unbound,Util.stringNotEqual,str);
-      then (exp,true,(unbound,info));
-    case (exp as DAE.CALL(path=Absyn.IDENT(name)),(unbound,info))
+        if listMember(str,unbound) then
+          Error.addSourceMessage(Error.WARNING_DEF_USE, {str}, info);
+          unbound := List.filter1OnTrue(unbound,Util.stringNotEqual,str);
+        elseif listMember(str,maybe) then
+          // assigned on some but not all control flow paths leading here
+          if Flags.isSet(Flags.CHECK_DEF_USE) then
+            Error.addSourceMessage(Error.WARNING_DEF_USE_UNPROVEN, {str}, info);
+          end if;
+          maybe := List.filter1OnTrue(maybe,Util.stringNotEqual,str);
+        end if;
+      then (exp,true,(unbound,maybe,info));
+    case (exp as DAE.CALL(path=Absyn.IDENT(name)),(unbound,maybe,info))
       algorithm
-        b := listMember(name,unbound);
-        Error.assertionOrAddSourceMessage(not b, Error.WARNING_DEF_USE, {name}, info);
-        unbound := List.filter1OnTrue(unbound,Util.stringNotEqual,name);
-      then (exp,true,(unbound,info));
-    case (exp as DAE.MATCHEXPRESSION(inputs=inputs,localDecls=localDecls,cases=cases),(unbound,info))
+        if listMember(name,unbound) then
+          Error.addSourceMessage(Error.WARNING_DEF_USE, {name}, info);
+          unbound := List.filter1OnTrue(unbound,Util.stringNotEqual,name);
+        elseif listMember(name,maybe) then
+          if Flags.isSet(Flags.CHECK_DEF_USE) then
+            Error.addSourceMessage(Error.WARNING_DEF_USE_UNPROVEN, {name}, info);
+          end if;
+          maybe := List.filter1OnTrue(maybe,Util.stringNotEqual,name);
+        end if;
+      then (exp,true,(unbound,maybe,info));
+    case (exp as DAE.MATCHEXPRESSION(inputs=inputs,localDecls=localDecls,cases=cases),(unbound,maybe,info))
       algorithm
-        (_,(unbound,_)) := Expression.traverseExpTopDown(DAE.LIST(inputs),findUnboundVariableUse,(unbound,info));
+        (_,(unbound,maybe,_)) := Expression.traverseExpTopDown(DAE.LIST(inputs),findUnboundVariableUse,(unbound,maybe,info));
         unboundLocal := checkFunctionDefUse2(localDecls,NONE(),unbound,{},info);
-        unbounds := List.map1(cases,findUnboundVariableUseInCase,unboundLocal);
+        caseResults := list(findUnboundVariableUseInCase(c,unboundLocal,maybe) for c in cases);
         // Find variables assigned in a case, like: _ = match () case () equation o = 1.5; then ();
-        unbound := List.fold1r(unbounds, List.intersectionOnTrue, stringEq, unbound);
-      then (exp,false,(unbound,info));
+        unbound := List.fold1r(list(Util.tuple31(t) for t in caseResults), List.intersectionOnTrue, stringEq, unbound);
+        // Pessimistic bookkeeping: only variables that are assigned in every
+        // case that can reach the code after the match-expression are proven
+        // to be assigned; the rest cannot be proven to be initialized.
+        provenInit := true;
+        proven := {};
+        assignedUnion := {};
+        maybeMerged := {};
+        for t in caseResults loop
+          (caseUnbound,caseMaybe,caseReturns) := t;
+          if not caseReturns then
+            assigned := List.setDifferenceOnTrue(unboundLocal, caseUnbound, stringEq);
+            proven := if provenInit then assigned else List.intersectionOnTrue(proven, assigned, stringEq);
+            provenInit := false;
+            assignedUnion := List.unionOnTrue(assignedUnion, assigned, stringEq);
+            maybeMerged := List.unionOnTrue(maybeMerged, caseMaybe, stringEq);
+          end if;
+        end for;
+        if not provenInit then
+          maybe := List.unionOnTrue(maybeMerged,
+            List.setDifferenceOnTrue(assignedUnion, proven, stringEq), stringEq);
+        end if;
+      then (exp,false,(unbound,maybe,info));
     case (exp,arg) then (exp,true,arg);
   end match;
 end findUnboundVariableUse;
@@ -7887,21 +7980,29 @@ end findUnboundVariableUse;
 protected function findUnboundVariableUseInCase "Check if the expression is used before it is defined"
   input DAE.MatchCase case_;
   input list<String> inUnbound;
-  output list<String> unbound;
+  input list<String> inMaybeUnbound;
+  output tuple<list<String>,list<String>,Boolean> outResult "Unbound ; Possibly unbound ; Surely returns or fails";
 algorithm
-  unbound := match (case_,inUnbound)
+  outResult := match (case_,inUnbound)
     local
       SourceInfo info,resultInfo;
       Option<DAE.Exp> patternGuard,result;
       list<DAE.Pattern> patterns;
       list<DAE.Statement> body;
+      list<String> unbound,maybe;
+      Boolean returned;
     case (DAE.CASE(patterns=patterns,patternGuard=patternGuard,body=body,result=result,info=info,resultInfo=resultInfo),unbound)
       algorithm
+        maybe := inMaybeUnbound;
         (_,unbound) := Patternm.traversePatternList(patterns,patternFiltering,unbound);
-        (_,(unbound,_)) := Expression.traverseExpTopDown(DAE.META_OPTION(patternGuard),findUnboundVariableUse,(unbound,info));
-        (_,_,unbound) := List.fold1(body, checkFunctionDefUseStmt, true, (false,false,unbound));
-        (_,(unbound,_)) := Expression.traverseExpTopDown(DAE.META_OPTION(result),findUnboundVariableUse,(unbound,resultInfo));
-      then unbound;
+        (_,maybe) := Patternm.traversePatternList(patterns,patternFiltering,maybe);
+        (_,(unbound,maybe,_)) := Expression.traverseExpTopDown(DAE.META_OPTION(patternGuard),findUnboundVariableUse,(unbound,maybe,info));
+        (_,returned,unbound,maybe) := List.fold1(body, checkFunctionDefUseStmt, true, (false,false,unbound,maybe));
+        (_,(unbound,maybe,_)) := Expression.traverseExpTopDown(DAE.META_OPTION(result),findUnboundVariableUse,(unbound,maybe,resultInfo));
+        // a case without a result expression is 'then fail()': it never
+        // continues past the match-expression
+        returned := returned or not isSome(result);
+      then ((unbound,maybe,returned));
   end match;
 end findUnboundVariableUseInCase;
 

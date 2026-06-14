@@ -33,14 +33,14 @@
  *
  */
 
-encapsulated package CodegenWasmer
+encapsulated package CodegenWasmJit
 " Code generator target `wasm-jit`, the simulation half of the WebAssembly
   pipeline (counterpart of CodegenC for the C target).
 
   Placeholder for future work: generate the simulation right-hand sides (the
   numerical solver model functions) as a WebAssembly module to be JIT-compiled
-  with wasmtime, mirroring CodegenWasmerFunctions for the function half. The
-  implementation will be hand-written in Rust (openmodelica_codegen_wasmer). "
+  with wasmtime, mirroring CodegenWasmJitFunctions for the function half. The
+  implementation will be hand-written in Rust (openmodelica_codegen_wasm_jit). "
 
-annotation(__OpenModelica_Interface="codegen_wasmer");
-end CodegenWasmer;
+annotation(__OpenModelica_Interface="codegen_wasm_jit");
+end CodegenWasmJit;

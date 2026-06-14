@@ -33,14 +33,14 @@
  *
  */
 
-encapsulated package CodegenWasmerFunctions
+encapsulated package CodegenWasmJitFunctions
 " Code generator target `wasm-jit` (selected with +simCodeTarget=wasm-jit), the
   function half of the WebAssembly JIT pipeline used by -d=gen. Instead of
   generating C, building a shared object and dlopen'ing it, the functions are
   lowered to a WebAssembly module that is JIT-compiled and executed in-process.
 
   This package is a placeholder: the real implementation is hand-written in Rust
-  (openmodelica_codegen_wasmer), using the `wasm-encoder` crate to emit the
+  (openmodelica_codegen_wasm_jit), using the `wasm-encoder` crate to emit the
   module and `wasmtime` to JIT and run it. The bodies below exist only so the
   declarations type-check in the MetaModelica sources. "
 
@@ -67,5 +67,5 @@ function loadAndExecute
 algorithm
 end loadAndExecute;
 
-annotation(__OpenModelica_Interface="codegen_wasmer");
-end CodegenWasmerFunctions;
+annotation(__OpenModelica_Interface="codegen_wasm_jit");
+end CodegenWasmJitFunctions;

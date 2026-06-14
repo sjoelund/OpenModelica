@@ -77,7 +77,7 @@ import ClassInf;
 import ClassLoader;
 import CodegenCFunctions;
 import CodegenMidToC;
-import CodegenWasmerFunctions;
+import CodegenWasmJitFunctions;
 import ComponentReference;
 import Config;
 import Corba;
@@ -2343,7 +2343,7 @@ algorithm
         if Config.simCodeTarget() == "wasm-jit" then
           // JIT and run the generated WebAssembly module in-process; no shared
           // object to load or free.
-          newval := CodegenWasmerFunctions.loadAndExecute(fileName, funcstr, vallst);
+          newval := CodegenWasmJitFunctions.loadAndExecute(fileName, funcstr, vallst);
         else
           libHandle := System.loadLibrary(fileName + Autoconf.dllExt, relativePath = true, printDebug = print_debug);
           funcHandle := System.lookupFunction(libHandle, stringAppend("in_", funcstr));
@@ -2914,7 +2914,7 @@ algorithm
         fnCode := SimCodeFunction.FUNCTIONCODE(name, SOME(mainFunction), fns, literals, includes, makefileParams, extraRecordDecls);
 
         if Config.simCodeTarget() == "wasm-jit" then
-          CodegenWasmerFunctions.translateFunctions(fnCode);
+          CodegenWasmJitFunctions.translateFunctions(fnCode);
         elseif Config.simCodeTarget() == "MidC" then
           Tpl.tplString(CodegenCFunctions.translateFunctionHeaderFiles, fnCode);
           midfuncs := DAEToMid.DAEFunctionsToMid(mainFunction::fns);

@@ -123,8 +123,8 @@ if true then /* Suppress output */
 // "Template";
     "../Template/AbsynDumpTpl.mo",
     "../Template/CodegenCFunctions.mo",
-    "../Template/CodegenWasmer.mo",
-    "../Template/CodegenWasmerFunctions.mo",
+    "../Template/CodegenWasmJit.mo",
+    "../Template/CodegenWasmJitFunctions.mo",
     "../Template/CodegenUtil.mo",
     "../Template/DAEDumpTpl.mo",
     "../Template/ExpressionDumpTpl.mo",

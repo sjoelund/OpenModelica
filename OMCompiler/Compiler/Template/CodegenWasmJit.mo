@@ -37,10 +37,39 @@ encapsulated package CodegenWasmJit
 " Code generator target `wasm-jit`, the simulation half of the WebAssembly
   pipeline (counterpart of CodegenC for the C target).
 
-  Placeholder for future work: generate the simulation right-hand sides (the
-  numerical solver model functions) as a WebAssembly module to be JIT-compiled
-  with wasmtime, mirroring CodegenWasmJitFunctions for the function half. The
-  implementation will be hand-written in Rust (openmodelica_codegen_wasm_jit). "
+  Lowers the SimCode equation systems to a single WebAssembly model module (the
+  numerical right-hand sides) that is JIT-compiled and run in-process with
+  wasmtime, integrating with a forward-Euler solver and writing the MATLAB v4
+  result file. Unlike the C target, no metadata is serialized to XML/JSON: the
+  host holds the SimCode-derived data in memory.
+
+  The implementation is hand-written in Rust (openmodelica_codegen_wasm_jit);
+  the declarations below exist only so the calls type-check in the MetaModelica
+  sources. "
+
+import SimCode;
+
+function translateModel
+  " Lower the model in `simCode` to a WebAssembly module written to
+    <simCode.fileNamePrefix>.wasm and stash the prepared model in-process for the
+    later runSimulation. Counterpart of CodegenC.translateModel for the C target.
+    Implemented in Rust. "
+  input SimCode.SimCode simCode;
+algorithm
+end translateModel;
+
+function runSimulation
+  " Run the prepared model (built by translateModel) in-process with a
+    forward-Euler solver and write the result file. Returns 0 on success, 1 on
+    failure (matching the exit code of the C target's executable). Implemented in
+    Rust. "
+  input String fileNamePrefix;
+  input String resultFile;
+  input String simflags;
+  output Integer status;
+algorithm
+  status := 0;
+end runSimulation;
 
 annotation(__OpenModelica_Interface="codegen_wasm_jit");
 end CodegenWasmJit;

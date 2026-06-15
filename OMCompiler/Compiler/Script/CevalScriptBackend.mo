@@ -6018,9 +6018,14 @@ algorithm
           try
             // The wasm-jit target produced the model WebAssembly module during
             // translateModel and runs it in-process at simulate time, so there
-            // is no C executable to compile/link here.
+            // is no C executable to compile/link here. Instead, force the JIT
+            // compile of the model's wasm modules now so its cost is attributed
+            // to timeCompile (this clock) rather than leaking into
+            // timeSimulation at runSimulation.
             if Config.simCodeTarget() <> "wasm-jit" then
               CevalScript.compileModel(filenameprefix, libsAndLibDirs);
+            else
+              CodegenWasmJit.finishCompile(filenameprefix);
             end if;
           else
             success := false;

@@ -71,5 +71,14 @@ algorithm
   status := 0;
 end runSimulation;
 
+function finishCompile
+  " Force the model's wasm modules to finish JIT-compiling. Called from
+    buildModel's compile phase (the wasm-jit counterpart of compiling the C
+    executable) so the compile cost is attributed to timeCompile rather than
+    timeSimulation. Implemented in Rust. "
+  input String fileNamePrefix;
+algorithm
+end finishCompile;
+
 annotation(__OpenModelica_Interface="codegen_wasm_jit");
 end CodegenWasmJit;

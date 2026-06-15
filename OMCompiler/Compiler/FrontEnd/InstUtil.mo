@@ -7909,6 +7909,10 @@ algorithm
       list<DAE.Element> localDecls;
       list<DAE.MatchCase> cases;
       list<tuple<list<String>,list<String>,Boolean>> caseResults;
+      DAE.Exp redExpr,iterExp;
+      DAE.ReductionIterators iterators;
+      Option<DAE.Exp> guardExp;
+      list<String> iterUnbound,iterMaybe;
     case (exp as DAE.SIZE(),arg) then (exp,false,arg);
     case (exp as DAE.CALL(path=Absyn.IDENT("isPresent"), attr = DAE.CALL_ATTR(builtin = true)),arg)
       then (exp,false,arg);
@@ -7972,6 +7976,39 @@ algorithm
           maybe := List.unionOnTrue(maybeMerged,
             List.setDifferenceOnTrue(assignedUnion, proven, stringEq), stringEq);
         end if;
+      then (exp,false,(unbound,maybe,info));
+    case (exp as DAE.REDUCTION(expr=redExpr,iterators=iterators),(unbound,maybe,info))
+      algorithm
+        // The iterator ranges are evaluated in the enclosing scope.
+        for it in iterators loop
+          DAE.REDUCTIONITER(exp=iterExp) := it;
+          (_,(unbound,maybe,_)) := Expression.traverseExpTopDown(iterExp,findUnboundVariableUse,(unbound,maybe,info));
+        end for;
+        // The iterator variables are bound within the reduction guard/body, so
+        // they shadow any enclosing variable of the same name. Remember whether
+        // each name was (maybe) unbound outside so the enclosing state can be
+        // restored afterwards, and remove them while traversing the body.
+        iterUnbound := {};
+        iterMaybe := {};
+        for it in iterators loop
+          DAE.REDUCTIONITER(id=name) := it;
+          if listMember(name,unbound) then
+            iterUnbound := name :: iterUnbound;
+            unbound := List.filter1OnTrue(unbound,Util.stringNotEqual,name);
+          end if;
+          if listMember(name,maybe) then
+            iterMaybe := name :: iterMaybe;
+            maybe := List.filter1OnTrue(maybe,Util.stringNotEqual,name);
+          end if;
+        end for;
+        for it in iterators loop
+          DAE.REDUCTIONITER(guardExp=guardExp) := it;
+          (_,(unbound,maybe,_)) := Expression.traverseExpTopDown(DAE.META_OPTION(guardExp),findUnboundVariableUse,(unbound,maybe,info));
+        end for;
+        (_,(unbound,maybe,_)) := Expression.traverseExpTopDown(redExpr,findUnboundVariableUse,(unbound,maybe,info));
+        // Restore the enclosing scope's status for the iterator names.
+        unbound := listAppend(iterUnbound,unbound);
+        maybe := listAppend(iterMaybe,maybe);
       then (exp,false,(unbound,maybe,info));
     case (exp,arg) then (exp,true,arg);
   end match;

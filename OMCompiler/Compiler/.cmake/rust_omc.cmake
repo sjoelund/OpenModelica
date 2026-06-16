@@ -127,21 +127,53 @@ function(omc_rust_setup_codegen)
   add_custom_target(rust_codegen DEPENDS ${CODEGEN_STAMP})
 
   # -------------------------------------------------------------------------
-  # Step 5: build the omc artifacts with the selected profile.
+  # Step 5: build the omc artifacts with the selected profile. Both are part of
+  # `all` (ALL) so a plain `make` produces them and `make install` can stage
+  # them — exactly like the C build's omc/OpenModelicaCompiler targets, which the
+  # rust branch skips. rust_libopenmodelica builds the canonical
+  # target/<profile>/libOpenModelicaCompiler.so that gets installed (the omc
+  # launcher links a private bindeps copy, but installs/loads the canonical one).
   # -------------------------------------------------------------------------
-  add_custom_target(rust_omc
-    WORKING_DIRECTORY ${RUST_OMC_DIR}
-    COMMAND ${CARGO_EXECUTABLE} build ${RUST_OMC_PROFILE_FLAG} -p openmodelica
-    DEPENDS rust_codegen
-    COMMENT "Rust: building omc (cargo build -p openmodelica, ${RUST_OMC_PROFILE})"
-    VERBATIM)
-
-  add_custom_target(rust_libopenmodelica
+  add_custom_target(rust_libopenmodelica ALL
     WORKING_DIRECTORY ${RUST_OMC_DIR}
     COMMAND ${CARGO_EXECUTABLE} build ${RUST_OMC_PROFILE_FLAG} -p libopenmodelica_compiler
     DEPENDS rust_codegen
     COMMENT "Rust: building libOpenModelicaCompiler (${RUST_OMC_PROFILE})"
     VERBATIM)
+
+  add_custom_target(rust_omc ALL
+    WORKING_DIRECTORY ${RUST_OMC_DIR}
+    COMMAND ${CARGO_EXECUTABLE} build ${RUST_OMC_PROFILE_FLAG} -p openmodelica
+    DEPENDS rust_codegen rust_libopenmodelica
+    COMMENT "Rust: building omc (cargo build -p openmodelica, ${RUST_OMC_PROFILE})"
+    VERBATIM)
+
+  # -------------------------------------------------------------------------
+  # Install into the standard layout, mirroring the C build's install rules
+  # (OMCompiler/Compiler/CMakeLists.txt, skipped in rust mode): the omc launcher
+  # → bin/, the cdylib → ${CMAKE_INSTALL_LIBDIR} (lib/<triple>/omc, next to the
+  # simulation-runtime libs installed by OMCompiler/SimulationRuntime under the
+  # same `omc` component), and the *Builtin.mo files → lib/omc/. The launcher's
+  # rpath ($ORIGIN/../lib/<triple>/omc) then resolves both the cdylib and the
+  # dlopened runtime libs. Build the targets first: `make && make install`.
+  # -------------------------------------------------------------------------
+  set(RUST_OMC_ARTIFACT_DIR ${RUST_TARGET_DIR}/${RUST_OMC_TARGET_SUBDIR})
+  install(PROGRAMS ${RUST_OMC_ARTIFACT_DIR}/openmodelica
+          DESTINATION ${CMAKE_INSTALL_BINDIR} RENAME omc COMPONENT omc)
+  install(PROGRAMS ${RUST_OMC_ARTIFACT_DIR}/libOpenModelicaCompiler.so
+          DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT omc)
+  install(FILES
+            ${CMAKE_CURRENT_SOURCE_DIR}/FrontEnd/AnnotationsBuiltin_1_x.mo
+            ${CMAKE_CURRENT_SOURCE_DIR}/FrontEnd/AnnotationsBuiltin_2_x.mo
+            ${CMAKE_CURRENT_SOURCE_DIR}/FrontEnd/AnnotationsBuiltin_3_x.mo
+            ${CMAKE_CURRENT_SOURCE_DIR}/NFFrontEnd/NFModelicaBuiltin.mo
+            ${CMAKE_CURRENT_SOURCE_DIR}/FrontEnd/ModelicaBuiltin.mo
+            ${CMAKE_CURRENT_SOURCE_DIR}/FrontEnd/MetaModelicaBuiltin.mo
+            ${CMAKE_CURRENT_SOURCE_DIR}/FrontEnd/PDEModelicaBuiltin.mo
+          DESTINATION lib/omc COMPONENT omc)
+  install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/scripts
+          DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/omc/ COMPONENT omc)
+
   # NOTE: OpenModelicaScriptingAPI.mo is now produced by the standalone
   # scripting_api_gen tool above (rust_scripting_api target / SCRIPTING_API_MO),
   # *before* codegen, so it no longer needs a built omc and there is no bootstrap

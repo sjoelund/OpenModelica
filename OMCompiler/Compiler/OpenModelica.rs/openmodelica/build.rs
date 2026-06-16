@@ -25,12 +25,14 @@ fn main() {
     // this env var (`CARGO_CDYLIB_FILE_<DEP>_<LIBNAME>`: dependency name
     // `libopenmodelica_compiler`, lib name `OpenModelicaCompiler`).
     //
-    // The artifact-dir rpath is emitted *before* the $ORIGIN ones below so a
-    // freshly built `target/<profile>/openmodelica` loads the just-built artifact
-    // copy — not a possibly-stale `target/<profile>/libOpenModelicaCompiler.so`
-    // that $ORIGIN would otherwise match first. On a deployed install the
-    // artifact dir does not exist, so ld.so skips it and falls through to
-    // $ORIGIN/../lib/<triple>/omc where the cmake install puts the .so.
+    // Runtime rpath search order matters because more than one copy of the .so
+    // can exist. The INSTALL layout comes first (relocatable, `$ORIGIN/../lib/
+    // <triple>/omc` — where the cmake install puts the .so next to the simulation
+    // runtime; matches CMAKE_INSTALL_RPATH), so an installed omc loads the
+    // installed cdylib. In a dev/build tree that path does not exist, so ld.so
+    // falls through to the absolute bindeps artifact dir (always the just-built,
+    // never-stale copy), and finally $ORIGIN.
+    println!("cargo:rustc-link-arg-bins=-Wl,-rpath,$ORIGIN/../lib/{triple}/omc");
     if let Ok(so) = std::env::var("CARGO_CDYLIB_FILE_LIBOPENMODELICA_COMPILER_OpenModelicaCompiler")
         .or_else(|_| std::env::var("CARGO_CDYLIB_FILE_LIBOPENMODELICA_COMPILER"))
     {
@@ -38,7 +40,7 @@ fn main() {
             .parent()
             .map(|p| p.display().to_string())
             .unwrap_or_default();
-        // Search the artifact dir first at runtime.
+        // Dev/build fallback: the always-current artifact copy.
         println!("cargo:rustc-link-arg-bins=-Wl,-rpath,{dir}");
         // Link `-lOpenModelicaCompiler` as a *trailing* link-arg rather than a
         // plain `cargo:rustc-link-lib`: rustc emits build-script link libs ahead
@@ -49,8 +51,6 @@ fn main() {
         println!("cargo:rustc-link-arg-bins=-L{dir}");
         println!("cargo:rustc-link-arg-bins=-lOpenModelicaCompiler");
     }
-
-    println!("cargo:rustc-link-arg-bins=-Wl,-rpath,$ORIGIN/../lib/{triple}/omc");
     println!("cargo:rustc-link-arg-bins=-Wl,-rpath,$ORIGIN");
     // libomcruntime.so (dlopened by the `-d=gen` pipeline) resolves the
     // compiler callback `omc_Error_getCurrentComponent`. In the static build it

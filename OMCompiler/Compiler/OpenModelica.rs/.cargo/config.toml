@@ -5,3 +5,11 @@
 # native builds are unaffected.
 [target.wasm32-unknown-unknown]
 rustflags = ['--cfg', 'getrandom_backend="wasm_js"']
+
+# Enable artifact dependencies (bindeps) for the whole workspace so they work
+# from every cargo invocation (the cmake build and a bare `cargo build`) without
+# threading `-Zbindeps` through each one. The `openmodelica` launcher binary
+# uses an `artifact = "cdylib"` dependency on `libopenmodelica_compiler` to link
+# the compiler dynamically (libOpenModelicaCompiler.so) instead of statically.
+[unstable]
+bindeps = true

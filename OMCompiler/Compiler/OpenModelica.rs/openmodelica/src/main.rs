@@ -1,8 +1,6 @@
-use arcstr::ArcStr;
-use openmodelica_backend_main::Main;
-use std::env::args;
+use std::ffi::CString;
 use std::io::Write;
-use std::sync::Arc;
+use std::os::raw::{c_char, c_int};
 
 /// Default worker-thread stack size: 4 MiB - use env. var to increase it.
 ///
@@ -15,18 +13,27 @@ use std::sync::Arc;
 /// — Linux commits stack pages lazily — so the cost of the headroom is nil.
 const DEFAULT_STACK_SIZE: usize = 4 * 1024 * 1024;
 
+// The compiler itself lives in `libOpenModelicaCompiler.so` (the
+// `libopenmodelica_compiler` cdylib). This executable is a thin launcher that
+// dynamically links that library and forwards its argv to the CLI entry point,
+// so the ~400 MB of compiler code exists once on disk and is shared with the
+// in-process OMEdit host rather than statically duplicated into both. The
+// artifact dependency in Cargo.toml builds the .so and build.rs wires up the
+// link search path + rpath.
+unsafe extern "C" {
+    fn omc_cli_run(argc: c_int, argv: *const *const c_char) -> c_int;
+}
+
 fn run() -> i32 {
-    if Main::main(Arc::new(args().skip(1).map(ArcStr::from).collect())).is_err() {
-        // Mirror `rml_execution_failed()` in the generated C wrapper
-        // (CodegenCFunctions.tpl): flush pending output, report on stderr
-        // and exit with status 1. The MetaModelica exception carries no
-        // payload worth printing — diagnostics were already emitted via
-        // the Error buffer before `fail()` reached us.
-        let _ = std::io::stdout().flush();
-        eprintln!("Execution failed!");
-        return 1;
-    }
-    0
+    // Re-marshal this process's argv into NUL-terminated C strings for the
+    // shared library's C entry point (which skips argv[0] itself).
+    let cargs: Vec<CString> = std::env::args()
+        .map(|a| CString::new(a).unwrap_or_default())
+        .collect();
+    let ptrs: Vec<*const c_char> = cargs.iter().map(|c| c.as_ptr()).collect();
+    // SAFETY: `ptrs` holds `ptrs.len()` valid NUL-terminated C strings, kept
+    // alive by `cargs` for the duration of the call.
+    unsafe { omc_cli_run(ptrs.len() as c_int, ptrs.as_ptr()) }
 }
 
 fn main() -> std::process::ExitCode {

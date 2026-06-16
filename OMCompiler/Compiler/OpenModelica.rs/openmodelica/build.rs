@@ -19,14 +19,46 @@ fn main() {
         "macos" => format!("{target_arch}-apple-darwin"),
         _ => return,
     };
+    // Thin-launcher linkage. This binary contains no compiler code; it calls
+    // `omc_cli_run` in libOpenModelicaCompiler.so. The bindeps artifact
+    // dependency (Cargo.toml) builds that cdylib first and hands us its path via
+    // this env var (`CARGO_CDYLIB_FILE_<DEP>_<LIBNAME>`: dependency name
+    // `libopenmodelica_compiler`, lib name `OpenModelicaCompiler`).
+    //
+    // The artifact-dir rpath is emitted *before* the $ORIGIN ones below so a
+    // freshly built `target/<profile>/openmodelica` loads the just-built artifact
+    // copy — not a possibly-stale `target/<profile>/libOpenModelicaCompiler.so`
+    // that $ORIGIN would otherwise match first. On a deployed install the
+    // artifact dir does not exist, so ld.so skips it and falls through to
+    // $ORIGIN/../lib/<triple>/omc where the cmake install puts the .so.
+    if let Ok(so) = std::env::var("CARGO_CDYLIB_FILE_LIBOPENMODELICA_COMPILER_OpenModelicaCompiler")
+        .or_else(|_| std::env::var("CARGO_CDYLIB_FILE_LIBOPENMODELICA_COMPILER"))
+    {
+        let dir = std::path::Path::new(&so)
+            .parent()
+            .map(|p| p.display().to_string())
+            .unwrap_or_default();
+        // Search the artifact dir first at runtime.
+        println!("cargo:rustc-link-arg-bins=-Wl,-rpath,{dir}");
+        // Link `-lOpenModelicaCompiler` as a *trailing* link-arg rather than a
+        // plain `cargo:rustc-link-lib`: rustc emits build-script link libs ahead
+        // of the crate's own object files, where the global `-Wl,--as-needed`
+        // (set by the workspace) drops the DT_NEEDED because `omc_cli_run` is not
+        // yet an unresolved reference at that point. Placed after the objects
+        // (link-args go last), the reference is live and the .so is retained.
+        println!("cargo:rustc-link-arg-bins=-L{dir}");
+        println!("cargo:rustc-link-arg-bins=-lOpenModelicaCompiler");
+    }
+
     println!("cargo:rustc-link-arg-bins=-Wl,-rpath,$ORIGIN/../lib/{triple}/omc");
     println!("cargo:rustc-link-arg-bins=-Wl,-rpath,$ORIGIN");
     // libomcruntime.so (dlopened by the `-d=gen` pipeline) resolves the
-    // compiler callback `omc_Error_getCurrentComponent` against the host
-    // executable — in the C omc it comes from the compiled Error module in
-    // the binary. Export the Rust port's shim (DynLoadExt.rs) from the
-    // dynamic symbol table; `-u` keeps the rlib object alive through the
-    // link so there is a definition to export.
+    // compiler callback `omc_Error_getCurrentComponent`. In the static build it
+    // came from the binary's own Error module (DynLoadExt.rs); now that the
+    // compiler lives in libOpenModelicaCompiler.so, the .so exports it and ld.so
+    // resolves it from there (the .so is a DT_NEEDED, so its dynamic symbols are
+    // in the global scope for later dlopen()s). The `-u`/--export-dynamic-symbol
+    // are kept as a harmless safety net.
     println!("cargo:rustc-link-arg-bins=-Wl,-u,omc_Error_getCurrentComponent");
     println!("cargo:rustc-link-arg-bins=-Wl,--export-dynamic-symbol=omc_Error_getCurrentComponent");
 }

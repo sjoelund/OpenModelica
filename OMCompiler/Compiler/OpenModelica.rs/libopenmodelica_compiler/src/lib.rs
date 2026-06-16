@@ -78,6 +78,56 @@ pub use openmodelica_util::System::{omc_set_loadmodel_callback, omc_set_plot_cal
 // keep the `#[no_mangle]` symbols in `libOpenModelicaCompiler.so`.
 pub use openmodelica_backend_main::ModelInstanceReference::*;
 
+/// Run the standalone `omc` command-line interface and return its process exit
+/// code (`0` on success, `1` on a failed MetaModelica execution or a panic).
+///
+/// This is the entry point the thin `openmodelica` launcher binary calls: the
+/// launcher dynamically links `libOpenModelicaCompiler.so` and forwards its
+/// argv here instead of statically linking the whole compiler, so the compiler
+/// code lives in exactly one place — this shared library — shared by both the
+/// CLI and OMEdit (which previously meant two ~400 MB copies of identical code).
+///
+/// `argv`/`argc` are the raw process arguments *including* `argv[0]`; the
+/// program name is skipped here, matching `std::env::args().skip(1)` in a normal
+/// `main`. The caller must run this on a thread with a large stack (several MiB)
+/// — the launcher does, see the threading note in [`mod@capi`]. Null entries are
+/// skipped; a null `argv` (with `argc > 0`) is treated as no arguments.
+#[cfg(not(target_arch = "wasm32"))]
+#[unsafe(no_mangle)]
+pub extern "C" fn omc_cli_run(argc: c_int, argv: *const *const c_char) -> c_int {
+    use std::io::Write;
+    let args: Vec<ArcStr> = if argv.is_null() || argc <= 0 {
+        Vec::new()
+    } else {
+        // Skip argv[0] (the program name), mirroring `args().skip(1)`.
+        (1..argc as isize)
+            .filter_map(|i| {
+                // SAFETY: caller guarantees `argv` holds `argc` valid (or null)
+                // NUL-terminated C strings.
+                let p = unsafe { *argv.offset(i) };
+                if p.is_null() {
+                    None
+                } else {
+                    let bytes = unsafe { CStr::from_ptr(p) }.to_bytes();
+                    Some(ArcStr::from(String::from_utf8_lossy(bytes)))
+                }
+            })
+            .collect()
+    };
+    let arglist = std::sync::Arc::new(args.into_iter().collect());
+    match catch_unwind(AssertUnwindSafe(|| openmodelica_backend_main::Main::main(arglist))) {
+        Ok(Ok(())) => 0,
+        // Mirror the launcher's old inline `run()`: flush stdout, report on
+        // stderr and exit 1. The MetaModelica exception carries no payload worth
+        // printing — diagnostics were already emitted via the Error buffer.
+        Ok(Err(_)) | Err(_) => {
+            let _ = std::io::stdout().flush();
+            eprintln!("Execution failed!");
+            1
+        }
+    }
+}
+
 /// Initialise the compiler runtime on the calling thread.
 ///
 /// Returns `0` on success and `-1` on failure (initialisation error or a

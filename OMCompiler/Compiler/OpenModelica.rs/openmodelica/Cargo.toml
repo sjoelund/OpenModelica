@@ -3,12 +3,22 @@ name = "openmodelica"
 version = "0.1.0"
 edition = "2024"
 
-[dependencies]
-arcstr.workspace=true
-openmodelica_backend_main.workspace=true
+# This is a *thin launcher*: it contains no compiler code, only a `main` that
+# forwards argv to `omc_cli_run` in `libOpenModelicaCompiler.so`.
+#
+# The cdylib is a bindeps `artifact = "cdylib"` dependency (enabled by
+# `[unstable] bindeps = true` in .cargo/config.toml). It is declared as a
+# *build*-dependency on purpose: artifact-dependency path env vars
+# (`CARGO_CDYLIB_FILE_*`) are handed to the build script only for build-deps, and
+# build.rs needs that path to emit the `-L`/`-l`/rpath link flags. cargo builds
+# the .so first; the binary links it dynamically. The compiler thus lives in
+# exactly one ~400 MB artifact instead of being statically duplicated into both
+# omc and the OMEdit cdylib.
+[build-dependencies]
+libopenmodelica_compiler = { path = "../libopenmodelica_compiler", artifact = "cdylib" }
 
 [features]
 # Pick the wasm-jit engine: wasmtime (default, fastest) or wasmer. Build the
 # native binary with `--features engine-wasmer` to benchmark wasmer (wasmer wins
 # when enabled). See openmodelica_codegen_wasm_jit.
-engine-wasmer = ["openmodelica_backend_main/engine-wasmer"]
+engine-wasmer = ["libopenmodelica_compiler/engine-wasmer"]

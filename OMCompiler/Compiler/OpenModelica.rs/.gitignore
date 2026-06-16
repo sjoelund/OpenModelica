@@ -444,7 +444,6 @@ openmodelica_util_datatypes_basic/src/DoubleEnded.rs
 openmodelica_util_datatypes_basic/src/List.rs
 openmodelica_backend/src/lib.rs
 openmodelica_backend_main/src/lib.rs
-openmodelica_error/src/lib.rs
 openmodelica_frontend/src/lib.rs
 openmodelica_frontend_base/src/lib.rs
 openmodelica_frontend_dump/src/lib.rs

@@ -7,8 +7,6 @@ wasm/pkg/
 wasm/pkg-nodejs/
 wasm/pkg-web/
 *.wasm
-openmodelica_ast/src/Absyn.rs
-openmodelica_ast/src/GlobalScript.rs
 openmodelica_ast_collections/src/AvlSetPath.rs
 openmodelica_ast_collections/src/HashTable5.rs
 openmodelica_ast_collections/src/HashTableStringToPath.rs
@@ -142,7 +140,6 @@ openmodelica_codegen_graphml/src/GraphMLDumpTpl.rs
 openmodelica_codegen_xml/src/CodegenXML.rs
 openmodelica_dump_extra/src/BlockCallRewrite.rs
 openmodelica_dump_extra/src/DumpGraphviz.rs
-openmodelica_error/src/ErrorTypes.rs
 openmodelica_frontend/src/AbsynJLDumpTpl.rs
 openmodelica_frontend/src/BackendCevalInterface.rs
 openmodelica_frontend/src/Builtin.rs
@@ -432,8 +429,6 @@ openmodelica_util/src/SBPWAtomicLinearMap.rs
 openmodelica_util/src/SBPWLinearMap.rs
 openmodelica_util/src/SBSet.rs
 openmodelica_util/src/SemanticVersion.rs
-openmodelica_util/src/Socket.rs
-openmodelica_util/src/StackOverflow.rs
 openmodelica_util/src/StringUtil.rs
 openmodelica_util/src/Testsuite.rs
 openmodelica_util/src/UnorderedMap.rs

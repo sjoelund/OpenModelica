@@ -1,0 +1,14 @@
+[package]
+name = "openmodelica"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+arcstr.workspace=true
+openmodelica_backend_main.workspace=true
+
+[features]
+# Pick the wasm-jit engine: wasmtime (default, fastest) or wasmer. Build the
+# native binary with `--features engine-wasmer` to benchmark wasmer (wasmer wins
+# when enabled). See openmodelica_codegen_wasm_jit.
+engine-wasmer = ["openmodelica_backend_main/engine-wasmer"]

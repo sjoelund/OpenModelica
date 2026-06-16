@@ -755,7 +755,11 @@ fn ryu_to_hr(d2s_str: &str, real_output: bool) -> String {
 
 /// Returns the ASCII code point of a single-character string.
 pub fn stringCharInt(ch: ArcStr) -> Result<i32> {
-    if ch.len() != 1 {
+    // The string model here is char-based (cf. `stringListStringChar` /
+    // `stringGetStringChar`): "single character" means one Unicode scalar, which
+    // may span several bytes (e.g. "ö"). Count chars, not bytes, and return its
+    // code point.
+    if ch.chars().count() != 1 {
         bail!("stringCharInt expects a single-character string, got '{}'", ch);
     };
     ch.chars().next()

@@ -38,6 +38,13 @@ omc_option(OM_OMC_USE_CORBA "Should use corba." OFF)
 
 omc_option(OM_OMC_USE_LAPACK "Should we use lapack." ON)
 
+# Build the Rust (mmtorust) omc port instead of the bootstrapped C omc. When ON,
+# the compiler is produced by transpiling the MetaModelica sources to Rust and
+# `cargo build`ing them (see Compiler/.cmake/rust_omc.cmake); bomc/omc are never
+# compiled from C. The simulation/function runtime C libraries are still built.
+omc_option(OM_OMC_ENABLE_RUST "Build the Rust (mmtorust) omc port instead of the bootstrapped C omc." OFF)
+omc_option(OM_OMC_ENABLE_RUST_OMEDIT "Also build OMEdit against the Rust libOpenModelicaCompiler (needs Qt). Implies OM_OMC_ENABLE_RUST." OFF)
+
 
 # Remove -DNDEBUG from release build command lines. The reason is that -DNDEBUG completely
 # removes assert(...) statements. We have some assert statements with side effects. Of course,
@@ -82,6 +89,14 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clan
 endif()
 
 omc_add_subdirectory(SimulationRuntime)
-omc_add_subdirectory(Parser)
+# The ANTLR Modelica parser (omparse) and the Examples are part of the C omc
+# toolchain only — the Rust omc port has its own parser and links neither. They
+# also pull in the C compiler runtime (omc::compiler::runtime), which the Rust
+# build deliberately does not build. Skip them in Rust mode.
+if(NOT OM_OMC_ENABLE_RUST)
+  omc_add_subdirectory(Parser)
+endif()
 omc_add_subdirectory(Compiler)
-omc_add_subdirectory(Examples)
+if(NOT OM_OMC_ENABLE_RUST)
+  omc_add_subdirectory(Examples)
+endif()

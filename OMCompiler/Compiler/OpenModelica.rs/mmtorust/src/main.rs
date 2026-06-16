@@ -131,6 +131,12 @@ fn start_compilation(results: Vec<Absyn::Program>, fix: bool) {
             }
         }
     }
+    // `TplMain.main` is the entry point of the `susan` binary
+    // (`openmodelica_susan/src/main.rs`), which calls it across the lib→bin
+    // crate boundary. The visibility pass only sees MetaModelica callers, so on
+    // a Susan-only subset build (`mmtorust susan`) it would narrow `main` to
+    // `pub(crate)`; force it `pub` like the scripting-API entries above.
+    hier.keep_public.insert("TplMain.main".to_owned());
     println!(
         "Visibility analysis: {} functions kept `pub`, ~{} narrowable to `pub(crate)`; {:.2}s",
         hier.keep_public.len(),
@@ -402,10 +408,28 @@ fn run_mutable_cycles(programs: Vec<Absyn::Program>) {
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
-    let subcommand = args.get(1).map(|s| s.as_str());
+    // The first non-flag argument (if any) selects an analysis subcommand;
+    // flags like `--fix`/`--sources` must not be mistaken for it.
+    let subcommand = args.get(1).map(|s| s.as_str()).filter(|s| !s.starts_with("--"));
     // `--fix` rewrites provably-safe `matchcontinue`s to `match` in the sources
     // (see `crate::fix`) instead of generating code.
     let fix = args.iter().any(|a| a == "--fix");
+    // `--sources <file>` reads the list of MetaModelica files to transpile from
+    // `<file>` instead of the default `compilerSources.txt`. This is how the
+    // build transpiles only the subset needed to build the Susan binary
+    // (`--sources susanSources.txt`); a `susan` subcommand is a shorthand for
+    // that. Only the listed files are parsed and generated — classes still
+    // route to their crate via the `__OpenModelica_Interface` annotation, so a
+    // subset run emits exactly the crates those files belong to.
+    let source_path: String = args
+        .iter()
+        .position(|a| a == "--sources")
+        .and_then(|i| args.get(i + 1))
+        .cloned()
+        .unwrap_or_else(|| match subcommand {
+            Some("susan") => "susanSources.txt".to_owned(),
+            _ => "compilerSources.txt".to_owned(),
+        });
     let t0 = std::time::Instant::now();
     rayon::ThreadPoolBuilder::new()
     .stack_size(16 * 1024 * 1024) // 16 MiB stack size, to avoid "thread stack overflow" on large files, especially on debug builds
@@ -413,11 +437,19 @@ fn main() {
     .build_global()
     .unwrap();
 
-    let source_path = "compilerSources.txt";
     let grammar = Grammar::MetaModelica;
-    let sources = std::fs::read_to_string(source_path).expect("compilerSources.txt not found");
+    let sources = std::fs::read_to_string(&source_path)
+        .unwrap_or_else(|e| panic!("could not read sources list {source_path:?}: {e}"));
     let mut i = 0;
-    let files: Vec<(&str, usize)> = sources.lines().filter(|l| !l.trim().is_empty()).map(|f| {i += 1;(f,i-1)}).collect();
+    // Skip blank lines and `//`/`#` comment lines, so a source list (e.g.
+    // susanSources.txt) can carry a documentation header. `compilerSources.txt`
+    // is pure paths; this only adds tolerance.
+    let files: Vec<(&str, usize)> = sources
+        .lines()
+        .map(|l| l.trim())
+        .filter(|l| !l.is_empty() && !l.starts_with("//") && !l.starts_with('#'))
+        .map(|f| {i += 1;(f,i-1)})
+        .collect();
 
     let programs: Vec<std::sync::Mutex<Absyn::Program>> = files.iter().map(|_| std::sync::Mutex::new(Absyn::Program{classes: nil(), within_: Absyn::Within::TOP})).collect();
 

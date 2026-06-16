@@ -1,4 +1,30 @@
 
+# Rust (mmtorust) omc port. When enabled, the compiler is produced by
+# transpiling the MetaModelica sources to Rust and cargo-building them; bomc/omc
+# are never compiled from C, so we skip the entire C-build path below (the
+# bootstrap C runtime, the bomc bootstrapper, the C++ frontend, and the
+# .mo -> .c -> libOpenModelicaCompiler/omc steps). The simulation/function
+# runtime libraries live under OMCompiler/SimulationRuntime and are still built.
+if(OM_OMC_ENABLE_RUST)
+  # Defines the build tools + susan, sets OMC_EXE to the susan binary, and
+  # TPL_EXTRA_DEPENDS so the template rules wait for susan.
+  include(${CMAKE_CURRENT_SOURCE_DIR}/.cmake/rust_omc.cmake)
+  # The same template rules as the C build, now driven by ${OMC_EXE} == susan,
+  # producing Compiler/Template/*.mo and populating TPL_OUTPUT_MO_FILES.
+  include(${CMAKE_CURRENT_SOURCE_DIR}/.cmake/template_compilation.cmake)
+  # The canonical MetaModelica source list (OMC_MM_ALWAYS_SOURCES /
+  # OMC_MM_BACKEND_SOURCES) — mmtorust is driven from this, not a separate txt.
+  include(${CMAKE_CURRENT_SOURCE_DIR}/.cmake/meta_modelica_source_list.cmake)
+  # Full transpile (mmtorust) + the rust_omc / rust_libopenmodelica /
+  # rust_scripting_api targets.
+  omc_rust_setup_codegen()
+  # Optional: build OMEdit against the Rust dylib (needs Qt/qmake).
+  if(OM_OMC_ENABLE_RUST_OMEDIT)
+    omc_rust_setup_omedit()
+  endif()
+  return()
+endif()
+
 omc_add_subdirectory(runtime)
 omc_add_subdirectory(boot)
 omc_add_subdirectory(FrontEndCpp)

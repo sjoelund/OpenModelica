@@ -28,7 +28,7 @@ use crate::CodegenWasmJitFunctions::WTy;
 use crate::CodegenWasmJitFunctions::runtime::add_host_builtins;
 
 /// The runtime module, embedded the same way the function half embeds it.
-static RUNTIME_WASM: &[u8] = include_bytes!("../runtime.wasm");
+static RUNTIME_WASM: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/runtime.wasm"));
 
 /// The compiled-module type for this backend; `CodegenWasmJit::SimModel` stores
 /// it backend-agnostically as `sim_runtime::Module`.

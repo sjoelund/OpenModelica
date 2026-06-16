@@ -1742,25 +1742,30 @@ fn emit_scripting_api_qt(hier: &InstanceHierarchy<'_>, output_dir: &str) -> std:
     let dir = format!("{crate_root}/src");
     let qt_dir = format!("{crate_root}/qt");
 
-    // Derive the builtin path from the package's own .mo location:
-    //   …/OMCompiler/Compiler/Script/OpenModelicaScriptingAPI.mo
-    //   …/OMCompiler/Compiler/FrontEnd/NFModelicaBuiltin.mo
+    // Derive the builtin path from the package's own .mo location. The package
+    // lives at `<Compiler>/Script/OpenModelicaScriptingAPI.mo`; the builtins are
+    // siblings at `<Compiler>/{NFFrontEnd/NFModelicaBuiltin,FrontEnd/ModelicaBuiltin}.mo`.
+    // Navigate up two directories (Script/ -> <Compiler>) rather than matching a
+    // hardcoded "/Compiler/" path fragment, so it works whether the source list
+    // uses absolute paths (the CMake build) or relative `../Script/...` paths
+    // (compilerSources.txt). Getting this wrong silently drops every tuple to
+    // positional `res1..` field names, which then fail to compile against OMEdit.
     let src_file = c.info.fileName.to_string();
-    let marker = "/Compiler/";
-    let output_names = match src_file.find(marker) {
-        Some(i) => {
-            let base = &src_file[..i + marker.len()];
+    let compiler_dir = std::path::Path::new(&src_file).parent().and_then(|p| p.parent());
+    let output_names = match compiler_dir {
+        Some(dir) => {
             // The NF builtin is the source of truth for the current (new-frontend)
             // compiler; fall back to the old-frontend file if it is absent.
             let candidates = [
-                format!("{base}NFFrontEnd/NFModelicaBuiltin.mo"),
-                format!("{base}FrontEnd/ModelicaBuiltin.mo"),
+                dir.join("NFFrontEnd/NFModelicaBuiltin.mo"),
+                dir.join("FrontEnd/ModelicaBuiltin.mo"),
             ];
             let builtin = candidates
                 .iter()
-                .find(|p| std::path::Path::new(p).exists())
+                .find(|p| p.exists())
                 .cloned()
                 .unwrap_or_else(|| candidates[0].clone());
+            let builtin = builtin.to_string_lossy().into_owned();
             match std::fs::read_to_string(&builtin) {
                 Ok(code) => match openmodelica_ast::parser::parse(
                     &code,

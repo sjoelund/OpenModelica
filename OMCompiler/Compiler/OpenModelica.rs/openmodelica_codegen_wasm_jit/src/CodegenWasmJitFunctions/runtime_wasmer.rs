@@ -30,7 +30,7 @@ fn wt<T, E: std::fmt::Debug>(r: std::result::Result<T, E>) -> Result<T> {
 /// module, which imports its `memory` and `rt_*` exports — so the allocator,
 /// reference counting and string ops are shared precompiled code, not re-emitted
 /// per module.
-pub(super) static RUNTIME_WASM: &[u8] = include_bytes!("../runtime.wasm");
+pub(super) static RUNTIME_WASM: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/runtime.wasm"));
 
 /// Process-wide JIT cache shared across all `load_and_execute` calls.
 ///

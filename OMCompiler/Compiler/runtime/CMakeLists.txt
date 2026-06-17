@@ -221,7 +221,10 @@ set(USE_GRAPH 0)
 set(RUNTIMECFLAGS "-fPIC -DOM_HAVE_PTHREADS")
 
 configure_file(${OMCompiler_SOURCE_DIR}/revision.h.in ${OMCompiler_SOURCE_DIR}/revision.h)
-configure_file(${OMCompiler_SOURCE_DIR}/omc_config.unix.h.in ${OMCompiler_SOURCE_DIR}/omc_config.unix.h)
+# Generate into the build tree (not the shared source tree) so the CMake and
+# autotools builds don't clobber each other's omc_config.unix.h. omc_config.h
+# angle-includes it, and OMCompiler_BINARY_DIR is first on omc::config's path.
+configure_file(${OMCompiler_SOURCE_DIR}/omc_config.unix.h.in ${OMCompiler_BINARY_DIR}/omc_config.unix.h)
 
 
 # Generate Autoconf.mo here since we have some of the variables already defined for omc_config.unix.h above.

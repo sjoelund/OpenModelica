@@ -1,32 +1,34 @@
-// CI for the Rust (mmtorust) omc port and its WebAssembly/web deliverable.
+// CI for the Rust (mmtorust) omc port, the full partest testsuite, and the
+// WebAssembly/web deliverable.
 //
-// Two stages, matching the staged hand-off built into the CMake build
-// (OMCompiler/Compiler/.cmake/rust_omc.cmake):
+//   build (parallel)
+//     autoconf-jammy-gcc — a plain C/autotools build, only for the partest test
+//                          harness bits (omc-diff, OMSI headers/libs, config.status)
+//                          that makeLibsAndCache()/partest() expect at build/.
+//     cmake-rust-gcc     — the omc port: a full native CMake build with the C++
+//                          runtime and GUI clients ON (so partest can run), in the
+//                          CI profile (-DRUST_OMC_CI=ON). Installs to build/ and
+//                          also builds the wasm-jit runtime (rust_wasm_runtime),
+//                          which is wasm-opt'd once here and handed to the web
+//                          stage. Runs the cargo unit tests (ctest) in place,
+//                          where the workspace is already compiled.
 //
-//   1. build    — a regular *native* Rust build (-DOM_OMC_ENABLE_RUST=ON), in
-//                 the CI profile (-DRUST_OMC_CI=ON: release, no cargo
-//                 incremental). It also builds the standalone wasm-jit runtime
-//                 (rust_wasm_runtime), which is compiled to wasm32 and
-//                 wasm-opt'd ONCE here; the resulting runtime.wasm is archived
-//                 and stashed so the web stage embeds it instead of rebuilding.
+//   tests (parallel)
+//     partest 1..3/3 — the full testsuite against the Rust omc (build/bin/omc).
+//     web target     — the WebAssembly bundle (-DOM_OMC_WASM=ON) with
+//                      -DRUST_OMC_WASM_RUNTIME=<stage-1 runtime.wasm> so the
+//                      prebuilt runtime is embedded, not rebuilt. `make install`
+//                      → <prefix>/share/omc/web, archived.
 //
-//   2. web + tests (parallel)
-//        web        — the WebAssembly bundle (-DOM_OMC_WASM=ON), with
-//                     -DRUST_OMC_WASM_RUNTIME=<stage-1 runtime.wasm> so the
-//                     wasm-jit build.rs embeds the prebuilt, optimised runtime.
-//                     `make install` stages it under <prefix>/share/omc/web,
-//                     which is archived.
-//        cargo tests — ctest (cargo test --workspace) for the port.
+// Caching: only the cargo *registry* (downloaded packages) is cached, mounted at
+// the image's CARGO_HOME/registry. The compiled target/ dir is NOT cached — with
+// cargo incremental disabled (RUST_OMC_CI) it would not be reused (the build
+// regenerates all .rs each run) and it fills the disk.
 //
-// A shared cargo target-dir cache volume keeps stage 2 from rebuilding the
-// dependency graph from scratch (cargo separates native vs wasm32 artifacts
-// within it, so both consumers share it safely).
-//
-// NOTE: the agent image must provide the Rust toolchain that the native build
-// alone does not need from the C image: rustup stable + the
-// wasm32-unknown-unknown target, a wasm-bindgen-cli matching the pinned
-// wasm-bindgen, and binaryen (wasm-opt). Extend .CI/cache/Dockerfile (or point
-// the agents at a dedicated image) accordingly.
+// The cmake-rust/web agents use the Rust image .CI/cache/rust/Dockerfile (the C
+// build-deps image + nightly Rust toolchain, cranelift, wasm32, wasm-bindgen,
+// binaryen); the autoconf/partest agents use the plain C image, as those steps
+// need no Rust toolchain to build or run omc.
 
 def common
 
@@ -52,50 +54,75 @@ pipeline {
       }
     }
 
-    // Stage 1: native Rust build (CI profile) + the wasm-jit runtime artifact.
     stage('build') {
-      agent {
-        dockerfile {
-          additionalBuildArgs '--pull'
-          dir '.CI/cache'
-          label 'linux'
-          args "--mount type=volume,source=rust-cargo-target,target=/cache/cargo-target " +
-               "-v /var/lib/jenkins/gitcache:/var/lib/jenkins/gitcache"
+      parallel {
+        // Plain C/autotools build — supplies the partest test-harness pieces
+        // (omc-diff, OMSI bits, config.status) the same way the C cmake CI does.
+        stage('autoconf-jammy-gcc') {
+          agent {
+            docker {
+              image 'ghcr.io/openmodelica/build-deps:v1.22.3'
+              label 'linux'
+              alwaysPull true
+              args "--mount type=volume,source=omlibrary-cache,target=/cache/omlibrary " +
+                   "-v /var/lib/jenkins/gitcache:/var/lib/jenkins/gitcache"
+            }
+          }
+          steps {
+            script { common.buildOMC('gcc', 'g++', '', true, false) }
+            stash name: 'omc-gcc', includes: 'build/bin/OMCppOSUSimulation, build/include/omc/omsi/**, build/include/omc/omsic/**, build/lib/x86_64-linux-gnu/omc/omsi/**, build/lib/x86_64-linux-gnu/omc/omsicpp/**, **/config.status'
+          }
         }
-      }
-      steps {
-        script {
-          common.standardSetup()
-          sh """
-            cmake -S . -B build_rust \
-              -DCMAKE_BUILD_TYPE=Release \
-              -DOM_OMC_ENABLE_RUST=ON \
-              -DRUST_OMC_CI=ON \
-              -DOM_ENABLE_GUI_CLIENTS=OFF \
-              -DOM_USE_CCACHE=OFF \
-              -DRUST_OMC_TARGET_DIR=/cache/cargo-target \
-              -DRUST_OMC_WASM_RUNTIME_OUT=${env.WORKSPACE}/runtime.wasm \
-              -DCMAKE_INSTALL_PREFIX=install_rust
-            cmake --build build_rust --parallel ${common.numPhysicalCPU()}
-            cmake --build build_rust --parallel ${common.numPhysicalCPU()} --target rust_wasm_runtime
-            cmake --install build_rust
-          """
+
+        // The Rust omc port: full native build (C++ runtime + GUI clients ON) so
+        // partest can run, plus the wasm-jit runtime artifact for the web stage.
+        stage('cmake-rust-gcc') {
+          agent {
+            dockerfile {
+              additionalBuildArgs '--pull'
+              dir '.CI/cache/rust'
+              label 'linux'
+              args "--mount type=volume,source=rust-cargo-registry,target=/opt/rust/cargo/registry " +
+                   "--mount type=volume,source=omlibrary-cache,target=/cache/omlibrary " +
+                   "-v /var/lib/jenkins/gitcache:/var/lib/jenkins/gitcache"
+            }
+          }
+          steps {
+            script {
+              common.standardSetup()
+              sh """
+                cmake -S . -B build_cmake \
+                  -DCMAKE_BUILD_TYPE=Release \
+                  -DOM_OMC_ENABLE_RUST=ON \
+                  -DRUST_OMC_CI=ON \
+                  -DOM_USE_CCACHE=OFF \
+                  -DCMAKE_INSTALL_PREFIX=build \
+                  -DRUST_OMC_WASM_RUNTIME_OUT=${env.WORKSPACE}/runtime.wasm
+                cmake --build build_cmake --parallel ${common.numPhysicalCPU()} --target install
+                cmake --build build_cmake --parallel ${common.numPhysicalCPU()} --target rust_wasm_runtime
+                build/bin/omc --version
+                ( cd build_cmake && ctest --output-on-failure --output-junit junit.xml )
+              """
+            }
+            junit testResults: 'build_cmake/junit.xml', allowEmptyResults: true
+            archiveArtifacts artifacts: 'runtime.wasm', fingerprint: true
+            stash name: 'wasm-jit-runtime', includes: 'runtime.wasm'
+            stash name: 'omc-cmake-rust', includes: 'build/**'
+          }
         }
-        archiveArtifacts artifacts: 'runtime.wasm', fingerprint: true
-        stash name: 'wasm-jit-runtime', includes: 'runtime.wasm'
       }
     }
 
-    // Stage 2: the web bundle and the cargo tests, in parallel.
-    stage('web + tests') {
+    stage('tests') {
       parallel {
+        // The WebAssembly bundle, embedding the stage-1 wasm-jit runtime.
         stage('web target') {
           agent {
             dockerfile {
               additionalBuildArgs '--pull'
-              dir '.CI/cache'
+              dir '.CI/cache/rust'
               label 'linux'
-              args "--mount type=volume,source=rust-cargo-target,target=/cache/cargo-target " +
+              args "--mount type=volume,source=rust-cargo-registry,target=/opt/rust/cargo/registry " +
                    "-v /var/lib/jenkins/gitcache:/var/lib/jenkins/gitcache"
             }
           }
@@ -110,7 +137,6 @@ pipeline {
                   -DRUST_OMC_WASM_MODE=web-release \
                   -DRUST_OMC_WASM_RUNTIME=${env.WORKSPACE}/runtime.wasm \
                   -DOM_USE_CCACHE=OFF \
-                  -DRUST_OMC_TARGET_DIR=/cache/cargo-target \
                   -DCMAKE_INSTALL_PREFIX=install_web
                 cmake --build build_web --parallel ${common.numPhysicalCPU()}
                 cmake --install build_web --component web
@@ -120,32 +146,79 @@ pipeline {
           }
         }
 
-        stage('cargo tests') {
+        stage('partest 1/3') {
           agent {
             dockerfile {
               additionalBuildArgs '--pull'
               dir '.CI/cache'
               label 'linux'
-              args "--mount type=volume,source=rust-cargo-target,target=/cache/cargo-target " +
+              args "--mount type=volume,source=runtest-rust-cache,target=/cache/runtest " +
+                   "--mount type=volume,source=omlibrary-cache,target=/cache/omlibrary " +
                    "-v /var/lib/jenkins/gitcache:/var/lib/jenkins/gitcache"
             }
+          }
+          environment {
+            RUNTESTDB = "/cache/runtest/"
+            LIBRARIES = "/cache/omlibrary"
           }
           steps {
             script {
               common.standardSetup()
-              sh """
-                cmake -S . -B build_rust \
-                  -DCMAKE_BUILD_TYPE=Release \
-                  -DOM_OMC_ENABLE_RUST=ON \
-                  -DRUST_OMC_CI=ON \
-                  -DOM_ENABLE_GUI_CLIENTS=OFF \
-                  -DOM_USE_CCACHE=OFF \
-                  -DRUST_OMC_TARGET_DIR=/cache/cargo-target
-                cmake --build build_rust --parallel ${common.numPhysicalCPU()}
-                ( cd build_rust && ctest --output-on-failure --output-junit junit.xml )
-              """
+              unstash 'omc-gcc'
+              unstash 'omc-cmake-rust'
+              common.makeLibsAndCache()
+              common.partest(1, 3)
             }
-            junit testResults: 'build_rust/junit.xml', allowEmptyResults: true
+          }
+        }
+        stage('partest 2/3') {
+          agent {
+            dockerfile {
+              additionalBuildArgs '--pull'
+              dir '.CI/cache'
+              label 'linux'
+              args "--mount type=volume,source=runtest-rust-cache,target=/cache/runtest " +
+                   "--mount type=volume,source=omlibrary-cache,target=/cache/omlibrary " +
+                   "-v /var/lib/jenkins/gitcache:/var/lib/jenkins/gitcache"
+            }
+          }
+          environment {
+            RUNTESTDB = "/cache/runtest/"
+            LIBRARIES = "/cache/omlibrary"
+          }
+          steps {
+            script {
+              common.standardSetup()
+              unstash 'omc-gcc'
+              unstash 'omc-cmake-rust'
+              common.makeLibsAndCache()
+              common.partest(2, 3)
+            }
+          }
+        }
+        stage('partest 3/3') {
+          agent {
+            dockerfile {
+              additionalBuildArgs '--pull'
+              dir '.CI/cache'
+              label 'linux'
+              args "--mount type=volume,source=runtest-rust-cache,target=/cache/runtest " +
+                   "--mount type=volume,source=omlibrary-cache,target=/cache/omlibrary " +
+                   "-v /var/lib/jenkins/gitcache:/var/lib/jenkins/gitcache"
+            }
+          }
+          environment {
+            RUNTESTDB = "/cache/runtest/"
+            LIBRARIES = "/cache/omlibrary"
+          }
+          steps {
+            script {
+              common.standardSetup()
+              unstash 'omc-gcc'
+              unstash 'omc-cmake-rust'
+              common.makeLibsAndCache()
+              common.partest(3, 3)
+            }
           }
         }
       }

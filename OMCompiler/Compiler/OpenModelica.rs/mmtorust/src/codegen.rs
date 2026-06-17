@@ -1740,7 +1740,11 @@ fn emit_scripting_api_qt(hier: &InstanceHierarchy<'_>, output_dir: &str) -> std:
     let _ = output_dir;
     let crate_root = "openmodelica_scripting_qt".to_string();
     let dir = format!("{crate_root}/src");
-    let qt_dir = format!("{crate_root}/qt");
+    // The .rs is compiled into the cdylib (stays in the crate src). The C++ Qt
+    // files are consumed by OMEdit's build, so emit them where the build asks
+    // (OMC_SCRIPTING_API_QT_OUT, a build-tree dir), defaulting to the crate qt/.
+    let qt_dir =
+        std::env::var("OMC_SCRIPTING_API_QT_OUT").unwrap_or_else(|_| format!("{crate_root}/qt"));
 
     // Derive the builtin path from the package's own .mo location. The package
     // lives at `<Compiler>/Script/OpenModelicaScriptingAPI.mo`; the builtins are

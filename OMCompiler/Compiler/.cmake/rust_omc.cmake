@@ -118,6 +118,10 @@ function(omc_rust_setup_codegen)
     VERBATIM)
   add_custom_target(rust_scripting_api DEPENDS ${SCRIPTING_API_MO})
 
+  # mmtorust emits OMEdit's C++ Qt scripting-API here (build tree); OMEditLIB reads it.
+  set(OMC_SCRIPTING_API_QT_DIR ${CMAKE_CURRENT_BINARY_DIR}/scripting-api-qt
+      CACHE INTERNAL "Generated OpenModelicaScriptingAPIQt C++ sources (build tree)")
+
   set(CODEGEN_STAMP ${CMAKE_CURRENT_BINARY_DIR}/rust_codegen.stamp)
   add_custom_command(
     OUTPUT ${CODEGEN_STAMP}
@@ -131,7 +135,8 @@ function(omc_rust_setup_codegen)
     # build runs the same boot/find-unused-import.sh. It exits non-zero when it
     # removes something, so `; true` keeps the build going.
     COMMAND bash -c "\"$0\" \"$@\" ; true" ${CMAKE_CURRENT_SOURCE_DIR}/boot/find-unused-import.sh ${TPL_OUTPUT_MO_FILES}
-    COMMAND ${MMTORUST_BIN} --sources ${RUST_SOURCES_FILE}
+    COMMAND ${CMAKE_COMMAND} -E env OMC_SCRIPTING_API_QT_OUT=${OMC_SCRIPTING_API_QT_DIR}
+            ${MMTORUST_BIN} --sources ${RUST_SOURCES_FILE}
     COMMAND ${CMAKE_COMMAND} -E touch ${CODEGEN_STAMP}
     DEPENDS ${TPL_OUTPUT_MO_FILES} ${SUSAN_STAMP} ${RUST_SOURCES_FILE}
             ${CMAKE_CURRENT_SOURCE_DIR}/Script/OpenModelicaScriptingAPI.mo
@@ -198,32 +203,11 @@ function(omc_rust_setup_codegen)
 endfunction()
 
 # Provides, for the native CMake build of the Qt GUI clients in Rust mode, the
-# OpenModelicaCompiler target they link and the OpenModelicaScriptingAPIQt sources
-# OMEdit compiles — the equivalents of what the C Compiler/CMakeLists.txt (skipped
-# under Rust) would define. Called whenever OM_ENABLE_GUI_CLIENTS is ON.
+# OpenModelicaCompiler target they link. The OpenModelicaScriptingAPIQt sources
+# OMEdit compiles are generated into OMC_SCRIPTING_API_QT_DIR by rust_codegen.
+# Called whenever OM_ENABLE_GUI_CLIENTS is ON.
 function(omc_rust_setup_omedit)
   set(RUST_OMC_ARTIFACT_DIR ${RUST_TARGET_DIR}/${RUST_OMC_TARGET_SUBDIR})
-
-  # Stage the mmtorust-generated Qt scripting-API into Compiler/Script (where
-  # OMEditLIB lists them as generated sources + has them on its include path), so
-  # CMake's cross-dir generated-source lookup ties OMEditLib to this command and
-  # OMEdit's own CMakeLists need no changes.
-  set(QT_DIR ${RUST_OMC_DIR}/openmodelica_scripting_qt/qt)
-  set(SCRIPT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Script)
-  add_custom_command(
-    OUTPUT ${SCRIPT_DIR}/OpenModelicaScriptingAPIQt.cpp
-           ${SCRIPT_DIR}/OpenModelicaScriptingAPIQt.h
-           ${SCRIPT_DIR}/OpenModelicaScriptingAPIQtABI.h
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${QT_DIR}/OpenModelicaScriptingAPIQt.cpp
-            ${QT_DIR}/OpenModelicaScriptingAPIQt.h
-            ${QT_DIR}/OpenModelicaScriptingAPIQtABI.h
-            ${SCRIPT_DIR}/
-    DEPENDS rust_codegen rust_libopenmodelica
-    COMMENT "Rust: staging OpenModelicaScriptingAPIQt.{cpp,h}+ABI into Compiler/Script for OMEdit"
-    VERBATIM)
-  add_custom_target(rust_omedit_api
-    DEPENDS ${SCRIPT_DIR}/OpenModelicaScriptingAPIQt.cpp)
 
   # The OpenModelicaCompiler target the Qt GUI clients link: the cargo cdylib,
   # IMPORTED GLOBAL. IMPORTED_NO_SONAME (the cdylib has none) records the basename
@@ -237,4 +221,12 @@ function(omc_rust_setup_omedit)
     IMPORTED_NO_SONAME TRUE
     INTERFACE_INCLUDE_DIRECTORIES "${RUST_OMC_DIR}/libopenmodelica_compiler/include;${_simrt_c_inc}"
     INTERFACE_COMPILE_DEFINITIONS OMC_RUST_ABI)
+  # 3rd-party deps OMEdit inherited transitively from the C OpenModelicaCompiler
+  # (fmilib via backendruntime, libzmq via runtime); the cdylib doesn't carry
+  # them, so propagate the targets here.
+  foreach(_dep fmilib omc::3rd::libzmq)
+    if(TARGET ${_dep})
+      set_property(TARGET OpenModelicaCompiler APPEND PROPERTY INTERFACE_LINK_LIBRARIES ${_dep})
+    endif()
+  endforeach()
 endfunction()

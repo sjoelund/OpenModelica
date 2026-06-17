@@ -135,23 +135,28 @@ endmacro(add_compile_step)
 
 
 
+# OpenModelicaScriptingAPI.mo (a compiler source) stays in Script/; the C++ Qt
+# files go under the build tree (OMEditLIB reads OMC_SCRIPTING_API_QT_DIR), so C
+# and Rust builds don't fight over Script/.
+set(OMC_SCRIPTING_API_QT_DIR ${CMAKE_CURRENT_BINARY_DIR}/scripting-api-qt
+    CACHE INTERNAL "Generated OpenModelicaScriptingAPIQt C++ sources (build tree)")
 add_custom_command(
     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/Script/OpenModelicaScriptingAPI.mos
             ${CMAKE_CURRENT_SOURCE_DIR}/FrontEnd/ModelicaBuiltin.mo
             ${CMAKE_CURRENT_SOURCE_DIR}/Template/GenerateAPIFunctionsTpl.tpl
 
-    # We want to generate OpenModelicaScriptingAPI.mo in scripts folder. Since the script
-    # generates it in the current working directory we go there. Later we can fix the script to
-    # take a path or change the MM source list to pick up the generated OpenModelicaScriptingAPI.mo
-    # from <build_dir>/Compiler.
+    # The script generates in its working directory.
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/Script
 
     COMMAND ${OMC_EXE} -g=MetaModelica -n=1 ${CMAKE_CURRENT_SOURCE_DIR}/Script/OpenModelicaScriptingAPI.mos
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${OMC_SCRIPTING_API_QT_DIR}
+    COMMAND ${CMAKE_COMMAND} -E rename ${CMAKE_CURRENT_SOURCE_DIR}/Script/OpenModelicaScriptingAPIQt.cpp ${OMC_SCRIPTING_API_QT_DIR}/OpenModelicaScriptingAPIQt.cpp
+    COMMAND ${CMAKE_COMMAND} -E rename ${CMAKE_CURRENT_SOURCE_DIR}/Script/OpenModelicaScriptingAPIQt.h ${OMC_SCRIPTING_API_QT_DIR}/OpenModelicaScriptingAPIQt.h
 
     OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/Script/OpenModelicaScriptingAPI.mo
-    OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/Script/OpenModelicaScriptingAPIQt.cpp
-    OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/Script/OpenModelicaScriptingAPIQt.h
-    COMMENT "Generating ${CMAKE_CURRENT_SOURCE_DIR}/Script/OpenModelicaScriptingAPI.mo using ${CMAKE_CURRENT_SOURCE_DIR}/Script/OpenModelicaScriptingAPI.mos"
+    OUTPUT ${OMC_SCRIPTING_API_QT_DIR}/OpenModelicaScriptingAPIQt.cpp
+    OUTPUT ${OMC_SCRIPTING_API_QT_DIR}/OpenModelicaScriptingAPIQt.h
+    COMMENT "Generating OpenModelicaScriptingAPI.mo + Qt API"
 )
 
 

@@ -138,22 +138,22 @@ const win_ldflags_runtime_fmu: &str = const_str::concat!(
 pub const ldflags_runtime: &str = if cfg!(windows) {
     const_str::concat!(" -lOpenModelicaRuntimeC", win_ldflags_basic)
 } else if cfg!(target_os = "macos") {
-    " -lOpenModelicaRuntimeC -lopenblas -lm -lomcgc -lryu -lpthread"
+    " -lopenblas -lm -lomcgc -lryu -lpthread"
 } else {
-    " -Wl,--no-as-needed -Wl,--disable-new-dtags -lOpenModelicaRuntimeC -lopenblas -lm -lomcgc -lryu -lpthread -rdynamic"
+    " -Wl,--no-as-needed -Wl,--disable-new-dtags -lopenblas -lm -lomcgc -lpthread -rdynamic"
 };
 
 /// `@RT_LDFLAGS_GENERATED_CODE_SIM@`.
 pub const ldflags_runtime_sim: &str = if cfg!(windows) {
     const_str::concat!(
-        "-lSimulationRuntimeC -Wl,-Bdynamic -lomcgc -lryu -lopenblas",
+        "-lSimulationRuntimeC -lOpenModelicaRuntimeC -Wl,-Bdynamic -lomcgc -lopenblas",
         win_linkType,
         " -lstdc++ -Wl,-Bdynamic "
     )
 } else if cfg!(target_os = "macos") {
-    " -lSimulationRuntimeC -lopenblas -lm -lomcgc -lryu -lpthread"
+    " -lSimulationRuntimeC -lOpenModelicaRuntimeC -lopenblas -lm -lomcgc -lpthread"
 } else {
-    " -Wl,--no-as-needed -Wl,--disable-new-dtags -lSimulationRuntimeC -lopenblas -lm -lomcgc -lryu -lpthread -rdynamic -Wl,--no-undefined"
+    " -Wl,--no-as-needed -Wl,--disable-new-dtags -lSimulationRuntimeC -lOpenModelicaRuntimeC -lopenblas -lm -lomcgc -lpthread -rdynamic -Wl,--no-undefined"
 };
 
 /// `@RT_LDFLAGS_GENERATED_CODE_SOURCE_FMU@`.

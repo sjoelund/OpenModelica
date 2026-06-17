@@ -79,6 +79,62 @@ add_test(NAME rust_cargo_test
   WORKING_DIRECTORY ${RUST_OMC_DIR})
 
 # ---------------------------------------------------------------------------
+# wasm-jit runtime artifact (CI hand-off). The wasm-jit simCodeTarget embeds a
+# precompiled linear-memory runtime (the openmodelica_codegen_wasm_jit_runtime
+# crate, a standalone wasm32 cdylib) into the compiler via include_bytes!.
+# Normally that crate's build.rs builds it on demand during *any* omc build
+# (native or wasm); it never runs the wasm-opt binary on it.
+#
+# Two knobs let a multi-stage CI build it once, optimise it, and reuse it:
+#   * rust_wasm_runtime (target): build the runtime crate for wasm32 and, if
+#     binaryen is present, `wasm-opt -Oz` it, writing RUST_OMC_WASM_RUNTIME_OUT.
+#     Stage 1 (a normal native Rust build) runs this and archives the output.
+#   * RUST_OMC_WASM_RUNTIME (cache path): a prebuilt runtime.wasm to embed
+#     instead of rebuilding. Stage 2 (the web build) sets it to stage 1's
+#     artifact; it is forwarded as OMC_WASM_RUNTIME to the cargo build, which the
+#     build.rs honours (skipping the rebuild). Empty = build it normally.
+# wasm-opt is found here (optional) and reused by the web target below.
+# ---------------------------------------------------------------------------
+find_program(WASM_OPT_EXECUTABLE wasm-opt
+             HINTS $ENV{CARGO_HOME}/bin $ENV{HOME}/.cargo/bin)
+# wasm-opt feature flags, shared by every wasm-opt invocation below. rustc/LLVM
+# emit wasm32-unknown-unknown with these post-MVP features on, but the release
+# `strip` drops the target_features custom section binaryen would auto-detect
+# from — so it defaults to MVP and rejects the bulk-memory/sign-ext/etc. ops.
+# Enable exactly the set rustc reports (`rustc --print cfg --target
+# wasm32-unknown-unknown`); blindly enabling all features could let wasm-opt emit
+# instructions the JIT/browser consumers don't support.
+set(WASM_OPT_FEATURES
+    --enable-bulk-memory --enable-multivalue --enable-mutable-globals
+    --enable-nontrapping-float-to-int --enable-reference-types --enable-sign-ext)
+set(RUST_OMC_WASM_RUNTIME "" CACHE FILEPATH
+    "Prebuilt wasm-jit runtime.wasm to embed (empty = build it). In CI stage 2, point at the rust_wasm_runtime artifact from stage 1.")
+set(RUST_OMC_WASM_RUNTIME_OUT ${RUST_OMC_TARGET_DIR}/runtime.wasm CACHE PATH
+    "Output path of the rust_wasm_runtime target (the built + wasm-opt'd wasm-jit runtime).")
+
+set(_wasm_jit_runtime_dir ${RUST_OMC_DIR}/openmodelica_codegen_wasm_jit_runtime)
+set(_wasm_jit_runtime_target_dir ${RUST_OMC_TARGET_DIR}/wasm-jit-runtime)
+set(_wasm_jit_runtime_wasm
+    ${_wasm_jit_runtime_target_dir}/wasm32-unknown-unknown/release/openmodelica_codegen_wasm_jit_runtime.wasm)
+if(WASM_OPT_EXECUTABLE)
+  set(_wasm_jit_runtime_opt COMMAND ${WASM_OPT_EXECUTABLE} -Oz ${WASM_OPT_FEATURES}
+      ${RUST_OMC_WASM_RUNTIME_OUT} -o ${RUST_OMC_WASM_RUNTIME_OUT})
+else()
+  set(_wasm_jit_runtime_opt "")
+endif()
+# Standalone [workspace] crate, so build it directly (no codegen dependency); its
+# own target-dir keeps it from contending with the main build's lock.
+add_custom_target(rust_wasm_runtime
+  WORKING_DIRECTORY ${_wasm_jit_runtime_dir}
+  JOB_SERVER_AWARE TRUE
+  COMMAND ${CARGO_ENV} ${CARGO_EXECUTABLE} build --release
+          --target wasm32-unknown-unknown --target-dir ${_wasm_jit_runtime_target_dir}
+  COMMAND ${CMAKE_COMMAND} -E copy ${_wasm_jit_runtime_wasm} ${RUST_OMC_WASM_RUNTIME_OUT}
+  ${_wasm_jit_runtime_opt}
+  COMMENT "Rust: building + optimising the wasm-jit runtime -> ${RUST_OMC_WASM_RUNTIME_OUT}"
+  VERBATIM)
+
+# ---------------------------------------------------------------------------
 # Step 1+2: build mmtorust (release), transpile the Susan subset, build susan.
 # A stamp file marks completion; cargo itself handles incremental rebuilds, so
 # the command always runs but is a fast no-op when nothing changed.
@@ -276,19 +332,24 @@ function(omc_rust_setup_omedit)
 endfunction()
 
 # ---------------------------------------------------------------------------
-# Web / wasm target. The omc compiler built for wasm32-unknown-unknown + the
-# wasm-bindgen JS bindings, i.e. the browser/Node deliverable. This is a native
-# re-implementation of the steps in wasm/build.sh (which stays as the standalone
-# CLI build path); CMake drives cargo + wasm-bindgen + wasm-opt directly so the
-# bundle is a first-class target with proper dependencies on the codegen.
+# Web / wasm target. The omc compiler built for wasm32-unknown-unknown plus the
+# wasm-bindgen JS bindings — the browser/Node deliverable. CMake drives cargo +
+# wasm-bindgen + wasm-opt directly (a first-class target with a proper dependency
+# on the codegen); it does NOT shell out to wasm/build.sh.
+#
+# The bundle is assembled in the build tree (${CMAKE_CURRENT_BINARY_DIR}/web):
+# pkg-<host>/ from wasm-bindgen plus the host's launcher (index.html for the
+# browser, omc-cli.js for Node). `make install` stages that directory under
+# <prefix>/<datarootdir>/omc/web (component `web`), so it can be served from a
+# clean location, e.g. `python3 -m http.server -d <prefix>/share/omc/web`.
 #
 # Selected with -DOM_OMC_WASM=ON (top-level), which also prunes every native
 # client/library the wasm bundle does not use, so `make all` builds only this.
 # Called from Compiler/CMakeLists.txt in place of the native artifacts/omedit.
 # ---------------------------------------------------------------------------
 function(omc_rust_setup_wasm)
-  # RUST_OMC_WASM_MODE = <host>-<profile>, exactly as wasm/build.sh: host selects
-  # the wasm-bindgen target (nodejs / web), profile the cargo profile.
+  # RUST_OMC_WASM_MODE = <host>-<profile>: host selects the wasm-bindgen target
+  # (nodejs / web), profile the cargo profile.
   set(RUST_OMC_WASM_MODE "web-release"
       CACHE STRING "wasm build mode: node-debug, node-release, web-debug or web-release.")
   set_property(CACHE RUST_OMC_WASM_MODE PROPERTY STRINGS
@@ -312,12 +373,10 @@ function(omc_rust_setup_wasm)
   endif()
 
   # wasm-bindgen-cli is mandatory for this target; the wasm32 rustup target must
-  # also be installed (see wasm/build.sh's header). REQUIRED → a clear configure
-  # error instead of a cryptic mid-build failure.
+  # also be installed. REQUIRED → a clear configure error instead of a cryptic
+  # mid-build failure. (WASM_OPT_EXECUTABLE is found at file scope and reused
+  # here; it is optional, only shrinking the release bundle.)
   find_program(WASM_BINDGEN_EXECUTABLE wasm-bindgen REQUIRED
-               HINTS $ENV{CARGO_HOME}/bin $ENV{HOME}/.cargo/bin)
-  # wasm-opt (binaryen) is optional: only used to shrink the release bundle.
-  find_program(WASM_OPT_EXECUTABLE wasm-opt
                HINTS $ENV{CARGO_HOME}/bin $ENV{HOME}/.cargo/bin)
 
   set(_wasm_target wasm32-unknown-unknown)
@@ -338,16 +397,32 @@ function(omc_rust_setup_wasm)
   endif()
 
   set(_wasm_artifact ${RUST_TARGET_DIR}/${_wasm_target}/${_profile}/${_wasm_name}.wasm)
-  # Output next to wasm/index.html + omc-cli.js (which load pkg-<host>/), so the
-  # `python3 -m http.server -d wasm` / `node wasm/omc-cli.js` workflows just work.
-  set(_wasm_outdir ${RUST_OMC_DIR}/wasm/pkg-${_host})
+  # Assemble the runnable bundle in the build tree (never the source tree).
+  set(_web_dir ${CMAKE_CURRENT_BINARY_DIR}/web)
+  set(_wasm_pkgdir ${_web_dir}/pkg-${_host})
+  # The launcher that loads pkg-<host>/: index.html for the browser, omc-cli.js
+  # for Node. (The other host's launcher would reference an absent pkg dir.)
+  if(_host STREQUAL "web")
+    set(_web_launcher ${RUST_OMC_DIR}/wasm/index.html)
+  else()
+    set(_web_launcher ${RUST_OMC_DIR}/wasm/omc-cli.js)
+  endif()
 
-  # Release size optimisation, only if binaryen is available (matches build.sh).
+  # Release size optimisation, only if binaryen is available.
   set(_wasm_opt_cmd "")
   if(_profile STREQUAL "release" AND WASM_OPT_EXECUTABLE)
-    set(_wasm_opt_cmd COMMAND ${WASM_OPT_EXECUTABLE} -Oz
-        ${_wasm_outdir}/${_wasm_name}_bg.wasm -o ${_wasm_outdir}/${_wasm_name}_bg.wasm)
+    set(_wasm_opt_cmd COMMAND ${WASM_OPT_EXECUTABLE} -Oz ${WASM_OPT_FEATURES}
+        ${_wasm_pkgdir}/${_wasm_name}_bg.wasm -o ${_wasm_pkgdir}/${_wasm_name}_bg.wasm)
   endif()
+
+  # Cargo invocation. If a prebuilt runtime.wasm was supplied (CI stage 2),
+  # forward it as OMC_WASM_RUNTIME so the wasm-jit build.rs embeds it instead of
+  # rebuilding it. Built from CARGO_ENV (incremental setting) like CARGO_BUILD.
+  set(_wasm_cargo ${CARGO_ENV})
+  if(RUST_OMC_WASM_RUNTIME)
+    list(APPEND _wasm_cargo OMC_WASM_RUNTIME=${RUST_OMC_WASM_RUNTIME})
+  endif()
+  list(APPEND _wasm_cargo ${CARGO_EXECUTABLE} build --target-dir ${RUST_TARGET_DIR})
 
   # Depend on the full transpile (same stamp rust_codegen uses): the wasm crate
   # is built from the generated .rs.
@@ -357,14 +432,21 @@ function(omc_rust_setup_wasm)
     OUTPUT ${WASM_STAMP}
     WORKING_DIRECTORY ${RUST_OMC_DIR}
     JOB_SERVER_AWARE TRUE
-    COMMAND ${CARGO_BUILD} ${_cargo_profile_flag} ${_wasm_common} ${_cargo_backend}
-    COMMAND ${CMAKE_COMMAND} -E rm -rf ${_wasm_outdir}
+    COMMAND ${_wasm_cargo} ${_cargo_profile_flag} ${_wasm_common} ${_cargo_backend}
+    COMMAND ${CMAKE_COMMAND} -E rm -rf ${_web_dir}
     COMMAND ${WASM_BINDGEN_EXECUTABLE} ${_wasm_artifact}
-            --out-dir ${_wasm_outdir} --target ${_host}
+            --out-dir ${_wasm_pkgdir} --target ${_host}
     ${_wasm_opt_cmd}
+    COMMAND ${CMAKE_COMMAND} -E copy ${_web_launcher} ${_web_dir}/
     COMMAND ${CMAKE_COMMAND} -E touch ${WASM_STAMP}
-    DEPENDS ${CODEGEN_STAMP}
-    COMMENT "Rust: building wasm/web bundle (${RUST_OMC_WASM_MODE}) -> ${_wasm_outdir}"
+    DEPENDS ${CODEGEN_STAMP} ${_web_launcher}
+    COMMENT "Rust: building wasm/web bundle (${RUST_OMC_WASM_MODE}) -> ${_web_dir}"
     VERBATIM)
   add_custom_target(rust_wasm ALL DEPENDS ${WASM_STAMP})
+
+  # make install: stage the assembled bundle (pkg-<host>/ + launcher) in a clean,
+  # runnable location. The trailing slash installs the directory's *contents*.
+  install(DIRECTORY ${_web_dir}/
+          DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/omc/web
+          COMPONENT web)
 endfunction()

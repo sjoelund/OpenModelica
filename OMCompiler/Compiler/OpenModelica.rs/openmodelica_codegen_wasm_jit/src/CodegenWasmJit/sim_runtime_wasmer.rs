@@ -49,7 +49,7 @@ pub(super) fn sim_engine() -> &'static wasmer::Engine {
         let mut compiler = Cranelift::default();
         // Experimental opt-level override; default is cranelift's `Speed`.
         // (wasmer compiles module functions in parallel by default.)
-        match std::env::var("OMC_WASM_OPT").as_deref() {
+        match std::env::var("OMC_WASM_OPT_LEVEL").as_deref() {
             Ok("none") => { compiler.opt_level(CraneliftOptLevel::None); }
             Ok("speed_and_size") => { compiler.opt_level(CraneliftOptLevel::SpeedAndSize); }
             _ => {}
@@ -97,7 +97,7 @@ fn runtime_cache_path() -> std::path::PathBuf {
     let mut h = std::collections::hash_map::DefaultHasher::new();
     RUNTIME_WASM.len().hash(&mut h);
     RUNTIME_WASM.hash(&mut h);
-    std::env::var("OMC_WASM_OPT").unwrap_or_default().hash(&mut h);
+    std::env::var("OMC_WASM_OPT_LEVEL").unwrap_or_default().hash(&mut h);
     let key = h.finish();
 
     let home = openmodelica_util::Settings::getHomeDir(false);

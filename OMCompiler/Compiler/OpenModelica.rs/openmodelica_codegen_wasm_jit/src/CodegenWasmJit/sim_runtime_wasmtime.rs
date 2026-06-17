@@ -45,7 +45,7 @@ pub(super) fn sim_engine() -> &'static wasmtime::Engine {
         // default-features=false) — ~4x faster module compilation here.
         cfg.parallel_compilation(true);
         // Experimental opt-level override; default is wasmtime's `Speed`.
-        match std::env::var("OMC_WASM_OPT").as_deref() {
+        match std::env::var("OMC_WASM_OPT_LEVEL").as_deref() {
             Ok("none") => { cfg.cranelift_opt_level(wasmtime::OptLevel::None); }
             Ok("speed_and_size") => { cfg.cranelift_opt_level(wasmtime::OptLevel::SpeedAndSize); }
             _ => {}
@@ -83,7 +83,7 @@ fn runtime_cache_path() -> std::path::PathBuf {
     let mut h = std::collections::hash_map::DefaultHasher::new();
     RUNTIME_WASM.len().hash(&mut h);
     RUNTIME_WASM.hash(&mut h);
-    std::env::var("OMC_WASM_OPT").unwrap_or_default().hash(&mut h);
+    std::env::var("OMC_WASM_OPT_LEVEL").unwrap_or_default().hash(&mut h);
     let key = h.finish();
 
     let home = openmodelica_util::Settings::getHomeDir(false);

@@ -64,7 +64,7 @@ wasm-encoder = "0.252"
 # browser-wasm build of omc, and which can also be selected natively
 # (`--features engine-wasmer`) to benchmark against wasmtime.
 wasmtime = { version = "45", default-features = false, features = ["std", "cranelift", "runtime", "parallel-compilation"] }
-wasmer = { version = "6", default-features = false, features = ["std", "wat"] }
+wasmer = { version = "7.1", default-features = false, features = ["std", "wat"] }
 openmodelica_codegen_wasm_jit = {path = "openmodelica_codegen_wasm_jit"}
 # Cycle-collecting garbage collector for reference cycles closed through
 # mutable cells (Mutable/Pointer). Only the `unsync` half is used: MetaModelica

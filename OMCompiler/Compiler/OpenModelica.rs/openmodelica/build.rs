@@ -20,37 +20,38 @@ fn main() {
         _ => return,
     };
     // Thin-launcher linkage. This binary contains no compiler code; it calls
-    // `omc_cli_run` in libOpenModelicaCompiler.so. The bindeps artifact
-    // dependency (Cargo.toml) builds that cdylib first and hands us its path via
-    // this env var (`CARGO_CDYLIB_FILE_<DEP>_<LIBNAME>`: dependency name
-    // `libopenmodelica_compiler`, lib name `OpenModelicaCompiler`).
+    // `omc_cli_run` in libOpenModelicaCompiler.so. That cdylib is built first by
+    // `cargo build -p libopenmodelica_compiler` (the cmake `rust_libopenmodelica`
+    // target, ordered before this binary), which writes it to the cargo profile
+    // directory. Derive that directory from OUT_DIR
+    // (`<target>/<profile>/build/openmodelica-<hash>/out`) — three parents up —
+    // so it is correct with or without a `--target <triple>` subdir.
     //
     // Runtime rpath search order matters because more than one copy of the .so
     // can exist. The INSTALL layout comes first (relocatable, `$ORIGIN/../lib/
     // <triple>/omc` — where the cmake install puts the .so next to the simulation
     // runtime; matches CMAKE_INSTALL_RPATH), so an installed omc loads the
     // installed cdylib. In a dev/build tree that path does not exist, so ld.so
-    // falls through to the absolute bindeps artifact dir (always the just-built,
-    // never-stale copy), and finally $ORIGIN.
+    // falls through to the absolute profile dir (the just-built copy), and
+    // finally $ORIGIN.
+    let out_dir = std::env::var("OUT_DIR").expect("OUT_DIR set by cargo");
+    let dir = std::path::Path::new(&out_dir)
+        .ancestors()
+        .nth(3)
+        .expect("OUT_DIR has the <target>/<profile>/build/<pkg>/out layout")
+        .display()
+        .to_string();
     println!("cargo:rustc-link-arg-bins=-Wl,-rpath,$ORIGIN/../lib/{triple}/omc");
-    if let Ok(so) = std::env::var("CARGO_CDYLIB_FILE_LIBOPENMODELICA_COMPILER_OpenModelicaCompiler")
-        .or_else(|_| std::env::var("CARGO_CDYLIB_FILE_LIBOPENMODELICA_COMPILER"))
-    {
-        let dir = std::path::Path::new(&so)
-            .parent()
-            .map(|p| p.display().to_string())
-            .unwrap_or_default();
-        // Dev/build fallback: the always-current artifact copy.
-        println!("cargo:rustc-link-arg-bins=-Wl,-rpath,{dir}");
-        // Link `-lOpenModelicaCompiler` as a *trailing* link-arg rather than a
-        // plain `cargo:rustc-link-lib`: rustc emits build-script link libs ahead
-        // of the crate's own object files, where the global `-Wl,--as-needed`
-        // (set by the workspace) drops the DT_NEEDED because `omc_cli_run` is not
-        // yet an unresolved reference at that point. Placed after the objects
-        // (link-args go last), the reference is live and the .so is retained.
-        println!("cargo:rustc-link-arg-bins=-L{dir}");
-        println!("cargo:rustc-link-arg-bins=-lOpenModelicaCompiler");
-    }
+    println!("cargo:rustc-link-arg-bins=-Wl,-rpath,{dir}");
+    // Link `-lOpenModelicaCompiler` as a *trailing* link-arg rather than a
+    // plain `cargo:rustc-link-lib`: rustc emits build-script link libs ahead
+    // of the crate's own object files, where the global `-Wl,--as-needed`
+    // (set by the workspace) drops the DT_NEEDED because `omc_cli_run` is not
+    // yet an unresolved reference at that point. Placed after the objects
+    // (link-args go last), the reference is live and the .so is retained.
+    println!("cargo:rustc-link-arg-bins=-L{dir}");
+    println!("cargo:rustc-link-arg-bins=-lOpenModelicaCompiler");
+    println!("cargo:rerun-if-changed={dir}/libOpenModelicaCompiler.so");
     println!("cargo:rustc-link-arg-bins=-Wl,-rpath,$ORIGIN");
     // libomcruntime.so (dlopened by the `-d=gen` pipeline) resolves the
     // compiler callback `omc_Error_getCurrentComponent`. In the static build it

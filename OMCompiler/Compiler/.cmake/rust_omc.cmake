@@ -130,9 +130,11 @@ function(omc_rust_setup_codegen)
   # Step 5: build the omc artifacts with the selected profile. Both are part of
   # `all` (ALL) so a plain `make` produces them and `make install` can stage
   # them — exactly like the C build's omc/OpenModelicaCompiler targets, which the
-  # rust branch skips. rust_libopenmodelica builds the canonical
-  # target/<profile>/libOpenModelicaCompiler.so that gets installed (the omc
-  # launcher links a private bindeps copy, but installs/loads the canonical one).
+  # rust branch skips. rust_libopenmodelica builds the
+  # target/<profile>/libOpenModelicaCompiler.so that gets installed; rust_omc
+  # builds the thin launcher, which links that same .so as an external prebuilt
+  # library (its build.rs finds it in the profile dir), so it must be built
+  # after — hence rust_omc's DEPENDS on rust_libopenmodelica.
   # -------------------------------------------------------------------------
   add_custom_target(rust_libopenmodelica ALL
     WORKING_DIRECTORY ${RUST_OMC_DIR}

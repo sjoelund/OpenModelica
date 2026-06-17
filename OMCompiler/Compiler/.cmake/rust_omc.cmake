@@ -20,9 +20,23 @@ find_program(CARGO_EXECUTABLE cargo REQUIRED)
 set(RUST_OMC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/OpenModelica.rs
     CACHE PATH "Path to the Rust omc source tree (the mmtorust workspace).")
 
+# CI builds: one switch that flips the defaults to a clean, reproducible build —
+# the release profile and cargo incremental compilation OFF (incremental
+# artifacts are pure overhead for a from-scratch CI build and bloat the cache).
+# It only changes the *defaults* of RUST_OMC_PROFILE / RUST_OMC_INCREMENTAL, so
+# either can still be overridden explicitly on the command line.
+option(RUST_OMC_CI "CI build of the Rust omc: default to the release profile with cargo incremental compilation disabled." OFF)
+if(RUST_OMC_CI)
+  set(_rust_omc_profile_default "release")
+  set(_rust_omc_incremental_default OFF)
+else()
+  set(_rust_omc_profile_default "debug")
+  set(_rust_omc_incremental_default ON)
+endif()
+
 # The omc artifacts (the deliverables) honour this profile; default debug.
 # The build tools (mmtorust, susan) are always release regardless.
-set(RUST_OMC_PROFILE "debug"
+set(RUST_OMC_PROFILE "${_rust_omc_profile_default}"
     CACHE STRING "Cargo profile for the Rust omc artifacts: debug or release.")
 if(RUST_OMC_PROFILE STREQUAL "release")
   set(RUST_OMC_PROFILE_FLAG "--release")
@@ -32,14 +46,37 @@ else()
   set(RUST_OMC_TARGET_SUBDIR "debug")
 endif()
 
+# Cargo incremental compilation: ON for fast local iteration, OFF for CI (set by
+# RUST_OMC_CI). Honoured by every cargo invocation via CARGO_ENV below.
+option(RUST_OMC_INCREMENTAL "Use cargo incremental compilation for the Rust omc build (OFF for CI)." ${_rust_omc_incremental_default})
+
 # cargo target/ lives in the build tree, not the source crate tree.
 set(RUST_OMC_TARGET_DIR ${CMAKE_CURRENT_BINARY_DIR}/rust-target
     CACHE PATH "Directory for cargo's target/ output of the Rust omc build.")
 set(RUST_TARGET_DIR ${RUST_OMC_TARGET_DIR})
+# Env prefix for every cargo invocation. When incremental compilation is off we
+# export CARGO_INCREMENTAL=0, which covers all profiles (including the
+# always-debug `cargo test` build) without editing per-profile Cargo.toml keys.
+set(CARGO_ENV ${CMAKE_COMMAND} -E env)
+if(NOT RUST_OMC_INCREMENTAL)
+  list(APPEND CARGO_ENV CARGO_INCREMENTAL=0)
+endif()
 # Always via ${CARGO_BUILD} so target/ is never the in-source default.
-set(CARGO_BUILD ${CARGO_EXECUTABLE} build --target-dir ${RUST_TARGET_DIR})
+set(CARGO_BUILD ${CARGO_ENV} ${CARGO_EXECUTABLE} build --target-dir ${RUST_TARGET_DIR})
 set(SUSAN_BIN   ${RUST_TARGET_DIR}/release/susan)
 set(MMTORUST_BIN ${RUST_TARGET_DIR}/release/mmtorust)
+
+# ---------------------------------------------------------------------------
+# ctest: run the workspace's cargo tests. The top-level CMakeLists already calls
+# include(CTest)/enable_testing(), so this registers a CTest test and CI can do
+# `cmake --build . && ctest`. Same target-dir, profile and incremental settings
+# as the build; --workspace covers every crate's tests. The test does not run
+# codegen itself, so the omc targets must be built first (CTest has no build
+# dependency on them) — the standard build-then-ctest order.
+# ---------------------------------------------------------------------------
+add_test(NAME rust_cargo_test
+  COMMAND ${CARGO_ENV} ${CARGO_EXECUTABLE} test --target-dir ${RUST_TARGET_DIR} ${RUST_OMC_PROFILE_FLAG} --workspace
+  WORKING_DIRECTORY ${RUST_OMC_DIR})
 
 # ---------------------------------------------------------------------------
 # Step 1+2: build mmtorust (release), transpile the Susan subset, build susan.
@@ -144,6 +181,12 @@ function(omc_rust_setup_codegen)
     VERBATIM)
   add_custom_target(rust_codegen DEPENDS ${CODEGEN_STAMP})
 
+  # The native omc artifacts (and their install rules) are pointless for the
+  # wasm/web target — it ships a single .wasm bundle, not the cdylib + launcher —
+  # so in wasm mode they are not defined at all, leaving `make all` to build only
+  # the wasm bundle (omc_rust_setup_wasm). The codegen above is still needed: the
+  # wasm crate is built from the same generated .rs.
+  if(NOT OM_OMC_WASM)
   # -------------------------------------------------------------------------
   # Step 5: build the omc artifacts with the selected profile. Both are part of
   # `all` (ALL) so a plain `make` produces them and `make install` can stage
@@ -195,6 +238,7 @@ function(omc_rust_setup_codegen)
           DESTINATION lib/omc COMPONENT omc)
   install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/scripts
           DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/omc/ COMPONENT omc)
+  endif() # NOT OM_OMC_WASM
 
   # NOTE: OpenModelicaScriptingAPI.mo is now produced by the standalone
   # scripting_api_gen tool above (rust_scripting_api target / SCRIPTING_API_MO),
@@ -229,4 +273,98 @@ function(omc_rust_setup_omedit)
       set_property(TARGET OpenModelicaCompiler APPEND PROPERTY INTERFACE_LINK_LIBRARIES ${_dep})
     endif()
   endforeach()
+endfunction()
+
+# ---------------------------------------------------------------------------
+# Web / wasm target. The omc compiler built for wasm32-unknown-unknown + the
+# wasm-bindgen JS bindings, i.e. the browser/Node deliverable. This is a native
+# re-implementation of the steps in wasm/build.sh (which stays as the standalone
+# CLI build path); CMake drives cargo + wasm-bindgen + wasm-opt directly so the
+# bundle is a first-class target with proper dependencies on the codegen.
+#
+# Selected with -DOM_OMC_WASM=ON (top-level), which also prunes every native
+# client/library the wasm bundle does not use, so `make all` builds only this.
+# Called from Compiler/CMakeLists.txt in place of the native artifacts/omedit.
+# ---------------------------------------------------------------------------
+function(omc_rust_setup_wasm)
+  # RUST_OMC_WASM_MODE = <host>-<profile>, exactly as wasm/build.sh: host selects
+  # the wasm-bindgen target (nodejs / web), profile the cargo profile.
+  set(RUST_OMC_WASM_MODE "web-release"
+      CACHE STRING "wasm build mode: node-debug, node-release, web-debug or web-release.")
+  set_property(CACHE RUST_OMC_WASM_MODE PROPERTY STRINGS
+               node-debug node-release web-debug web-release)
+  if(RUST_OMC_WASM_MODE STREQUAL "node-debug")
+    set(_host nodejs)
+    set(_profile debug)
+  elseif(RUST_OMC_WASM_MODE STREQUAL "node-release")
+    set(_host nodejs)
+    set(_profile release)
+  elseif(RUST_OMC_WASM_MODE STREQUAL "web-debug")
+    set(_host web)
+    set(_profile debug)
+  elseif(RUST_OMC_WASM_MODE STREQUAL "web-release")
+    set(_host web)
+    set(_profile release)
+  else()
+    message(FATAL_ERROR "RUST_OMC_WASM_MODE must be one of "
+                        "node-debug|node-release|web-debug|web-release, got "
+                        "'${RUST_OMC_WASM_MODE}'.")
+  endif()
+
+  # wasm-bindgen-cli is mandatory for this target; the wasm32 rustup target must
+  # also be installed (see wasm/build.sh's header). REQUIRED → a clear configure
+  # error instead of a cryptic mid-build failure.
+  find_program(WASM_BINDGEN_EXECUTABLE wasm-bindgen REQUIRED
+               HINTS $ENV{CARGO_HOME}/bin $ENV{HOME}/.cargo/bin)
+  # wasm-opt (binaryen) is optional: only used to shrink the release bundle.
+  find_program(WASM_OPT_EXECUTABLE wasm-opt
+               HINTS $ENV{CARGO_HOME}/bin $ENV{HOME}/.cargo/bin)
+
+  set(_wasm_target wasm32-unknown-unknown)
+  set(_wasm_name OpenModelicaCompiler)
+  # wasmtime has no wasm backend, so the wasm-jit engine must be wasmer (`js`);
+  # the cdylib is built with no default features (drops the native-only deps).
+  set(_wasm_common --target ${_wasm_target} -p libopenmodelica_compiler
+                   --no-default-features --features engine-wasmer)
+
+  if(_profile STREQUAL "release")
+    set(_cargo_profile_flag --release)
+    set(_cargo_backend "")
+  else()
+    set(_cargo_profile_flag "")
+    # The workspace dev profile uses the cranelift *rustc* backend (fast native
+    # builds); it cannot target wasm32, so force the LLVM backend for codegen.
+    set(_cargo_backend --config profile.dev.codegen-backend=\"llvm\")
+  endif()
+
+  set(_wasm_artifact ${RUST_TARGET_DIR}/${_wasm_target}/${_profile}/${_wasm_name}.wasm)
+  # Output next to wasm/index.html + omc-cli.js (which load pkg-<host>/), so the
+  # `python3 -m http.server -d wasm` / `node wasm/omc-cli.js` workflows just work.
+  set(_wasm_outdir ${RUST_OMC_DIR}/wasm/pkg-${_host})
+
+  # Release size optimisation, only if binaryen is available (matches build.sh).
+  set(_wasm_opt_cmd "")
+  if(_profile STREQUAL "release" AND WASM_OPT_EXECUTABLE)
+    set(_wasm_opt_cmd COMMAND ${WASM_OPT_EXECUTABLE} -Oz
+        ${_wasm_outdir}/${_wasm_name}_bg.wasm -o ${_wasm_outdir}/${_wasm_name}_bg.wasm)
+  endif()
+
+  # Depend on the full transpile (same stamp rust_codegen uses): the wasm crate
+  # is built from the generated .rs.
+  set(CODEGEN_STAMP ${CMAKE_CURRENT_BINARY_DIR}/rust_codegen.stamp)
+  set(WASM_STAMP ${CMAKE_CURRENT_BINARY_DIR}/rust_wasm.stamp)
+  add_custom_command(
+    OUTPUT ${WASM_STAMP}
+    WORKING_DIRECTORY ${RUST_OMC_DIR}
+    JOB_SERVER_AWARE TRUE
+    COMMAND ${CARGO_BUILD} ${_cargo_profile_flag} ${_wasm_common} ${_cargo_backend}
+    COMMAND ${CMAKE_COMMAND} -E rm -rf ${_wasm_outdir}
+    COMMAND ${WASM_BINDGEN_EXECUTABLE} ${_wasm_artifact}
+            --out-dir ${_wasm_outdir} --target ${_host}
+    ${_wasm_opt_cmd}
+    COMMAND ${CMAKE_COMMAND} -E touch ${WASM_STAMP}
+    DEPENDS ${CODEGEN_STAMP}
+    COMMENT "Rust: building wasm/web bundle (${RUST_OMC_WASM_MODE}) -> ${_wasm_outdir}"
+    VERBATIM)
+  add_custom_target(rust_wasm ALL DEPENDS ${WASM_STAMP})
 endfunction()

@@ -15,12 +15,17 @@ if(OM_OMC_ENABLE_RUST)
   # The canonical MetaModelica source list (OMC_MM_ALWAYS_SOURCES /
   # OMC_MM_BACKEND_SOURCES) — mmtorust is driven from this, not a separate txt.
   include(${CMAKE_CURRENT_SOURCE_DIR}/.cmake/meta_modelica_source_list.cmake)
-  # Full transpile (mmtorust) + the rust_omc / rust_libopenmodelica /
-  # rust_scripting_api targets.
+  # Full transpile (mmtorust) + the rust_scripting_api target, and — unless this
+  # is the wasm/web build — the native rust_omc / rust_libopenmodelica artifacts.
   omc_rust_setup_codegen()
-  # Provide the OpenModelicaCompiler target the Qt GUI clients link (the C build's
-  # is skipped under Rust mode along with the rest of this file).
-  if(OM_ENABLE_GUI_CLIENTS)
+  if(OM_OMC_WASM)
+    # Web target: build only the wasm bundle (cargo wasm + wasm-bindgen). The
+    # native artifacts and GUI clients are skipped (OM_OMC_WASM forces the
+    # clients off at top level), so `make all` produces just the wasm bundle.
+    omc_rust_setup_wasm()
+  elseif(OM_ENABLE_GUI_CLIENTS)
+    # Provide the OpenModelicaCompiler target the Qt GUI clients link (the C
+    # build's is skipped under Rust mode along with the rest of this file).
     omc_rust_setup_omedit()
   endif()
   return()

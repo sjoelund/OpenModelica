@@ -43,7 +43,6 @@ omc_option(OM_OMC_USE_LAPACK "Should we use lapack." ON)
 # `cargo build`ing them (see Compiler/.cmake/rust_omc.cmake); bomc/omc are never
 # compiled from C. The simulation/function runtime C libraries are still built.
 omc_option(OM_OMC_ENABLE_RUST "Build the Rust (mmtorust) omc port instead of the bootstrapped C omc." OFF)
-omc_option(OM_OMC_ENABLE_RUST_OMEDIT "Also build OMEdit against the Rust libOpenModelicaCompiler (needs Qt). Implies OM_OMC_ENABLE_RUST." OFF)
 
 
 # Remove -DNDEBUG from release build command lines. The reason is that -DNDEBUG completely

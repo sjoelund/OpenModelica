@@ -32,7 +32,12 @@ else()
   set(RUST_OMC_TARGET_SUBDIR "debug")
 endif()
 
-set(RUST_TARGET_DIR ${RUST_OMC_DIR}/target)
+# cargo target/ lives in the build tree, not the source crate tree.
+set(RUST_OMC_TARGET_DIR ${CMAKE_CURRENT_BINARY_DIR}/rust-target
+    CACHE PATH "Directory for cargo's target/ output of the Rust omc build.")
+set(RUST_TARGET_DIR ${RUST_OMC_TARGET_DIR})
+# Always via ${CARGO_BUILD} so target/ is never the in-source default.
+set(CARGO_BUILD ${CARGO_EXECUTABLE} build --target-dir ${RUST_TARGET_DIR})
 set(SUSAN_BIN   ${RUST_TARGET_DIR}/release/susan)
 set(MMTORUST_BIN ${RUST_TARGET_DIR}/release/mmtorust)
 
@@ -45,10 +50,12 @@ set(SUSAN_STAMP ${CMAKE_CURRENT_BINARY_DIR}/rust_susan.stamp)
 add_custom_command(
   OUTPUT ${SUSAN_STAMP}
   WORKING_DIRECTORY ${RUST_OMC_DIR}
+  # Hand make's -jN jobserver tokens to cargo (needs CMake >= 3.28).
+  JOB_SERVER_AWARE TRUE
   # Build tools always in release.
-  COMMAND ${CARGO_EXECUTABLE} build --release -p mmtorust
+  COMMAND ${CARGO_BUILD} --release -p mmtorust
   COMMAND ${MMTORUST_BIN} susan
-  COMMAND ${CARGO_EXECUTABLE} build --release -p openmodelica_susan --bin susan
+  COMMAND ${CARGO_BUILD} --release -p openmodelica_susan --bin susan
   COMMAND ${CMAKE_COMMAND} -E touch ${SUSAN_STAMP}
   COMMENT "Rust: building mmtorust + Susan template compiler (release)"
   VERBATIM)
@@ -77,7 +84,11 @@ function(omc_rust_setup_codegen)
   foreach(_f ${OMC_MM_ALWAYS_SOURCES} ${OMC_MM_BACKEND_SOURCES})
     string(APPEND _rust_src_content "${_f}\n")
   endforeach()
-  file(WRITE ${RUST_SOURCES_FILE} "${_rust_src_content}")
+  # copy_if_different so the mtime (which rust_codegen DEPENDS on) only moves on
+  # a real change — a plain file(WRITE) would rewrite it every reconfigure.
+  file(WRITE ${RUST_SOURCES_FILE}.tmp "${_rust_src_content}")
+  execute_process(COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                  ${RUST_SOURCES_FILE}.tmp ${RUST_SOURCES_FILE})
 
   # -------------------------------------------------------------------------
   # Generate Script/OpenModelicaScriptingAPI.mo (the typed thin wrappers around
@@ -98,7 +109,8 @@ function(omc_rust_setup_codegen)
   add_custom_command(
     OUTPUT ${SCRIPTING_API_MO}
     WORKING_DIRECTORY ${RUST_OMC_DIR}
-    COMMAND ${CARGO_EXECUTABLE} build --release -p openmodelica_scripting_api_gen
+    JOB_SERVER_AWARE TRUE
+    COMMAND ${CARGO_BUILD} --release -p openmodelica_scripting_api_gen
     COMMAND ${RUST_TARGET_DIR}/release/scripting_api_gen ${MODELICA_BUILTIN_MO} ${SCRIPTING_API_MO}
     DEPENDS ${MODELICA_BUILTIN_MO}
             ${RUST_OMC_DIR}/openmodelica_scripting_api_gen/src/main.rs
@@ -110,7 +122,8 @@ function(omc_rust_setup_codegen)
   add_custom_command(
     OUTPUT ${CODEGEN_STAMP}
     WORKING_DIRECTORY ${RUST_OMC_DIR}
-    COMMAND ${CARGO_EXECUTABLE} build --release -p mmtorust
+    JOB_SERVER_AWARE TRUE
+    COMMAND ${CARGO_BUILD} --release -p mmtorust
     # Strip unused `import X;` from the Susan-generated *.mo before transpiling:
     # mmtorust lowers every import to a `use crate::X`, so an unused import
     # becomes a `use` of a crate the target does not depend on (e.g.
@@ -138,14 +151,16 @@ function(omc_rust_setup_codegen)
   # -------------------------------------------------------------------------
   add_custom_target(rust_libopenmodelica ALL
     WORKING_DIRECTORY ${RUST_OMC_DIR}
-    COMMAND ${CARGO_EXECUTABLE} build ${RUST_OMC_PROFILE_FLAG} -p libopenmodelica_compiler
+    JOB_SERVER_AWARE TRUE
+    COMMAND ${CARGO_BUILD} ${RUST_OMC_PROFILE_FLAG} -p libopenmodelica_compiler
     DEPENDS rust_codegen
     COMMENT "Rust: building libOpenModelicaCompiler (${RUST_OMC_PROFILE})"
     VERBATIM)
 
   add_custom_target(rust_omc ALL
     WORKING_DIRECTORY ${RUST_OMC_DIR}
-    COMMAND ${CARGO_EXECUTABLE} build ${RUST_OMC_PROFILE_FLAG} -p openmodelica
+    JOB_SERVER_AWARE TRUE
+    COMMAND ${CARGO_BUILD} ${RUST_OMC_PROFILE_FLAG} -p openmodelica
     DEPENDS rust_codegen rust_libopenmodelica
     COMMENT "Rust: building omc (cargo build -p openmodelica, ${RUST_OMC_PROFILE})"
     VERBATIM)
@@ -182,39 +197,44 @@ function(omc_rust_setup_codegen)
   # cycle. The previous omc-based regeneration target has been removed.
 endfunction()
 
-# OMEdit built in-process against the Rust libOpenModelicaCompiler.so. This is
-# the CMake reimplementation of build-omedit.sh's steps (the script is no longer
-# the build mechanism): build the cdylib, install the Rust scripting-API
-# interface + embedding headers and the .so into the build tree's canonical
-# locations, then build OMPlot + OMEdit with the upstream `CONFIG+=rust_omc`
-# switch (#15848). Driven by cache vars so it works outside the default layout.
-# Enable with -DOM_OMC_ENABLE_RUST_OMEDIT=ON.
+# Provides, for the native CMake build of the Qt GUI clients in Rust mode, the
+# OpenModelicaCompiler target they link and the OpenModelicaScriptingAPIQt sources
+# OMEdit compiles — the equivalents of what the C Compiler/CMakeLists.txt (skipped
+# under Rust) would define. Called whenever OM_ENABLE_GUI_CLIENTS is ON.
 function(omc_rust_setup_omedit)
-  set(OM_BUILD_DIR ${CMAKE_BINARY_DIR} CACHE PATH "OpenModelica build tree (bin/, lib/, include/).")
-  set(OMEDIT_DIR ${CMAKE_SOURCE_DIR}/../OMEdit CACHE PATH "OMEdit source tree (the .pro lives here).")
-  find_program(QMAKE_EXECUTABLE NAMES qmake6 qmake REQUIRED)
-  execute_process(COMMAND gcc -dumpmachine OUTPUT_VARIABLE HOST_TRIPLE OUTPUT_STRIP_TRAILING_WHITESPACE)
-  set(OMC_LIB_DIR ${OM_BUILD_DIR}/lib/${HOST_TRIPLE}/omc)
-  set(OMC_API_INC ${OM_BUILD_DIR}/include/omc/scripting-API)
-  set(QT_DIR ${RUST_OMC_DIR}/openmodelica_scripting_qt/qt)
+  set(RUST_OMC_ARTIFACT_DIR ${RUST_TARGET_DIR}/${RUST_OMC_TARGET_SUBDIR})
 
-  add_custom_target(rust_omedit
-    COMMENT "Rust: building OMEdit against libOpenModelicaCompiler (CONFIG+=rust_omc)"
-    # 1. the cdylib (release recommended for OMEdit).
-    COMMAND ${CARGO_EXECUTABLE} build ${RUST_OMC_PROFILE_FLAG} -p libopenmodelica_compiler
-    # 2. install the .so + the Rust scripting-API interface/embedding headers
-    #    into the build tree where OMEdit's rpath ($ORIGIN/../lib) finds them.
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${OMC_LIB_DIR} ${OMC_API_INC}
-    COMMAND ${CMAKE_COMMAND} -E copy
-            ${RUST_TARGET_DIR}/${RUST_OMC_TARGET_SUBDIR}/libOpenModelicaCompiler.so ${OMC_LIB_DIR}/
-    COMMAND ${CMAKE_COMMAND} -E copy
-            ${QT_DIR}/OpenModelicaScriptingAPIQt.cpp ${QT_DIR}/OpenModelicaScriptingAPIQt.h
+  # Stage the mmtorust-generated Qt scripting-API into Compiler/Script (where
+  # OMEditLIB lists them as generated sources + has them on its include path), so
+  # CMake's cross-dir generated-source lookup ties OMEditLib to this command and
+  # OMEdit's own CMakeLists need no changes.
+  set(QT_DIR ${RUST_OMC_DIR}/openmodelica_scripting_qt/qt)
+  set(SCRIPT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Script)
+  add_custom_command(
+    OUTPUT ${SCRIPT_DIR}/OpenModelicaScriptingAPIQt.cpp
+           ${SCRIPT_DIR}/OpenModelicaScriptingAPIQt.h
+           ${SCRIPT_DIR}/OpenModelicaScriptingAPIQtABI.h
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${QT_DIR}/OpenModelicaScriptingAPIQt.cpp
+            ${QT_DIR}/OpenModelicaScriptingAPIQt.h
             ${QT_DIR}/OpenModelicaScriptingAPIQtABI.h
-            ${RUST_OMC_DIR}/libopenmodelica_compiler/include/omc_rust_embedding.h ${OMC_API_INC}/
-    # 3. qmake + make OMEdit with the rust_omc switch (#15848).
-    COMMAND ${CMAKE_COMMAND} -E chdir ${OMEDIT_DIR} ${QMAKE_EXECUTABLE} -r CONFIG+=rust_omc
-    COMMAND ${CMAKE_COMMAND} -E chdir ${OMEDIT_DIR} make -j
-    WORKING_DIRECTORY ${RUST_OMC_DIR}
-    DEPENDS rust_libopenmodelica
+            ${SCRIPT_DIR}/
+    DEPENDS rust_codegen rust_libopenmodelica
+    COMMENT "Rust: staging OpenModelicaScriptingAPIQt.{cpp,h}+ABI into Compiler/Script for OMEdit"
     VERBATIM)
+  add_custom_target(rust_omedit_api
+    DEPENDS ${SCRIPT_DIR}/OpenModelicaScriptingAPIQt.cpp)
+
+  # The OpenModelicaCompiler target the Qt GUI clients link: the cargo cdylib,
+  # IMPORTED GLOBAL. IMPORTED_NO_SONAME (the cdylib has none) records the basename
+  # in DT_NEEDED, resolved via the client's $ORIGIN/../lib rpath. OMC_RUST_ABI
+  # selects the in-process Rust path; the include dirs provide omc_rust_embedding.h
+  # and the util/ header it pulls in (SimulationRuntime/c).
+  get_filename_component(_simrt_c_inc ${CMAKE_CURRENT_SOURCE_DIR}/../SimulationRuntime/c ABSOLUTE)
+  add_library(OpenModelicaCompiler SHARED IMPORTED GLOBAL)
+  set_target_properties(OpenModelicaCompiler PROPERTIES
+    IMPORTED_LOCATION ${RUST_OMC_ARTIFACT_DIR}/libOpenModelicaCompiler.so
+    IMPORTED_NO_SONAME TRUE
+    INTERFACE_INCLUDE_DIRECTORIES "${RUST_OMC_DIR}/libopenmodelica_compiler/include;${_simrt_c_inc}"
+    INTERFACE_COMPILE_DEFINITIONS OMC_RUST_ABI)
 endfunction()

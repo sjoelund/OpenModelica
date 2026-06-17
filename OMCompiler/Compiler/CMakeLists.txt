@@ -18,8 +18,9 @@ if(OM_OMC_ENABLE_RUST)
   # Full transpile (mmtorust) + the rust_omc / rust_libopenmodelica /
   # rust_scripting_api targets.
   omc_rust_setup_codegen()
-  # Optional: build OMEdit against the Rust dylib (needs Qt/qmake).
-  if(OM_OMC_ENABLE_RUST_OMEDIT)
+  # Provide the OpenModelicaCompiler target the Qt GUI clients link (the C build's
+  # is skipped under Rust mode along with the rest of this file).
+  if(OM_ENABLE_GUI_CLIENTS)
     omc_rust_setup_omedit()
   endif()
   return()

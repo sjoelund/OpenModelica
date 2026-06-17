@@ -11,11 +11,12 @@
 # web bundle (OM_OMC_WASM).
 FROM ghcr.io/openmodelica/build-deps:v1.22.3
 
-# Pinned nightly so CI is reproducible (the repo has no rust-toolchain.toml; if
-# one is added, prefer it as the single source of truth and drop this ARG).
-# cranelift must publish for this date. Bump together with the dev image.
+# Pre-installed toolchain. MUST match `channel` in OpenModelica.rs/
+# rust-toolchain.toml (the source of truth) — baked in here so CI containers
+# don't auto-install it on first cargo run. Bump both together.
 ARG RUST_NIGHTLY=nightly-2026-05-31
-# wasm-bindgen-cli must match the pinned wasm-bindgen (see wasm/build.sh).
+# wasm-bindgen-cli must equal the pinned wasm-bindgen crate (=0.2.100, the
+# version the wasmer `js` backend targets); bump only together with that crate.
 ARG WASM_BINDGEN_VERSION=0.2.100
 
 # World-writable caches (the building uid is unknown), as in ../Dockerfile.
@@ -28,7 +29,7 @@ ENV RUSTUP_HOME=/opt/rust/rustup \
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
       sh -s -- -y --profile minimal --default-toolchain "${RUST_NIGHTLY}" \
                --target wasm32-unknown-unknown && \
-    rustup component add rustc-codegen-cranelift-preview && \
+    rustup component add rustc-codegen-cranelift-preview clippy rustfmt && \
     cargo install wasm-bindgen-cli --version "${WASM_BINDGEN_VERSION}" && \
     chmod -R ugo+rwx /opt/rust
 

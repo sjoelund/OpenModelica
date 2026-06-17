@@ -43,6 +43,9 @@ typedef struct OmcRtBox {
 #define OMCRT_CONS 1
 #define OMCRT_SCON 2
 
+/* MMC's generic value type: a void* tagged pointer (here an OmcRtBox*). */
+typedef void *modelica_metatype;
+
 static inline void *mmc_mk_nil(void)
 {
   OmcRtBox *b = (OmcRtBox *) malloc(sizeof(OmcRtBox));

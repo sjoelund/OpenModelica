@@ -29,6 +29,19 @@
 // build-deps image + nightly Rust toolchain, cranelift, wasm32, wasm-bindgen,
 // binaryen); the autoconf/partest agents use the plain C image, as those steps
 // need no Rust toolchain to build or run omc.
+//
+// TODO (deprecate autotools): the partest path still uses the autotools build —
+// the autoconf-jammy-gcc stage (config.status + OMSI bits), common.makeLibsAndCache
+// (`make libs-for-testing …` + generateTemplates) and common.partest (`make -C
+// testsuite/difftool`). All of those test deps already exist as native CMake
+// targets — omc-diff, libs-for-testing, reference-files, ffi-test-lib, aggregated
+// as `testsuite-depends` — so this can become fully CMake-native: drop the
+// autoconf stage, build `testsuite-depends` in the cmake-rust stage, and run
+// runtests.pl directly against the cmake-built build/bin/omc + build/bin/omc-diff.
+// The wrinkle to validate on a real run: each partest shard does
+// standardSetup()/`git clean -ffdx`, which wipes the (untracked) built libraries,
+// so the shard must rebuild libs-for-testing without the (unstashed) cmake build
+// tree — e.g. by inlining its steps (`omc index.mos`). Left as a follow-up.
 
 def common
 

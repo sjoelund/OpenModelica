@@ -1,0 +1,154 @@
+// CI for the Rust (mmtorust) omc port and its WebAssembly/web deliverable.
+//
+// Two stages, matching the staged hand-off built into the CMake build
+// (OMCompiler/Compiler/.cmake/rust_omc.cmake):
+//
+//   1. build    — a regular *native* Rust build (-DOM_OMC_ENABLE_RUST=ON), in
+//                 the CI profile (-DRUST_OMC_CI=ON: release, no cargo
+//                 incremental). It also builds the standalone wasm-jit runtime
+//                 (rust_wasm_runtime), which is compiled to wasm32 and
+//                 wasm-opt'd ONCE here; the resulting runtime.wasm is archived
+//                 and stashed so the web stage embeds it instead of rebuilding.
+//
+//   2. web + tests (parallel)
+//        web        — the WebAssembly bundle (-DOM_OMC_WASM=ON), with
+//                     -DRUST_OMC_WASM_RUNTIME=<stage-1 runtime.wasm> so the
+//                     wasm-jit build.rs embeds the prebuilt, optimised runtime.
+//                     `make install` stages it under <prefix>/share/omc/web,
+//                     which is archived.
+//        cargo tests — ctest (cargo test --workspace) for the port.
+//
+// A shared cargo target-dir cache volume keeps stage 2 from rebuilding the
+// dependency graph from scratch (cargo separates native vs wasm32 artifacts
+// within it, so both consumers share it safely).
+//
+// NOTE: the agent image must provide the Rust toolchain that the native build
+// alone does not need from the C image: rustup stable + the
+// wasm32-unknown-unknown target, a wasm-bindgen-cli matching the pinned
+// wasm-bindgen, and binaryen (wasm-opt). Extend .CI/cache/Dockerfile (or point
+// the agents at a dedicated image) accordingly.
+
+def common
+
+pipeline {
+  agent none
+  options {
+    buildDiscarder(logRotator(numToKeepStr: "15", artifactNumToKeepStr: "5"))
+  }
+  stages {
+    stage('Environment') {
+      agent {
+        label '!windows'
+      }
+      steps {
+        script {
+          if (changeRequest()) {
+            def buildNumber = env.BUILD_NUMBER as int
+            if (buildNumber > 1) milestone(buildNumber - 1)
+            milestone(buildNumber)
+          }
+          common = load("${env.workspace}/.CI/common.groovy")
+        }
+      }
+    }
+
+    // Stage 1: native Rust build (CI profile) + the wasm-jit runtime artifact.
+    stage('build') {
+      agent {
+        dockerfile {
+          additionalBuildArgs '--pull'
+          dir '.CI/cache'
+          label 'linux'
+          args "--mount type=volume,source=rust-cargo-target,target=/cache/cargo-target " +
+               "-v /var/lib/jenkins/gitcache:/var/lib/jenkins/gitcache"
+        }
+      }
+      steps {
+        script {
+          common.standardSetup()
+          sh """
+            cmake -S . -B build_rust \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DOM_OMC_ENABLE_RUST=ON \
+              -DRUST_OMC_CI=ON \
+              -DOM_ENABLE_GUI_CLIENTS=OFF \
+              -DOM_USE_CCACHE=OFF \
+              -DRUST_OMC_TARGET_DIR=/cache/cargo-target \
+              -DRUST_OMC_WASM_RUNTIME_OUT=${env.WORKSPACE}/runtime.wasm \
+              -DCMAKE_INSTALL_PREFIX=install_rust
+            cmake --build build_rust --parallel ${common.numPhysicalCPU()}
+            cmake --build build_rust --parallel ${common.numPhysicalCPU()} --target rust_wasm_runtime
+            cmake --install build_rust
+          """
+        }
+        archiveArtifacts artifacts: 'runtime.wasm', fingerprint: true
+        stash name: 'wasm-jit-runtime', includes: 'runtime.wasm'
+      }
+    }
+
+    // Stage 2: the web bundle and the cargo tests, in parallel.
+    stage('web + tests') {
+      parallel {
+        stage('web target') {
+          agent {
+            dockerfile {
+              additionalBuildArgs '--pull'
+              dir '.CI/cache'
+              label 'linux'
+              args "--mount type=volume,source=rust-cargo-target,target=/cache/cargo-target " +
+                   "-v /var/lib/jenkins/gitcache:/var/lib/jenkins/gitcache"
+            }
+          }
+          steps {
+            script {
+              common.standardSetup()
+              unstash 'wasm-jit-runtime'
+              sh """
+                cmake -S . -B build_web \
+                  -DCMAKE_BUILD_TYPE=Release \
+                  -DOM_OMC_WASM=ON \
+                  -DRUST_OMC_WASM_MODE=web-release \
+                  -DRUST_OMC_WASM_RUNTIME=${env.WORKSPACE}/runtime.wasm \
+                  -DOM_USE_CCACHE=OFF \
+                  -DRUST_OMC_TARGET_DIR=/cache/cargo-target \
+                  -DCMAKE_INSTALL_PREFIX=install_web
+                cmake --build build_web --parallel ${common.numPhysicalCPU()}
+                cmake --install build_web --component web
+              """
+            }
+            archiveArtifacts artifacts: 'install_web/share/omc/web/**', fingerprint: true
+          }
+        }
+
+        stage('cargo tests') {
+          agent {
+            dockerfile {
+              additionalBuildArgs '--pull'
+              dir '.CI/cache'
+              label 'linux'
+              args "--mount type=volume,source=rust-cargo-target,target=/cache/cargo-target " +
+                   "-v /var/lib/jenkins/gitcache:/var/lib/jenkins/gitcache"
+            }
+          }
+          steps {
+            script {
+              common.standardSetup()
+              sh """
+                cmake -S . -B build_rust \
+                  -DCMAKE_BUILD_TYPE=Release \
+                  -DOM_OMC_ENABLE_RUST=ON \
+                  -DRUST_OMC_CI=ON \
+                  -DOM_ENABLE_GUI_CLIENTS=OFF \
+                  -DOM_USE_CCACHE=OFF \
+                  -DRUST_OMC_TARGET_DIR=/cache/cargo-target
+                cmake --build build_rust --parallel ${common.numPhysicalCPU()}
+                ( cd build_rust && ctest --output-on-failure --output-junit junit.xml )
+              """
+            }
+            junit testResults: 'build_rust/junit.xml', allowEmptyResults: true
+          }
+        }
+      }
+    }
+  }
+}

@@ -4,6 +4,7 @@
 #   git -C OpenModelica.rs ls-files | grep -vE '^(README|TODO)\.md$|check-unused-deps\.py$|^wasm/build\.sh$'
 #
 .cargo/config.toml
+.cargo/config-wasm-threads.toml
 .config/nextest.toml
 .gitignore
 Cargo.lock
@@ -24,6 +25,7 @@ libopenmodelica_compiler/src/lib.rs
 libopenmodelica_compiler/src/mmc_compat.rs
 libopenmodelica_compiler/src/omedit_runtime.rs
 libopenmodelica_compiler/src/sim_metadata.rs
+libopenmodelica_compiler/src/wasm_alloc.rs
 libopenmodelica_compiler/src/wasm_api.rs
 libopenmodelica_compiler/src/wasm_anim.rs
 libopenmodelica_compiler/src/wasm_plot.rs

@@ -40,6 +40,14 @@ mod mmc_compat;
 #[cfg(target_arch = "wasm32")]
 mod wasm_api;
 
+// Per-thread talc allocator so parallel parsing doesn't serialize on a single
+// global heap lock (neither dlmalloc's nor a single TalcLock's). See wasm_alloc.
+#[cfg(all(target_arch = "wasm32", feature = "wasm-threads"))]
+mod wasm_alloc;
+#[cfg(all(target_arch = "wasm32", feature = "wasm-threads"))]
+#[global_allocator]
+static GLOBAL: wasm_alloc::TalcThreadCache = wasm_alloc::TalcThreadCache;
+
 // Renders `plot(...)` output as an SVG chart (charton) into the page; registered
 // with the System plot-callback registry at init.
 #[cfg(target_arch = "wasm32")]

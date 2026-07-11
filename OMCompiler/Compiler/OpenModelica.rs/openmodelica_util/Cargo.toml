@@ -15,6 +15,9 @@ openmodelica_util_datatypes_basic.workspace=true
 arcstr.workspace=true
 match_deref.workspace=true
 libc.workspace=true
+# Thread pool for System::launchParallelTasksThreaded (wasm path gated by
+# `wasm-threads`).
+rayon.workspace=true
 # GraphML reader in the hand-written TaskGraphResults.rs; also the
 # modelDescription.xml parser in the hand-written FMIExt.rs.
 roxmltree.workspace=true
@@ -32,13 +35,17 @@ nalgebra = { version = "0.33", default-features = false, features = ["std"], opt
 # feature-off fallback that reports the interactive ZMQ mode unavailable).
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 zmq = { workspace = true, optional = true }
-# System::launchParallelTasksThreaded; absent on wasm32 (no OS threads).
-rayon.workspace = true
 
 # Lapack_nalgebra.rs implements the LAPACK builtins over nalgebra's pure-Rust
 # decompositions (LU/SVD/QR/eigen). Used unconditionally where there is no
 # linkable system LAPACK: wasm (none) and Windows (no MSVC-ABI build); on other
 # targets the `lapack-nalgebra` feature opts in (the optional dep above).
+# numProcessors() reads navigator.hardwareConcurrency under `wasm-threads`.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = { version = "=0.2.125", optional = true }
+js-sys = { version = "0.3", optional = true }
+web-sys = { version = "0.3", optional = true, features = ["Window", "Navigator", "WorkerGlobalScope", "WorkerNavigator"] }
+
 [target.'cfg(any(target_arch = "wasm32", target_os = "windows"))'.dependencies]
 nalgebra = { version = "0.33", default-features = false, features = ["std"] }
 # No POSIX libc regcomp/regexec on wasm or Windows; System::regex is
@@ -52,6 +59,9 @@ regex = "1"
 # server enables it via openmodelica_backend_main (its only consumer); wasm
 # builds leave it off and ZeroMQ.rs uses its feature-off fallback.
 default = []
+# rayon parallel path on wasm (native is always threaded). Requires the JS host
+# to call initThreadPool.
+wasm-threads = ["dep:wasm-bindgen", "dep:js-sys", "dep:web-sys"]
 # Enable the ZeroMQ interactive-server bindings (ZeroMQ.rs). When disabled, the
 # ZeroMQ.initialize call reports failure and the interactive ZMQ mode is
 # unavailable, but the build needs neither the zmq crate nor libzmq.

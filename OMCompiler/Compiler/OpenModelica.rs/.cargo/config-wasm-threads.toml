@@ -1,0 +1,24 @@
+# Multithreaded (wasm-bindgen-rayon) wasm omc build. Applied only to the omc
+# cdylib, via `cargo build --config` from rust_omc.cmake — not auto-loaded, so
+# the GUI and wasm-jit-runtime modules keep the base config.toml (--import-memory
+# would break their loaders). Supersets that base (getrandom + llvm backend).
+#
+# Flags follow the wasm-bindgen-rayon README; --export=__heap_base is additionally
+# needed by recent lld (wasm-bindgen errors "failed to find __heap_base" without it).
+[target.wasm32-unknown-unknown]
+rustflags = [
+  "--cfg", "getrandom_backend=\"wasm_js\"",
+  "-Zcodegen-backend=llvm",
+  "-Ctarget-feature=+atomics,+bulk-memory",
+  "-Clink-arg=--shared-memory",
+  "-Clink-arg=--max-memory=4294967296",
+  "-Clink-arg=--import-memory",
+  "-Clink-arg=--export=__wasm_init_tls",
+  "-Clink-arg=--export=__tls_size",
+  "-Clink-arg=--export=__tls_align",
+  "-Clink-arg=--export=__tls_base",
+  "-Clink-arg=--export=__heap_base",
+]
+
+[unstable]
+build-std = ["panic_abort", "std"]

@@ -12,6 +12,11 @@ use wasm_bindgen::prelude::*;
 
 use openmodelica_backend_main::capi;
 
+// Exposes initThreadPool to JS; the host awaits it after omc_init to spin up the
+// wasm-bindgen-rayon workers that back parallel parsing.
+#[cfg(feature = "wasm-threads")]
+pub use wasm_bindgen_rayon::init_thread_pool;
+
 #[wasm_bindgen]
 extern "C" {
     #[wasm_bindgen(js_namespace = console, js_name = log)]

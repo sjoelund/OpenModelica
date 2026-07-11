@@ -990,6 +990,25 @@ function(omc_rust_setup_wasm)
   if(RUST_OMC_SCRIPTING_API)
     set(_wasm_scripting_feature ",libopenmodelica_compiler/scripting_api")
   endif()
+
+  # Multithreaded omc (wasm-bindgen-rayon: parallel parsing). Adds the shared-
+  # memory rustflags via a dedicated config file and the wasm-threads feature.
+  # Incompatible with the GUI web clients (their loaders can't provide the
+  # imported memory), so those must be off.
+  option(RUST_OMC_WASM_THREADS
+         "Build the wasm omc with multithreading (parallel parsing). Requires GUI web clients off." OFF)
+  set(_wasm_threads_feature "")
+  set(_wasm_threads_config "")
+  if(RUST_OMC_WASM_THREADS)
+    if(_build_omshell_web)
+      message(FATAL_ERROR "RUST_OMC_WASM_THREADS needs the GUI web clients off "
+                          "(the shared/imported-memory build breaks their loaders); "
+                          "reconfigure with -DOM_ENABLE_GUI_CLIENTS=OFF.")
+    endif()
+    set(_wasm_threads_feature ",libopenmodelica_compiler/wasm-threads")
+    set(_wasm_threads_config --config ${RUST_OMC_DIR}/.cargo/config-wasm-threads.toml)
+  endif()
+
   if(_build_omshell_web)
     set(_wasm_common --target ${_wasm_target}
                      -p libopenmodelica_compiler -p omshell_egui -p omshell_dioxus
@@ -997,7 +1016,7 @@ function(omc_rust_setup_wasm)
                      --features libopenmodelica_compiler/engine-wasmer,omshell_dioxus/web${_wasm_scripting_feature})
   else()
     set(_wasm_common --target ${_wasm_target} -p libopenmodelica_compiler
-                     --no-default-features --features engine-wasmer${_wasm_scripting_feature})
+                     --no-default-features --features engine-wasmer${_wasm_scripting_feature}${_wasm_threads_feature})
   endif()
 
   if(_profile STREQUAL "release")
@@ -1104,18 +1123,27 @@ function(omc_rust_setup_wasm)
   add_custom_target(rust_wasm_cargo ALL
     WORKING_DIRECTORY ${RUST_OMC_DIR}
     JOB_SERVER_AWARE TRUE
-    COMMAND ${_wasm_cargo} ${_cargo_profile_flag} ${RUST_OMC_TIMINGS_FLAG} ${_wasm_common} ${_cargo_backend}
+    COMMAND ${_wasm_cargo} ${_cargo_profile_flag} ${RUST_OMC_TIMINGS_FLAG} ${_wasm_common} ${_cargo_backend} ${_wasm_threads_config}
     BYPRODUCTS ${_wasm_artifact}
     DEPENDS rust_codegen
     COMMENT "Rust: cargo build wasm/web (${RUST_OMC_WASM_MODE})"
     VERBATIM)
   add_dependencies(rust_wasm_cargo rust_src_sync)
+  # wasm-bindgen-rayon's workerHelpers.js imports the package via `../../..`
+  # (a bundler-only directory resolution); under `--target web` served as plain
+  # files that 404s, so rewrite it to the actual module file.
+  set(_wasm_threads_patch "")
+  if(RUST_OMC_WASM_THREADS)
+    set(_wasm_threads_patch COMMAND sh -c
+        "sed -i \"s@import('../../..')@import('../../../${_wasm_name}.js')@\" ${_wasm_pkgdir}/snippets/wasm-bindgen-rayon-*/src/workerHelpers.js")
+  endif()
   add_custom_command(
     OUTPUT ${_wasm_pkgdir}/${_wasm_name}_bg.wasm
     COMMAND ${CMAKE_COMMAND} -E rm -rf ${_web_dir}
     COMMAND ${WASM_BINDGEN_EXECUTABLE} ${_wasm_artifact}
             --out-dir ${_wasm_pkgdir} --target ${_host}
     ${_wasm_opt_cmd}
+    ${_wasm_threads_patch}
     COMMAND ${CMAKE_COMMAND} -E copy ${_web_launcher} ${_web_dir}/
     ${_web_launcher_extra}
     DEPENDS ${_wasm_artifact} rust_wasm_cargo ${_web_launcher} ${_web_launcher_deps}

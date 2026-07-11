@@ -23,7 +23,7 @@
 //! swapped without touching either client.
 
 use std::collections::HashMap;
-use std::sync::{Mutex, OnceLock};
+use std::sync::{Mutex, OnceLock, RwLock};
 use std::time::Duration;
 
 pub mod wasi;
@@ -164,21 +164,23 @@ pub fn monotonic_nanos() -> u64 {
     START.get_or_init(Instant::now).elapsed().as_nanos() as u64
 }
 
-fn store() -> &'static Mutex<HashMap<String, Entry>> {
-    static STORE: OnceLock<Mutex<HashMap<String, Entry>>> = OnceLock::new();
-    STORE.get_or_init(|| Mutex::new(HashMap::new()))
+// RwLock, not Mutex: parsing is overwhelmingly concurrent reads (each worker
+// thread reads its file's bytes), which must not serialize against each other.
+fn store() -> &'static RwLock<HashMap<String, Entry>> {
+    static STORE: OnceLock<RwLock<HashMap<String, Entry>>> = OnceLock::new();
+    STORE.get_or_init(|| RwLock::new(HashMap::new()))
 }
 
 /// Write `bytes` to `path`, replacing any existing entry.
 pub fn write(path: &str, bytes: Vec<u8>) {
     let mtime = now_since_epoch();
-    store().lock().unwrap().insert(normalize(path), Entry { data: bytes, mtime });
+    store().write().unwrap().insert(normalize(path), Entry { data: bytes, mtime });
 }
 
 /// Append `bytes` to `path`, creating it if absent.
 pub fn append(path: &str, bytes: &[u8]) {
     let mtime = now_since_epoch();
-    let mut s = store().lock().unwrap();
+    let mut s = store().write().unwrap();
     let e = s.entry(normalize(path)).or_default();
     e.data.extend_from_slice(bytes);
     e.mtime = mtime;
@@ -187,7 +189,7 @@ pub fn append(path: &str, bytes: &[u8]) {
 /// Read `path`: an exact store entry wins, otherwise the embedded builtin whose
 /// basename matches. Returns `None` if neither exists.
 pub fn read(path: &str) -> Option<Vec<u8>> {
-    if let Some(e) = store().lock().unwrap().get(&normalize(path)) {
+    if let Some(e) = store().read().unwrap().get(&normalize(path)) {
         return Some(e.data.clone());
     }
     builtin_by_basename(basename(path)).map(|s| s.as_bytes().to_vec())
@@ -198,7 +200,7 @@ pub fn read(path: &str) -> Option<Vec<u8>> {
 /// (`0`) for an immutable embedded builtin, `None` when neither exists. Drives
 /// mtime-based caching ([`fs::modified`]) and the WASI `filestat` mtim field.
 pub fn mtime(path: &str) -> Option<Duration> {
-    if let Some(e) = store().lock().unwrap().get(&normalize(path)) {
+    if let Some(e) = store().read().unwrap().get(&normalize(path)) {
         return Some(e.mtime);
     }
     builtin_by_basename(basename(path)).map(|_| Duration::ZERO)
@@ -206,13 +208,13 @@ pub fn mtime(path: &str) -> Option<Duration> {
 
 /// True when [`read`] would succeed for `path` (a stored file).
 pub fn exists(path: &str) -> bool {
-    store().lock().unwrap().contains_key(&normalize(path)) || builtin_by_basename(basename(path)).is_some()
+    store().read().unwrap().contains_key(&normalize(path)) || builtin_by_basename(basename(path)).is_some()
 }
 
 /// True when `path` is a directory: some stored key lives under `path/`.
 pub fn is_dir(path: &str) -> bool {
     let prefix = format!("{}/", normalize(path));
-    store().lock().unwrap().keys().any(|k| k.starts_with(&prefix))
+    store().read().unwrap().keys().any(|k| k.starts_with(&prefix))
 }
 
 /// The immediate children of directory `dir`, as `(name, is_dir)` pairs (no
@@ -220,7 +222,7 @@ pub fn is_dir(path: &str) -> bool {
 pub fn list_dir(dir: &str) -> Vec<(String, bool)> {
     let prefix = format!("{}/", normalize(dir));
     let mut seen: std::collections::HashMap<String, bool> = std::collections::HashMap::new();
-    for k in store().lock().unwrap().keys() {
+    for k in store().read().unwrap().keys() {
         if let Some(rest) = k.strip_prefix(&prefix)
             && !rest.is_empty()
         {
@@ -240,17 +242,17 @@ pub fn list_dir(dir: &str) -> Vec<(String, bool)> {
 /// Remove `path` from the writable store. Embedded builtins are immutable and
 /// unaffected. Returns true if an entry was removed.
 pub fn remove(path: &str) -> bool {
-    store().lock().unwrap().remove(&normalize(path)).is_some()
+    store().write().unwrap().remove(&normalize(path)).is_some()
 }
 
 /// Every path currently held in the writable store (excludes embedded builtins).
 pub fn list() -> Vec<String> {
-    store().lock().unwrap().keys().cloned().collect()
+    store().read().unwrap().keys().cloned().collect()
 }
 
 /// Number of files currently held in the writable store.
 pub fn len() -> usize {
-    store().lock().unwrap().len()
+    store().read().unwrap().len()
 }
 
 #[cfg(test)]

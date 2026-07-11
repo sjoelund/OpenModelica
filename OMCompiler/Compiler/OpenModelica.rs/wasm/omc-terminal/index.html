@@ -47,6 +47,17 @@ import init, {
   omc_set_env, omc_init, omc_eval,
   omc_take_pending_downloads, omc_take_plot_commands, wasi_write_file,
 } from '../omc/OpenModelicaCompiler.js';
+// initThreadPool exists only in a multithreaded (wasm-bindgen-rayon) build; the
+// namespace import lets us feature-detect it without breaking the plain build.
+import * as omcMod from '../omc/OpenModelicaCompiler.js';
+
+// Start the rayon worker pool for parallel parsing; present only in a
+// multithreaded build, and requires cross-origin isolation. Capped to match
+// Parser.mo's thread limit.
+async function initOmcThreads() {
+  if (!omcMod.initThreadPool) return;
+  await omcMod.initThreadPool(Math.min(8, navigator.hardwareConcurrency || 4));
+}
 
 const log = document.getElementById('log');
 const input = document.getElementById('input');
@@ -98,6 +109,7 @@ async function evalWithDownloads(src) {
 (async () => {
   line('Loading wasm module…', 'meta');
   await init();                                   // fetch + instantiate the wasm
+  await initOmcThreads();                          // rayon pool (multithread build)
   omc_set_env('OPENMODELICAHOME', '/usr');         // builtins resolve by basename
   if (!omc_init()) {
     line('omc_init() failed — see the devtools console.', 'err');

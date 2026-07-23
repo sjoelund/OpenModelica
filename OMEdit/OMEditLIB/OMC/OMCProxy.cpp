@@ -136,6 +136,21 @@ EM_JS(void, omedit_worker_setup, (const char *ver), {
       w.postMessage({ cmd: "controlBuf", buf: cbuf });
     }
   } catch (e) { Module.__omcControlView = null; }
+  // Growable SAB for VFS replies: the worker writes file bytes / dir listings here
+  // and the main thread reads them with a busy-spin (omedit_vfs_*_sab) instead of
+  // an Asyncify suspend — a futex/spin wait does not unwind the Qt stack the way
+  // Asyncify does. Needs cross-origin isolation; without it VFS falls back to the
+  // Asyncify postMessage path. 1 MiB initial, growable to 128 MiB for big files.
+  Module.__omcVfsSab = null;
+  Module.__omcVfsI32 = null;
+  try {
+    if (typeof SharedArrayBuffer !== "undefined" && self.crossOriginIsolated) {
+      const vsab = new SharedArrayBuffer(1 << 20, { maxByteLength: 1 << 27 });
+      Module.__omcVfsSab = vsab;
+      Module.__omcVfsI32 = new Int32Array(vsab, 0, 4);
+      w.postMessage({ cmd: "vfsSab", buf: vsab });
+    }
+  } catch (e) { Module.__omcVfsSab = null; }
   Module.__omcPending = null;
   Module.__omcMsgId = 0;
   Module.__omcCallId = 0;
@@ -433,8 +448,70 @@ EM_JS(char *, omedit_take_vfs_bytes, (int id, int *outLen), {
   return ptr;
 });
 
+// ---- VFS over the growable SAB (no Asyncify) ----------------------------------
+// The main thread posts the request directly (bypassing the __omcSend queue so it
+// can't wait behind an in-flight eval), then busy-spins on the SAB state word. A
+// spin is legal on the browser main thread (only Atomics.wait is not) and, unlike
+// Asyncify, never unwinds the Qt call stack. The worker services the request off
+// its own thread and publishes into the SAB (vfsSabReply).
+EM_JS(int, omedit_vfs_has_sab, (), { return Module.__omcVfsSab ? 1 : 0; });
+
+EM_JS(char *, omedit_vfs_get_sab, (const char *path, int *outLen), {
+  const i32 = Module.__omcVfsI32;
+  Atomics.store(i32, 0, 1);                       // pending
+  Module.__omcWorker.postMessage({ cmd: "vfsGet", path: UTF8ToString(path), sab: true });
+  while (Atomics.load(i32, 0) === 1) { /* spin: no stack unwind, unlike Asyncify */ }
+  if (Atomics.load(i32, 1) !== 1) { HEAP32[outLen >> 2] = -1; return 0; }
+  const len = Atomics.load(i32, 2);
+  const ptr = _malloc(len || 1);
+  if (len > 0) HEAPU8.set(new Uint8Array(Module.__omcVfsSab, 16, len), ptr);
+  HEAP32[outLen >> 2] = len;
+  return ptr;
+});
+
+EM_JS(char *, omedit_vfs_list_sab, (const char *path), {
+  const i32 = Module.__omcVfsI32;
+  Atomics.store(i32, 0, 1);
+  Module.__omcWorker.postMessage({ cmd: "vfsList", path: UTF8ToString(path), sab: true });
+  while (Atomics.load(i32, 0) === 1) {}
+  const len = Atomics.load(i32, 2);
+  const s = len > 0 ? new TextDecoder().decode(new Uint8Array(Module.__omcVfsSab, 16, len)) : "";
+  const n = lengthBytesUTF8(s) + 1;
+  const ptr = _malloc(n);
+  stringToUTF8(s, ptr, n);
+  return ptr;
+});
+
+// Write already-read bytes into the page MEMFS (for raw-stdio readers like OMPlot).
+EM_JS(int, omedit_stage_bytes_memfs, (const char *path, const char *data, int len), {
+  try {
+    const p = UTF8ToString(path);
+    const slash = p.lastIndexOf("/");
+    if (slash > 0) FS.mkdirTree(p.substring(0, slash));
+    FS.writeFile(p, HEAPU8.subarray(data, data + len));
+    return 1;
+  } catch (e) { return 0; }
+});
+
+// The SAB busy-spin is only safe outside an omc eval: while an eval is in flight
+// its nested QEventLoop has Asyncify-suspended the stack, and spinning re-entrantly
+// there desynchronises QWasmSuspendResumeControl's pending-event queue (the
+// empty-shift crash). In that case, and before the main loop is up, fall back to
+// the Asyncify VFS path. Once eval also leaves Asyncify this gate can be dropped.
+static bool omcVfsSpinSafe() {
+  return omedit_vfs_has_sab() && g_omcMainLoopRunning && g_omcWaitStack.isEmpty();
+}
+
 QByteArray omcWorkerReadFile(const char *path) {
   if (!omedit_worker_ready()) return QByteArray();
+  if (omcVfsSpinSafe()) {
+    int len = -1;
+    char *p = omedit_vfs_get_sab(path, &len);
+    if (!p || len < 0) { if (p) free(p); return QByteArray(); }
+    QByteArray data(p, len);
+    free(p);
+    return data;
+  }
   int id = omedit_post_vfs_get(path);
   omcWorkerWaitReply(id);
   int len = -1;
@@ -465,9 +542,14 @@ EM_JS(char *, omedit_take_vfs_list, (int id), {
 QStringList omcWorkerListDir(const char *path) {
   QStringList out;
   if (!omedit_worker_ready()) return out;
-  int id = omedit_post_vfs_list(path);
-  omcWorkerWaitReply(id);
-  char *p = omedit_take_vfs_list(id);
+  char *p;
+  if (omcVfsSpinSafe()) {
+    p = omedit_vfs_list_sab(path);
+  } else {
+    int id = omedit_post_vfs_list(path);
+    omcWorkerWaitReply(id);
+    p = omedit_take_vfs_list(id);
+  }
   if (!p) return out;
   QString s = QString::fromUtf8(p);
   free(p);
@@ -495,6 +577,11 @@ EM_JS(int, omedit_stage_into_memfs, (int id, const char *path), {
 
 bool omcWorkerStageFile(const char *path) {
   if (!omedit_worker_ready()) return false;
+  if (omcVfsSpinSafe()) {
+    QByteArray data = omcWorkerReadFile(path);
+    if (data.isNull()) return false;
+    return omedit_stage_bytes_memfs(path, data.constData(), data.size()) != 0;
+  }
   int id = omedit_post_vfs_get(path);
   omcWorkerWaitReply(id);
   return omedit_stage_into_memfs(id, path) != 0;

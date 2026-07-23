@@ -1110,6 +1110,23 @@ namespace IAEX
       setOutputStyle();
       output_->update();
       QCoreApplication::processEvents();
+
+#if defined(__EMSCRIPTEN__) && defined(OMC_WASM_THREADS)
+      // Async on the OMC thread: dispatch and return; finishEval() displays the
+      // result when it arrives (no Asyncify suspend). quit() needs no round-trip.
+      if( 0 == expr.indexOf( "quit()", 0, Qt::CaseSensitive ) )
+        qApp->closeAllWindows();
+      else {
+        QPointer<InputCell> self(this);
+        OmcInteractiveEnvironment::getInstance()->evalExpressionAsync(expr, [self]() {
+          if (self) self->finishEval();
+        });
+      }
+      input_->blockSignals(false);
+      output_->blockSignals(false);
+      return;
+#endif
+
       delegate()->evalExpression(expr);
 
       // 2005-11-24 AF, added check to see if the user wants to quit
@@ -1152,6 +1169,27 @@ namespace IAEX
     input_->blockSignals(false);
     output_->blockSignals(false);
   }
+
+#if defined(__EMSCRIPTEN__) && defined(OMC_WASM_THREADS)
+  void InputCell::finishEval()
+  {
+    input_->blockSignals(true);
+    output_->blockSignals(true);
+    QString res = delegate()->getResult();
+    QString error = delegate()->getError();
+    if( res.isEmpty() && error.isEmpty() )
+      res = "[done]";
+    if( !error.isEmpty() )
+      res += QString("\n") + error;
+    output_->selectAll();
+    output_->textCursor().insertText( res );
+    ++numEvals_;
+    contentChanged();
+    emit textChanged(true);
+    input_->blockSignals(false);
+    output_->blockSignals(false);
+  }
+#endif
 
   /*!
    * \author Anders Fernström

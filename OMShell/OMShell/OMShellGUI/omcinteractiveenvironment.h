@@ -38,6 +38,8 @@
 
 #include <QtCore/QString>
 
+class QObject;
+
 #if defined(__EMSCRIPTEN__)
 // Web build: omc is not linked in-process. It runs as a separate wasm module in
 // a Web Worker (omc_worker.js); this environment bridges to it via postMessage.
@@ -78,6 +80,12 @@ namespace IAEX
     // Current download progress as display text, or empty when nothing is
     // downloading; used to drive the status bar.
     QString progressText();
+#endif
+#if defined(__EMSCRIPTEN__) && defined(OMC_WASM_THREADS)
+    // Multithread build: the QObject (on the OMC thread) whose
+    // evalDone(QString result, QString error) signal delivers async command
+    // results. Connect to it (string-based) for the GUI update.
+    static QObject* asyncBridge();
 #endif
     static QString OMCVersion();
     static QString OpenModelicaHome();

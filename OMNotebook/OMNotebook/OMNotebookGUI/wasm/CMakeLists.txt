@@ -141,3 +141,16 @@ target_link_options(OMNotebook-qt PRIVATE
   -sASYNCIFY_STACK_SIZE=131072
   -sALLOW_MEMORY_GROWTH=1
   -sEXPORTED_RUNTIME_METHODS=UTF8ToString,stringToNewUTF8,FS)
+
+# Multithread Qt build (OMSHELL_QT_WASM_PREFIX -> wasm_multithread): omc calls
+# run on a secondary "OMC thread" that blocks on an Atomics futex instead of
+# Asyncify (omcinteractiveenvironment.cpp, OMC_WASM_THREADS branch). Qt's
+# toolchain already adds -pthread; pre-spawn a small pool so creating the OMC
+# thread never stalls the main thread. eval becomes async (see the cells'
+# OMC_WASM_THREADS branches). A plain macro (not the compiler builtin
+# __EMSCRIPTEN_PTHREADS__) so AUTOMOC also takes the channel branch and emits moc
+# for the OMC-thread QObjects.
+if(QT_FEATURE_thread)
+  target_link_options(OMNotebook-qt PRIVATE -sPTHREAD_POOL_SIZE=4)
+  target_compile_definitions(OMNotebook-qt PRIVATE OMC_WASM_THREADS)
+endif()

@@ -1610,6 +1610,32 @@ namespace IAEX {
         return;
       }
 
+#if defined(__EMSCRIPTEN__) && defined(OMC_WASM_THREADS)
+      {
+        // Async on the OMC thread: dispatch and return; the callback displays the
+        // result and draws any plots when the reply arrives (no Asyncify suspend).
+        QPointer<GraphCell> self(this);
+        OmcInteractiveEnvironment::getInstance()->evalExpressionAsync(expr, [self]() {
+          if (!self) return;
+          self->input_->blockSignals(true);
+          self->output_->blockSignals(true);
+          self->delegateFinished(self->getDelegate());
+          const QList<QStringList> plots = OmcInteractiveEnvironment::getInstance()->takePlotCommands();
+          if (!plots.isEmpty()) {
+            QTimer::singleShot(0, self, [self, plots]() {
+              for (const QStringList &args : plots) self->renderPlotArgs(args);
+              self->contentChanged();
+            });
+          }
+          self->input_->blockSignals(false);
+          self->output_->blockSignals(false);
+        });
+      }
+      input_->blockSignals(false);
+      output_->blockSignals(false);
+      return;
+#endif
+
       {
         guard.lock();
         // adrpo:FIXME! WRONG! TODO! this is wrong!
@@ -1655,7 +1681,9 @@ namespace IAEX {
     int errorLevel= delegate->getErrorLevel();
 
     //delete sender();
+#if !defined(OMC_WASM_THREADS)
     guard.unlock();
+#endif
 
     if( res.isEmpty() && (error.isEmpty() || error.size() == 0) ) {
       res = "[done]";

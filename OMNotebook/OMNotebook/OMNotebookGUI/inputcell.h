@@ -99,6 +99,11 @@ namespace IAEX
 
   public slots:
     void eval();
+#if defined(__EMSCRIPTEN__) && defined(OMC_WASM_THREADS)
+    // Multithread web build: eval() dispatches to the OMC thread and returns;
+    // this displays the result once it arrives (see omcinteractiveenvironment.cpp).
+    void finishEval();
+#endif
     void command();
     void nextCommand();
     void nextField();

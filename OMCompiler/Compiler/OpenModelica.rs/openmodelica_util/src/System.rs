@@ -2428,6 +2428,23 @@ fn parallel_pool(n: usize) -> Option<&'static rayon::ThreadPool> {
         .as_ref()
 }
 
+// The JS host spawns the wasm-bindgen-rayon pool in the background (initThreadPool)
+// so worker startup is off the critical path, then calls the setter below. Until
+// then a `par_iter` would panic ("global pool not initialized"), so parallel work
+// falls back to serial while the pool comes up.
+#[cfg(all(target_arch = "wasm32", feature = "wasm-threads"))]
+static WASM_POOL_READY: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+#[cfg(all(target_arch = "wasm32", feature = "wasm-threads"))]
+pub fn set_wasm_pool_ready() {
+    WASM_POOL_READY.store(true, std::sync::atomic::Ordering::Release);
+}
+#[cfg(all(target_arch = "wasm32", feature = "wasm-threads"))]
+fn pool_ready() -> bool {
+    WASM_POOL_READY.load(std::sync::atomic::Ordering::Acquire)
+}
+#[cfg(not(all(target_arch = "wasm32", feature = "wasm-threads")))]
+fn pool_ready() -> bool { true }
+
 // Real-threaded map, opted into per call site. The `Send` bounds reject the
 // non-`Send` payloads the other `launchParallelTasks` sites carry.
 pub fn launchParallelTasksThreaded<AnyInput: Clone + Send + 'static, AnyOutput: Clone + Send + 'static>(
@@ -2436,7 +2453,7 @@ pub fn launchParallelTasksThreaded<AnyInput: Clone + Send + 'static, AnyOutput: 
     func: Arc<dyn Fn(AnyInput) -> Result<AnyOutput> + 'static>,
 ) -> Result<Arc<List<AnyOutput>>> {
     let items: Vec<AnyInput> = (&*inData).into_iter().cloned().collect();
-    let serial = !threaded_build!() || numThreads <= 1 || items.len() < 2;
+    let serial = !threaded_build!() || numThreads <= 1 || items.len() < 2 || !pool_ready();
 
     let out: Vec<AnyOutput> = if serial {
         items.into_iter().map(|x| func(x)).collect::<Result<Vec<_>>>()?

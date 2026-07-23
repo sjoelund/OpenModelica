@@ -979,8 +979,16 @@ function(omc_rust_setup_wasm)
   # deps compile in parallel with the compiler rather than serially after it.
   # --no-default-features then applies to all selected packages, so the features
   # are package-qualified (omshell_egui has none; omshell_dioxus needs `web`).
+  # Multithreaded omc (wasm-bindgen-rayon: parallel parsing): shared-memory
+  # rustflags + the wasm-threads feature. The egui/dioxus web crates share this
+  # cargo build and can't load under imported memory, so they drop out when
+  # threads are on; the Qt web pages (separate emscripten modules talking to the
+  # omc worker) are unaffected and stay enabled.
+  option(RUST_OMC_WASM_THREADS
+         "Build the wasm omc with multithreading (parallel parsing). Drops the egui/dioxus web pages." OFF)
+
   set(_build_omshell_web FALSE)
-  if(OM_ENABLE_GUI_CLIENTS AND _host STREQUAL "web")
+  if(OM_ENABLE_GUI_CLIENTS AND _host STREQUAL "web" AND NOT RUST_OMC_WASM_THREADS)
     set(_build_omshell_web TRUE)
   endif()
   # scripting_api gives the worker omc_abi (the OMEdit typed ABI dispatcher).
@@ -991,20 +999,9 @@ function(omc_rust_setup_wasm)
     set(_wasm_scripting_feature ",libopenmodelica_compiler/scripting_api")
   endif()
 
-  # Multithreaded omc (wasm-bindgen-rayon: parallel parsing). Adds the shared-
-  # memory rustflags via a dedicated config file and the wasm-threads feature.
-  # Incompatible with the GUI web clients (their loaders can't provide the
-  # imported memory), so those must be off.
-  option(RUST_OMC_WASM_THREADS
-         "Build the wasm omc with multithreading (parallel parsing). Requires GUI web clients off." OFF)
   set(_wasm_threads_feature "")
   set(_wasm_threads_config "")
   if(RUST_OMC_WASM_THREADS)
-    if(_build_omshell_web)
-      message(FATAL_ERROR "RUST_OMC_WASM_THREADS needs the GUI web clients off "
-                          "(the shared/imported-memory build breaks their loaders); "
-                          "reconfigure with -DOM_ENABLE_GUI_CLIENTS=OFF.")
-    endif()
     set(_wasm_threads_feature ",libopenmodelica_compiler/wasm-threads")
     set(_wasm_threads_config --config ${RUST_OMC_DIR}/.cargo/config-wasm-threads.toml)
   endif()
@@ -1167,8 +1164,10 @@ function(omc_rust_setup_wasm)
   # built only for the browser host.
   if(OM_ENABLE_GUI_CLIENTS)
     if(_host STREQUAL "web")
-      omc_rust_omshell_web_page(egui   OMShell-egui   ${RUST_OMC_DIR}/omshell_egui/web/index.html)
-      omc_rust_omshell_web_page(dioxus OMShell-dioxus ${RUST_OMC_DIR}/omshell_dioxus/web/index.html)
+      if(_build_omshell_web)
+        omc_rust_omshell_web_page(egui   OMShell-egui   ${RUST_OMC_DIR}/omshell_egui/web/index.html)
+        omc_rust_omshell_web_page(dioxus OMShell-dioxus ${RUST_OMC_DIR}/omshell_dioxus/web/index.html)
+      endif()
       if(RUST_OMC_WEB_QT OR RUST_OMC_WEB_QT_STANDALONE)
         omc_rust_omshell_qt_web_page()
         omc_rust_omnotebook_qt_web_page()

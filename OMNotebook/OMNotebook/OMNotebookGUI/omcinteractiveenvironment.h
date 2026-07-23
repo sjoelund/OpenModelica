@@ -37,6 +37,9 @@
 #define _OMCINTERACTIVE_H
 
 #include <QtCore/QString>
+#if defined(__EMSCRIPTEN__) && defined(OMC_WASM_THREADS)
+#include <functional>
+#endif
 
 #if defined(__EMSCRIPTEN__)
 #include "omc_wasm_compat.h"
@@ -71,6 +74,17 @@ namespace IAEX
     // PlotCallback strings (result file at index 0, already staged into FS).
     // Returns and clears the list.
     QList<QStringList> takePlotCommands();
+#endif
+#if defined(__EMSCRIPTEN__) && defined(OMC_WASM_THREADS)
+    // Multithread web build: omc runs on a secondary "OMC thread" that blocks on
+    // an Atomics futex instead of suspending the Qt stack (Asyncify). eval is
+    // therefore async: dispatch the command and return; onDone runs on the GUI
+    // thread once the result arrives, after which getResult()/getError()/
+    // getErrorLevel() hold this command's outcome. Commands are serialised on the
+    // OMC thread, so onDone callbacks fire in dispatch order.
+    void evalExpressionAsync(const QString &expr, std::function<void()> onDone);
+    // GUI-thread setters used by the OMC-thread reply bridge.
+    void applyResult(const QString &result, const QString &error);
 #endif
     virtual QString getResult() override;
     virtual QString getError() override;

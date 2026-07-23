@@ -71,6 +71,7 @@ EM_JS(void, omshell_worker_setup, (), {
   Module.__omshellLastError = "";
   Module.__omshellReply = null;
   Module.__omshellProgress = null;
+  Module.__omshellPlots = [];
 
   Module.__omshellQueue = Promise.resolve();
   Module.__omshellSend = (msg) => {
@@ -89,6 +90,26 @@ EM_JS(void, omshell_worker_setup, (), {
       Module.__omshellProgress = m;
       return;
     }
+    if (m && m.kind === "plots") {
+      // Channel (multithread) mode: plots arrive here instead of in an eval
+      // reply, since the reply travels over the futex. Stage each result file
+      // into this module's FS (so OMPlot can fopen it) and keep its args.
+      const plots = [];
+      for (const p of (m.plots || [])) {
+        try {
+          if (p.bytes && p.file) {
+            const slash = p.file.lastIndexOf("/");
+            if (slash > 0) FS.mkdirTree(p.file.substring(0, slash));
+            FS.writeFile(p.file, p.bytes);
+          }
+          plots.push(p.args);
+        } catch (err) {
+          console.error("OMNotebook: staging plot result failed", err);
+        }
+      }
+      Module.__omshellPlots = (Module.__omshellPlots || []).concat(plots);
+      return;
+    }
     if (m && (m.kind === "ready" || m.kind === "done")) {
       Module.__omshellProgress = null;
       const resolve = Module.__omshellPending;
@@ -97,6 +118,9 @@ EM_JS(void, omshell_worker_setup, (), {
     }
   };
 });
+
+#if !defined(OMC_WASM_THREADS)
+// ===== single-thread build: evalExpression spins a nested QEventLoop =====
 
 EM_ASYNC_JS(char*, omshell_worker_init, (), {
   omshell_worker_setup();
@@ -280,6 +304,239 @@ namespace IAEX
     return QString("/tmp/OpenModelica/");
   }
 }
+
+#else // OMC_WASM_THREADS
+// ===== multithread build: omc calls on a secondary "OMC thread" =====
+// The OMC thread blocks on an Atomics futex in *this* module's shared wasm heap
+// while omc_worker.js's syncLoop runs the command and writes the reply back into
+// the heap. No omc round-trip suspends the Qt stack (Asyncify), so eval is async:
+// evalExpressionAsync dispatches to the OMC thread and returns; the result is
+// delivered on the GUI thread via OmcBridge. See HANDOFF-asyncify-removal.md.
+#include <atomic>
+#include <cmath>
+#include <cstring>
+#include <QThread>
+#include <QQueue>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonArray>
+#include <emscripten/threading.h>
+
+namespace {
+// Layout the worker's syncLoop expects; word offsets match W_* in omc_worker.js.
+struct OmcChannel {
+  std::atomic<int32_t> state;   // the only futex word (offset 0)
+  int32_t reqKind, reqPtr, reqLen, replyPtr, replyLen, aux;
+};
+enum { S_IDLE = 0, S_REQUEST = 1, S_REPLY_SIZE = 2, S_REPLY_BUF = 3, S_READY = 4 };
+enum { K_INIT = 0, K_EVAL = 1, K_ABI = 2 };
+
+OmcChannel *g_omcChannel = nullptr;
+
+inline void chSet(std::atomic<int32_t> *w, int32_t s) { w->store(s); emscripten_futex_wake(w, 1); }
+inline void chAwait(std::atomic<int32_t> *w, int32_t s) {
+  while (w->load() == s) emscripten_futex_wait(w, (uint32_t) s, INFINITY);
+}
+
+// Blocking round-trip; OMC thread only. req/reply are UTF-8 JSON.
+QByteArray omcChannelCall(int kind, const QByteArray &req)
+{
+  OmcChannel *c = g_omcChannel;
+  int32_t reqPtr = 0;
+  if (!req.isEmpty()) {
+    reqPtr = (int32_t)(intptr_t) malloc(req.size());
+    memcpy((void*)(intptr_t) reqPtr, req.constData(), req.size());
+  }
+  c->reqKind = kind; c->reqPtr = reqPtr; c->reqLen = req.size();
+  chSet(&c->state, S_REQUEST);
+  chAwait(&c->state, S_REQUEST);                 // worker sets replyLen -> REPLY_SIZE
+  int32_t replyLen = c->replyLen;
+  int32_t replyPtr = (int32_t)(intptr_t) malloc(replyLen ? replyLen : 1);
+  c->replyPtr = replyPtr;
+  chSet(&c->state, S_REPLY_BUF);
+  chAwait(&c->state, S_REPLY_BUF);               // worker writes bytes -> READY
+  QByteArray out((const char*)(intptr_t) replyPtr, replyLen);
+  if (reqPtr) free((void*)(intptr_t) reqPtr);
+  free((void*)(intptr_t) replyPtr);
+  chSet(&c->state, S_IDLE);
+  return out;
+}
+
+QString takeCString(char *s) { QString r = QString::fromUtf8(s ? s : ""); free(s); return r; }
+} // namespace
+
+// Hand the omc worker this module's shared heap (a SAB) + the channel address once.
+EM_JS(void, omshell_sync_channel_setup, (int base), {
+  const w = Module.__omshellWorker;
+  if (w) w.postMessage({ cmd: "syncChannel", qtHeap: wasmMemory.buffer, base: base });
+});
+
+EM_JS(char*, omshell_progress_text, (), {
+  const p = Module.__omshellProgress;
+  if (!p) return stringToNewUTF8("");
+  const s = p.total > 0
+    ? "Downloading " + p.file + "  " + Math.round(100 * p.done / p.total) + "%"
+    : "Downloading " + p.file + "  " + Math.round(p.done / 1024) + " KiB";
+  return stringToNewUTF8(s);
+});
+
+EM_JS(char*, omshell_take_plots_json, (), {
+  const plots = Module.__omshellPlots || [];
+  Module.__omshellPlots = [];
+  return stringToNewUTF8(JSON.stringify(plots));
+});
+
+namespace IAEX
+{
+  // Lives on the OMC thread; runs the blocking channel round-trips.
+  class OmcWorker : public QObject
+  {
+    Q_OBJECT
+  public:
+    QString version;
+  public slots:
+    void initOmc() {
+      QJsonObject o; o["installMsl"] = false;
+      version = reply(K_INIT, o).value("version").toString();
+      emit initDone();
+    }
+    void evalOmc(const QString &src) {
+      QJsonObject o; o["src"] = src;
+      QJsonObject r = reply(K_EVAL, o);
+      emit evalDone(r.value("result").toString(), r.value("error").toString());
+    }
+    void evalBackground(const QString &src) {   // startup MSL install: no result
+      QJsonObject o; o["src"] = src;
+      reply(K_EVAL, o);
+    }
+  signals:
+    void initDone();
+    void evalDone(QString result, QString error);
+  private:
+    static QJsonObject reply(int kind, const QJsonObject &req) {
+      QByteArray b = omcChannelCall(kind, QJsonDocument(req).toJson(QJsonDocument::Compact));
+      return QJsonDocument::fromJson(b).object();
+    }
+  };
+
+  // Lives on the GUI thread; delivers each reply to the matching per-eval
+  // callback. omc is serialised on the OMC thread, so replies arrive in dispatch
+  // order -> a plain FIFO of callbacks.
+  class OmcBridge : public QObject
+  {
+    Q_OBJECT
+  public:
+    OmcInteractiveEnvironment *env = nullptr;
+    QQueue<std::function<void()>> pending;
+  public slots:
+    void onEvalDone(QString result, QString error) {
+      env->applyResult(result, error);
+      if (!pending.isEmpty()) { auto cb = pending.dequeue(); cb(); }
+    }
+  };
+
+  static QThread *g_omcThread = nullptr;
+  static OmcWorker *g_omcWorker = nullptr;
+  static OmcBridge *g_omcBridge = nullptr;
+
+  OmcInteractiveEnvironment* OmcInteractiveEnvironment::selfInstance = NULL;
+  OmcInteractiveEnvironment* OmcInteractiveEnvironment::getInstance(threadData_t *threadData)
+  {
+    if (selfInstance == NULL)
+      selfInstance = new OmcInteractiveEnvironment(threadData);
+    return selfInstance;
+  }
+
+  OmcInteractiveEnvironment::OmcInteractiveEnvironment(threadData_t *threadData)
+    : threadData_(threadData), result_(""), error_("")
+  {
+    severity = 0;
+    omshell_worker_setup();                                     // spawn omc worker (+ progress)
+    g_omcChannel = (OmcChannel*) calloc(1, sizeof(OmcChannel)); // state = S_IDLE
+    omshell_sync_channel_setup((int)(intptr_t) g_omcChannel);
+    g_omcThread = new QThread();
+    g_omcWorker = new OmcWorker();
+    g_omcWorker->moveToThread(g_omcThread);
+    g_omcThread->start();
+    g_omcBridge = new OmcBridge();
+    g_omcBridge->env = this;
+    QObject::connect(g_omcWorker, &OmcWorker::evalDone, g_omcBridge, &OmcBridge::onEvalDone);
+    // One-time init: block until the OMC thread reports the version (pre-main-loop,
+    // so the nested loop's Asyncify is acceptable). Eval is async thereafter.
+    QEventLoop loop;
+    QObject::connect(g_omcWorker, &OmcWorker::initDone, &loop, &QEventLoop::quit);
+    QMetaObject::invokeMethod(g_omcWorker, "initOmc", Qt::QueuedConnection);
+    loop.exec();
+    omcVersion_ = g_omcWorker->version;
+  }
+
+  OmcInteractiveEnvironment::~OmcInteractiveEnvironment() {}
+
+  QString OmcInteractiveEnvironment::getResult() { return result_; }
+  QString OmcInteractiveEnvironment::getError() { return error_; }
+  int OmcInteractiveEnvironment::getErrorLevel() { return severity; }
+
+  void OmcInteractiveEnvironment::applyResult(const QString &result, const QString &error)
+  {
+    result_ = result.trimmed();
+    error_ = error.trimmed();
+    if (error_.size() > 2) {
+      if (error_.contains("Error:")) {
+        severity = 2;
+        error_ = QString("OMC-ERROR: \n") + error_;
+      } else if (error_.contains("Warning:")) {
+        severity = 1;
+        error_ = QString("OMC-WARNING: \n") + error_;
+      } else {
+        severity = 0;
+      }
+    } else {
+      error_.clear();
+      severity = 0;
+    }
+  }
+
+  void OmcInteractiveEnvironment::evalExpressionAsync(const QString &expr, std::function<void()> onDone)
+  {
+    g_omcBridge->pending.enqueue(std::move(onDone));
+    QMetaObject::invokeMethod(g_omcWorker, "evalOmc", Qt::QueuedConnection, Q_ARG(QString, expr));
+  }
+
+  // Interface method; the web build routes cells through evalExpressionAsync. Kept
+  // as a fire-and-forget path (a no-op callback keeps the reply FIFO aligned).
+  void OmcInteractiveEnvironment::evalExpression(const QString expr)
+  {
+    evalExpressionAsync(expr, []() {});
+  }
+
+  void OmcInteractiveEnvironment::startBackgroundCommand(const QString expr)
+  {
+    QMetaObject::invokeMethod(g_omcWorker, "evalBackground", Qt::QueuedConnection, Q_ARG(QString, expr));
+  }
+
+  QList<QStringList> OmcInteractiveEnvironment::takePlotCommands()
+  {
+    QList<QStringList> out;
+    QJsonDocument doc = QJsonDocument::fromJson(takeCString(omshell_take_plots_json()).toUtf8());
+    if (doc.isArray()) {
+      for (const QJsonValue &cmd : doc.array()) {
+        QStringList args;
+        for (const QJsonValue &v : cmd.toArray()) args << v.toString();
+        out << args;
+      }
+    }
+    return out;
+  }
+
+  QString OmcInteractiveEnvironment::progressText() { return takeCString(omshell_progress_text()); }
+
+  QString OmcInteractiveEnvironment::OMCVersion() { return getInstance()->omcVersion_; }
+  QString OmcInteractiveEnvironment::OpenModelicaHome() { return QString(); }
+  QString OmcInteractiveEnvironment::TmpPath() { return QString("/tmp/OpenModelica/"); }
+}
+#include "omcinteractiveenvironment.moc"
+
+#endif // OMC_WASM_THREADS
 
 #else
 

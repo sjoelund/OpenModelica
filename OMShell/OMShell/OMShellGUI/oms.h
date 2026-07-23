@@ -92,6 +92,11 @@ public slots:
 
 private slots:
   void closeEvent( QCloseEvent *event );    // Added 2006-02-09 AF
+#if defined(__EMSCRIPTEN__) && defined(OMC_WASM_THREADS)
+  // Multithread web build: omc eval runs on the OMC thread; this receives its
+  // result (via OmcInteractiveEnvironment::asyncBridge()) and updates the console.
+  void onOmcEvalDone( QString result, QString error );
+#endif
 
 private:
   void createMoshEdit();

@@ -257,6 +257,11 @@ OMS::OMS( QWidget* parent )
   cursor_.insertText( tr("\nTo get help on using OMShell and OpenModelica, type \"help()\" and press enter.\n"), textFormat_ );
 
   delegate_ = IAEX::OmcInteractiveEnvironment::getInstance();
+#if defined(__EMSCRIPTEN__) && defined(OMC_WASM_THREADS)
+  // omc eval is async on the multithread web build; results arrive on this signal.
+  connect(IAEX::OmcInteractiveEnvironment::asyncBridge(),
+          SIGNAL(evalDone(QString,QString)), this, SLOT(onOmcEvalDone(QString,QString)));
+#endif
   // create command completion instance from the bundled command file (see
   // oms.qrc), so completion works regardless of the installation layout and on
   // the web build where there is no installation directory on disk.
@@ -536,6 +541,13 @@ void OMS::returnPressed()
     busy_ = true;
     moshEdit_->setReadOnly( true );
 
+#if defined(__EMSCRIPTEN__) && defined(OMC_WASM_THREADS)
+    // Async on the OMC thread: dispatch and return. onOmcEvalDone() prints the
+    // result and re-enables input when the reply arrives (no Asyncify suspend).
+    delegate_->evalExpression( commandText );
+    return;
+#endif
+
     // 2006-02-02 AF, Added try-catch
     try
     {
@@ -575,6 +587,21 @@ void OMS::returnPressed()
   // add new command line
   addCommandLine();
 }
+
+#if defined(__EMSCRIPTEN__) && defined(OMC_WASM_THREADS)
+void OMS::onOmcEvalDone( QString result, QString error )
+{
+  if( result.isEmpty() )
+    cursor_.insertText( "\n", textFormat_ );
+  else
+    cursor_.insertText( "\n" + result + "\n", textFormat_ );
+  if( error.size() > 2 )
+    cursor_.insertText( error );
+  busy_ = false;
+  moshEdit_->setReadOnly( false );
+  addCommandLine();
+}
+#endif
 
 void OMS::exceptionInEval(std::exception &e)
 {

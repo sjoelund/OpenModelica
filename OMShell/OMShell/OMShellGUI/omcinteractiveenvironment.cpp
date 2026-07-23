@@ -100,6 +100,9 @@ EM_JS(void, omshell_worker_setup, (), {
   };
 });
 
+#if !defined(OMC_WASM_THREADS)
+// ===== single-thread build: synchronous evalExpression over postMessage =====
+
 // Initialise the worker, returning the omc version. installMsl:false keeps this
 // fast so the window appears first; OMShell installs the MSL afterwards. Runs
 // before the event loop, so blocking the call stack here is fine.
@@ -243,6 +246,183 @@ namespace IAEX
     return QString("/tmp/OpenModelica/");
   }
 }
+
+#else // OMC_WASM_THREADS
+// ===== multithread build: omc calls on a secondary "OMC thread" =====
+// The OMC thread blocks on an Atomics futex in *this* module's shared wasm heap
+// while omc_worker.js's syncLoop does the work and writes the reply back into
+// the heap, then the OMC thread reads it. No omc round-trip suspends the Qt
+// stack (Asyncify), so per-command eval is async. See HANDOFF-asyncify-removal.md.
+#include <atomic>
+#include <cmath>
+#include <cstring>
+#include <QThread>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <emscripten/threading.h>
+
+namespace {
+// Layout/protocol the worker's syncLoop expects. One call in flight (omc is
+// serialized). The OMC thread malloc's exact-sized request and reply buffers, so
+// there is no size cap. Word offsets here must match W_* in omc_worker.js.
+struct OmcChannel {
+  std::atomic<int32_t> state;   // the only futex word (offset 0)
+  int32_t reqKind, reqPtr, reqLen, replyPtr, replyLen, aux;
+};
+enum { S_IDLE = 0, S_REQUEST = 1, S_REPLY_SIZE = 2, S_REPLY_BUF = 3, S_READY = 4 };
+enum { K_INIT = 0, K_EVAL = 1, K_ABI = 2 };
+
+OmcChannel *g_omcChannel = nullptr;
+
+inline void chSet(std::atomic<int32_t> *w, int32_t s) { w->store(s); emscripten_futex_wake(w, 1); }
+inline void chAwait(std::atomic<int32_t> *w, int32_t s) {
+  while (w->load() == s) emscripten_futex_wait(w, (uint32_t) s, INFINITY);
+}
+
+// Blocking round-trip; OMC thread only. reqBytes/reply are UTF-8 JSON.
+QByteArray omcChannelCall(int kind, const QByteArray &req)
+{
+  OmcChannel *c = g_omcChannel;
+  int32_t reqPtr = 0;
+  if (!req.isEmpty()) {
+    reqPtr = (int32_t)(intptr_t) malloc(req.size());
+    memcpy((void*)(intptr_t) reqPtr, req.constData(), req.size());
+  }
+  c->reqKind = kind; c->reqPtr = reqPtr; c->reqLen = req.size();
+  chSet(&c->state, S_REQUEST);
+  chAwait(&c->state, S_REQUEST);                 // worker sets replyLen -> REPLY_SIZE
+  int32_t replyLen = c->replyLen;
+  int32_t replyPtr = (int32_t)(intptr_t) malloc(replyLen ? replyLen : 1);
+  c->replyPtr = replyPtr;
+  chSet(&c->state, S_REPLY_BUF);
+  chAwait(&c->state, S_REPLY_BUF);                // worker writes bytes -> READY
+  QByteArray out((const char*)(intptr_t) replyPtr, replyLen);
+  if (reqPtr) free((void*)(intptr_t) reqPtr);
+  free((void*)(intptr_t) replyPtr);
+  chSet(&c->state, S_IDLE);
+  return out;
+}
+
+QString takeCString(char *s) { QString r = QString::fromUtf8(s ? s : ""); free(s); return r; }
+} // namespace
+
+// Hand the omc worker this module's shared heap (a SAB) + the channel address,
+// once. wasmMemory.buffer is this module's linear memory; the channel sits at a
+// fixed low address the worker re-reads each reply, so a later heap grow is
+// tolerated.
+EM_JS(void, omshell_sync_channel_setup, (int base), {
+  const w = Module.__omshellWorker;
+  if (w) w.postMessage({ cmd: "syncChannel", qtHeap: wasmMemory.buffer, base: base });
+});
+
+// Download progress text (progress arrives main<-worker over postMessage; only
+// the OMC thread blocks). Same body as the single-thread build.
+EM_JS(char*, omshell_progress_text, (), {
+  const p = Module.__omshellProgress;
+  if (!p) return stringToNewUTF8("");
+  const s = p.total > 0
+    ? "Downloading " + p.file + "  " + Math.round(100 * p.done / p.total) + "%"
+    : "Downloading " + p.file + "  " + Math.round(p.done / 1024) + " KiB";
+  return stringToNewUTF8(s);
+});
+
+namespace IAEX
+{
+  // Lives on the OMC thread; runs the blocking channel round-trips.
+  class OmcWorker : public QObject
+  {
+    Q_OBJECT
+  public:
+    QString version, initMessage, initError;
+  public slots:
+    void initOmc() {
+      QJsonObject o; o["installMsl"] = false;
+      QJsonObject r = reply(K_INIT, o);
+      version = r.value("version").toString();
+      initMessage = r.value("message").toString();
+      initError = r.value("error").toString();
+      emit initDone();
+    }
+    void evalOmc(const QString &src) {
+      QJsonObject o; o["src"] = src;
+      QJsonObject r = reply(K_EVAL, o);
+      emit evalDone(r.value("result").toString(), r.value("error").toString());
+    }
+    void evalBackground(const QString &src) {   // startup MSL install: no result
+      QJsonObject o; o["src"] = src;
+      reply(K_EVAL, o);
+    }
+  signals:
+    void initDone();
+    void evalDone(QString result, QString error);
+  private:
+    static QJsonObject reply(int kind, const QJsonObject &req) {
+      QByteArray b = omcChannelCall(kind, QJsonDocument(req).toJson(QJsonDocument::Compact));
+      return QJsonDocument::fromJson(b).object();
+    }
+  };
+
+  static QThread *g_omcThread = nullptr;
+  static OmcWorker *g_omcWorker = nullptr;
+
+  OmcInteractiveEnvironment* OmcInteractiveEnvironment::selfInstance = NULL;
+  OmcInteractiveEnvironment* OmcInteractiveEnvironment::getInstance(threadData_t *threadData)
+  {
+    if (selfInstance == NULL)
+      selfInstance = new OmcInteractiveEnvironment(threadData);
+    return selfInstance;
+  }
+
+  OmcInteractiveEnvironment::OmcInteractiveEnvironment(threadData_t *threadData)
+    : threadData_(threadData), result_(""), error_("")
+  {
+    severity = 0;
+    omshell_worker_setup();                                    // spawn omc worker (+ progress)
+    g_omcChannel = (OmcChannel*) calloc(1, sizeof(OmcChannel));// state = S_IDLE
+    omshell_sync_channel_setup((int)(intptr_t) g_omcChannel);
+    g_omcThread = new QThread();
+    g_omcWorker = new OmcWorker();
+    g_omcWorker->moveToThread(g_omcThread);
+    g_omcThread->start();
+    // One-time init: block here (pre-main-loop, so the nested loop's Asyncify is
+    // acceptable) until the OMC thread reports the version. Eval is async.
+    QEventLoop loop;
+    QObject::connect(g_omcWorker, &OmcWorker::initDone, &loop, &QEventLoop::quit);
+    QMetaObject::invokeMethod(g_omcWorker, "initOmc", Qt::QueuedConnection);
+    loop.exec();
+    omcVersion_ = g_omcWorker->version;
+  }
+
+  OmcInteractiveEnvironment::~OmcInteractiveEnvironment() {}
+
+  QString OmcInteractiveEnvironment::getResult() { return result_; }
+  QString OmcInteractiveEnvironment::getError() { return error_; }
+  int OmcInteractiveEnvironment::getErrorLevel() { return severity; }
+
+  // Async: dispatch to the OMC thread and return at once; the result arrives via
+  // OmcWorker::evalDone (connect through asyncBridge()). No Asyncify suspend.
+  void OmcInteractiveEnvironment::evalExpression(const QString expr)
+  {
+    error_.clear();
+    QMetaObject::invokeMethod(g_omcWorker, "evalOmc", Qt::QueuedConnection, Q_ARG(QString, expr));
+  }
+
+  void OmcInteractiveEnvironment::startBackgroundCommand(const QString expr)
+  {
+    QMetaObject::invokeMethod(g_omcWorker, "evalBackground", Qt::QueuedConnection, Q_ARG(QString, expr));
+  }
+
+  QString OmcInteractiveEnvironment::progressText() { return takeCString(omshell_progress_text()); }
+
+  QObject* OmcInteractiveEnvironment::asyncBridge() { return g_omcWorker; }
+
+  QString OmcInteractiveEnvironment::OMCVersion() { return getInstance()->omcVersion_; }
+  QString OmcInteractiveEnvironment::OpenModelicaHome() { return QString(); }
+  QString OmcInteractiveEnvironment::TmpPath() { return QString("/tmp/OpenModelica/"); }
+}
+#include "omcinteractiveenvironment.moc"
+
+#endif // OMC_WASM_THREADS
 
 #else
 

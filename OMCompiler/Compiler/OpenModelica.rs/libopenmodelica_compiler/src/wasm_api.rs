@@ -12,10 +12,19 @@ use wasm_bindgen::prelude::*;
 
 use openmodelica_backend_main::capi;
 
-// Exposes initThreadPool to JS; the host awaits it after omc_init to spin up the
-// wasm-bindgen-rayon workers that back parallel parsing.
+// Exposes initThreadPool to JS; the host spins up the wasm-bindgen-rayon workers
+// that back parallel parsing in the background (off the startup critical path).
 #[cfg(feature = "wasm-threads")]
 pub use wasm_bindgen_rayon::init_thread_pool;
+
+// The host calls this once initThreadPool has resolved. Until then parallel
+// parsing runs serially (the pool isn't up yet), so backgrounding the spawn is
+// safe.
+#[cfg(feature = "wasm-threads")]
+#[wasm_bindgen]
+pub fn omc_thread_pool_ready() {
+    openmodelica_util::System::set_wasm_pool_ready();
+}
 
 #[wasm_bindgen]
 extern "C" {

@@ -52,6 +52,24 @@ console.log("omc_worker.js loaded (WASI file surface)");
 //   [3] generation main→both  bumped per op so a stale read is ignored
 // Null-safe until the main thread hands over the buffer (`controlBuf`/`cancelBuf`).
 let controlView = null;
+// OMEdit VFS-over-SAB (see the `vfsSab` setup message).
+let vfsSab = null, vfsI32 = null;
+function vfsSabReply(bytes) {
+  // bytes: Uint8Array on success, null for "not found". Grow the SAB if the
+  // reply doesn't fit (both agents see the same grown buffer), then publish.
+  const payload = bytes || new Uint8Array(0);
+  const need = 16 + payload.length;
+  if (need > vfsSab.byteLength && vfsSab.grow) {
+    try { vfsSab.grow(Math.min(vfsSab.maxByteLength || need, Math.max(need, vfsSab.byteLength * 2))); } catch (_) {}
+  }
+  const cap = Math.max(0, vfsSab.byteLength - 16);
+  const n = Math.min(payload.length, cap);
+  if (n > 0) new Uint8Array(vfsSab, 16, n).set(payload.subarray(0, n));
+  Atomics.store(vfsI32, 2, n);
+  Atomics.store(vfsI32, 1, bytes ? 1 : 0);
+  Atomics.store(vfsI32, 0, 0);            // done
+  Atomics.notify(vfsI32, 0);
+}
 globalThis.__omcPollCancel = () => (controlView ? Atomics.load(controlView, 0) : 0);
 globalThis.__omcReportProgress = (permille, phase) => {
   // Guard length so an older 4-byte (cancel-only) buffer doesn't throw.
@@ -86,9 +104,24 @@ function wasiReadFile(path) {
 
 // Instantiate the omc wasm module once. omc_set_env mirrors the old host page:
 // builtins resolve by basename, so OPENMODELICAHOME only needs to be non-empty.
+// Parse parallelism tops out early (best around 2-3), and every worker shares
+// the one wasm memory (shared:true) — an extra worker only costs a thread + a
+// 4 MiB talc segment — so a small pool keeps spawn cheap.
+const OMC_POOL_THREADS = Math.min(3, globalThis.navigator?.hardwareConcurrency || 3);
 const ready = (async () => {
   await init();
   omc_set_env("OPENMODELICAHOME", "/usr");
+  // Spin up the rayon worker pool here, during the host's pre-main-loop init
+  // wait, NOT lazily later: spawning workers once the Qt main loop is running
+  // desyncs QWasmSuspendResumeControl's native-event queue (empty-shift trap).
+  // Fast now (3 workers sharing one wasm memory). Absent in the single-threaded
+  // build (feature-detected); omc_thread_pool_ready opens the serial-fallback gate.
+  if (typeof OmcModule.initThreadPool === "function") {
+    try {
+      await OmcModule.initThreadPool(OMC_POOL_THREADS);
+      OmcModule.omc_thread_pool_ready?.();
+    } catch (_) { /* keep running serial-only */ }
+  }
 })();
 
 const trim = (s) => (s ?? "").trim();
@@ -234,6 +267,89 @@ async function doEval(src, keepErrors) {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Sync-channel mode (multithread Qt clients: OMShell/OMNotebook/OMEdit-qt).
+//
+// A Qt secondary thread ("OMC thread") drives omc without Asyncify: it blocks on
+// a futex in the *Qt* module's shared wasm heap while this worker does the work,
+// then reads the reply straight out of that heap. The main thread hands us the Qt
+// heap (`qtHeap`, a SharedArrayBuffer) and the byte offset (`base`) of an
+// OmcChannel struct once (`syncChannel`); we then run syncLoop forever. Since it
+// blocks on Atomics.wait, `onmessage` stops firing — so a threaded client sends
+// `syncChannel` last and uses only the channel. See HANDOFF-asyncify-removal.md.
+const S_IDLE = 0, S_REQUEST = 1, S_REPLY_SIZE = 2, S_REPLY_BUF = 3, S_READY = 4;
+// Word indices into OmcChannel (int32), relative to base>>2.
+const W_STATE = 0, W_REQKIND = 1, W_REQPTR = 2, W_REQLEN = 3, W_REPLYPTR = 4, W_REPLYLEN = 5;
+const K_INIT = 0, K_EVAL = 1, K_ABI = 2, K_VFSGET = 3, K_VFSLIST = 4, K_VFSSTAT = 5, K_QUIT = 6;
+
+const syncSet = (i32, w, s) => { Atomics.store(i32, w, s); Atomics.notify(i32, w, 1); };
+const syncAwait = (i32, w, s) => { while (Atomics.load(i32, w) === s) Atomics.wait(i32, w, s); };
+
+// One request -> reply-bytes (UTF-8 JSON). Reuses the same handlers as the
+// postMessage path, so download-retry (evalWithDownloads) is identical.
+async function handleSync(kind, reqBytes) {
+  const req = reqBytes.length ? new TextDecoder().decode(reqBytes) : "{}";
+  let out;
+  if (kind === K_INIT) {
+    const r = await doInit(JSON.parse(req).installMsl !== false);
+    out = { ok: !!r.ok, version: r.version || "", message: r.message || "", error: r.error || "" };
+  } else if (kind === K_EVAL) {
+    const p = JSON.parse(req);
+    const { msg } = await doEval(p.src, p.keepErrors);
+    resetControl();
+    // Plots carry binary result bytes that must land in the *client* module's FS
+    // (OMPlot fopen's them there), so they can't ride the JSON channel. Post them
+    // for the client's onmessage handler to stage; before the channel reply so
+    // takePlotCommands() sees them by the time the OMC thread's evalDone fires.
+    if (msg.plots && msg.plots.length) self.postMessage({ kind: "plots", plots: msg.plots });
+    out = { result: msg.result || "", error: msg.error || "" };
+  } else if (kind === K_ABI) {
+    const response = typeof OmcModule.omc_abi === "function"
+      ? await abiWithDownloads(JSON.parse(req).request)
+      : JSON.stringify({ error: "omc_abi unavailable (omc built without scripting_api)" });
+    resetControl();
+    out = { response };
+  } else if (kind === K_QUIT) {
+    out = { ok: true };
+  } else {
+    // vfsGet/list/stat over the channel need a binary/typed framing; wired when
+    // OMEdit lands. OMShell/OMNotebook only use init/eval.
+    out = { error: "sync-channel request kind " + kind + " not implemented" };
+  }
+  return new TextEncoder().encode(JSON.stringify(out));
+}
+
+async function syncLoop(qtHeap, base) {
+  const bw = base >> 2;
+  for (;;) {
+    // Re-derive views every iteration: a shared heap grow can hand back a larger
+    // buffer object, and the reply region may sit in freshly grown pages.
+    let i32 = new Int32Array(qtHeap);
+    syncAwait(i32, bw + W_STATE, S_IDLE);            // OMC thread -> REQUEST
+    const u8 = new Uint8Array(qtHeap);
+    const kind = i32[bw + W_REQKIND];
+    const reqPtr = i32[bw + W_REQPTR] >>> 0;
+    const reqLen = i32[bw + W_REQLEN] >>> 0;
+    const reqBytes = u8.slice(reqPtr, reqPtr + reqLen);
+    let replyBytes;
+    try { replyBytes = await handleSync(kind, reqBytes); }
+    catch (e) { replyBytes = new TextEncoder().encode(JSON.stringify({ error: String(e) })); }
+    // The reply travels via the channel, so no terminal postMessage is sent for
+    // it — but the main thread clears the download-progress UI only on a
+    // `done`/`ready` message. Post one now (post-download) so a finished command
+    // doesn't leave "Downloading … 100%" stuck in the status bar.
+    self.postMessage({ kind: "done" });
+    i32 = new Int32Array(qtHeap);
+    Atomics.store(i32, bw + W_REPLYLEN, replyBytes.length);
+    syncSet(i32, bw + W_STATE, S_REPLY_SIZE);        // OMC thread mallocs, -> REPLY_BUF
+    syncAwait(i32, bw + W_STATE, S_REPLY_SIZE);
+    i32 = new Int32Array(qtHeap);
+    new Uint8Array(qtHeap).set(replyBytes, i32[bw + W_REPLYPTR] >>> 0);
+    syncSet(i32, bw + W_STATE, S_READY);             // OMC thread reads reply, -> IDLE
+    syncAwait(i32, bw + W_STATE, S_READY);
+  }
+}
+
 self.onmessage = async (e) => {
   const msg = e.data;
   // One-way setup message (no reply): store the shared control block. Before
@@ -241,6 +357,22 @@ self.onmessage = async (e) => {
   // the old name for the same message (a 4-byte cancel-only buffer).
   if (msg.cmd === "controlBuf" || msg.cmd === "cancelBuf") {
     try { controlView = msg.buf ? new Int32Array(msg.buf) : null; } catch (_) { controlView = null; }
+    return;
+  }
+  // Growable SAB for VFS replies (OMEdit). vfsGet/List with `sab:true` write the
+  // reply here + Atomics.notify instead of postMessage, so the main thread reads
+  // it back with a busy-spin rather than an Asyncify suspend. Header (Int32):
+  // [0] state 1=pending/0=done, [1] ok, [2] replyLen; bytes follow at offset 16.
+  if (msg.cmd === "vfsSab") {
+    try { vfsSab = msg.buf; vfsI32 = new Int32Array(msg.buf, 0, 4); }
+    catch (_) { vfsSab = null; vfsI32 = null; }
+    return;
+  }
+  // Enter sync-channel mode (multithread Qt clients). Must be the last message:
+  // syncLoop blocks on Atomics.wait, so onmessage never fires again.
+  if (msg.cmd === "syncChannel") {
+    const qtHeap = msg.qtHeap, base = msg.base | 0;
+    ready.then(() => syncLoop(qtHeap, base));
     return;
   }
   await ready;
@@ -267,14 +399,23 @@ self.onmessage = async (e) => {
       // back through the WASI surface and hand the bytes to the page's file engine.
       let bytes;
       try { bytes = wasiReadFile(msg.path); } catch (e) { bytes = undefined; }
-      const transfer = bytes ? [bytes.buffer] : [];
-      self.postMessage({ kind: "vfsResult", id: msg.id, bytes: bytes || null }, transfer);
+      if (msg.sab) { vfsSabReply(bytes || null); }
+      else {
+        const transfer = bytes ? [bytes.buffer] : [];
+        self.postMessage({ kind: "vfsResult", id: msg.id, bytes: bytes || null }, transfer);
+      }
     } else if (msg.cmd === "vfsList") {
       // Directory enumeration for the page's QDir over worker-owned paths
       // (WASI fd_readdir). Returns [{ name, isDir }]; [] for a missing/empty dir.
       let entries;
       try { entries = wasi_readdir(msg.path) || []; } catch (e) { entries = []; }
-      self.postMessage({ kind: "vfsListResult", id: msg.id, entries });
+      if (msg.sab) {
+        // Names joined by '\n', dirs suffixed '/' (matches the postMessage decoder).
+        const s = entries.map(en => en.name + (en.isDir ? "/" : "")).join("\n");
+        vfsSabReply(new TextEncoder().encode(s));
+      } else {
+        self.postMessage({ kind: "vfsListResult", id: msg.id, entries });
+      }
     } else if (msg.cmd === "vfsStat") {
       // WASI path_filestat_get's size (-1 if absent), for the file engine's size().
       let size;

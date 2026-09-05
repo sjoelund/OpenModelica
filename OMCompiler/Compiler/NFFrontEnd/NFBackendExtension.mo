@@ -192,10 +192,15 @@ public
       binfo_list := match binfo.varKind
         local
           list<VariableAttributes> scalar_attributes;
+          Boolean uniform;
         case VariableKind.FRONTEND_DUMMY() then List.fill(binfo, length);
         else algorithm
-          scalar_attributes := VariableAttributes.scalarize(binfo.attributes, length);
-        then list(BACKEND_INFO(binfo.varKind, attr, binfo.annotations, binfo.var_pre, binfo.var_seed, binfo.var_pder_res, binfo.var_pder_tmp, binfo.var_start, binfo.parent) for attr in scalar_attributes);
+          (scalar_attributes, uniform) := VariableAttributes.scalarize(binfo.attributes, length);
+          if uniform then
+            binfo.attributes := listHead(scalar_attributes);
+          end if;
+        then if uniform then List.fill(binfo, length) else
+          list(BACKEND_INFO(binfo.varKind, attr, binfo.annotations, binfo.var_pre, binfo.var_seed, binfo.var_pder_res, binfo.var_pder_tmp, binfo.var_start, binfo.parent) for attr in scalar_attributes);
       end match;
     end scalarize;
   end BackendInfo;
@@ -890,6 +895,18 @@ public
       end match;
     end getNominal;
 
+    function allUniform
+      input list<ExpressionIterator> iterators;
+      output Boolean uniform = true;
+    algorithm
+      for iter in iterators loop
+        if not ExpressionIterator.isUniform(iter) then
+          uniform := false;
+          return;
+        end if;
+      end for;
+    end allUniform;
+
     function scalarizeReal
       input ExpressionIterator        quantity_iter "quantity";
       input ExpressionIterator        unit_iter "SI Unit for actual computation value";
@@ -908,11 +925,13 @@ public
       input Option<Boolean>           finalPrefix "Defined as final";
       input Integer                   length "length of result";
       output list<VariableAttributes> scalar_attributes = {};
+      output Boolean uniform;
     protected
       Option<Expression> quantity_e, unit_e, displayUnit_e, min_e, max_e, start_e, fixed_e, nominal_e, binding_e;
       ExpressionIterator quantity_loc = quantity_iter, unit_loc = unit_iter, displayUnit_loc = displayUnit_iter, min_loc = min_iter, max_loc = max_iter, start_loc = start_iter, fixed_loc = fixed_iter, nominal_loc = nominal_iter, binding_loc = binding_iter;
     algorithm
-      for i in 1:length loop
+      uniform := length > 1 and allUniform({quantity_iter, unit_iter, displayUnit_iter, min_iter, max_iter, start_iter, fixed_iter, nominal_iter, binding_iter});
+      for i in 1:(if uniform then 1 else length) loop
         (quantity_loc, quantity_e)     := ExpressionIterator.nextOpt(quantity_loc);
         (unit_loc, unit_e)             := ExpressionIterator.nextOpt(unit_loc);
         (displayUnit_loc, displayUnit_e) := ExpressionIterator.nextOpt(displayUnit_loc);
@@ -935,7 +954,7 @@ public
           Util.applyOption(binding_e,      expToGeneratedBinding),
           isProtected, finalPrefix) :: scalar_attributes;
       end for;
-      scalar_attributes := listReverse(scalar_attributes);
+      scalar_attributes := if uniform then List.fill(listHead(scalar_attributes), length) else listReverse(scalar_attributes);
     end scalarizeReal;
 
     function scalarizeInt
@@ -951,11 +970,13 @@ public
       input Option<Boolean>           finalPrefix "Defined as final";
       input Integer                   length "length of result";
       output list<VariableAttributes> scalar_attributes = {};
+      output Boolean uniform;
     protected
       Option<Expression> quantity_e, min_e, max_e, start_e, fixed_e, binding_e;
       ExpressionIterator quantity_loc = quantity_iter, min_loc = min_iter, max_loc = max_iter, start_loc = start_iter, fixed_loc = fixed_iter, binding_loc = binding_iter;
     algorithm
-      for i in 1:length loop
+      uniform := length > 1 and allUniform({quantity_iter, min_iter, max_iter, start_iter, fixed_iter, binding_iter});
+      for i in 1:(if uniform then 1 else length) loop
         (quantity_loc, quantity_e) := ExpressionIterator.nextOpt(quantity_loc);
         (min_loc, min_e)           := ExpressionIterator.nextOpt(min_loc);
         (max_loc, max_e)           := ExpressionIterator.nextOpt(max_loc);
@@ -972,7 +993,7 @@ public
           Util.applyOption(binding_e,  expToGeneratedBinding),
           isProtected, finalPrefix) :: scalar_attributes;
       end for;
-      scalar_attributes := listReverse(scalar_attributes);
+      scalar_attributes := if uniform then List.fill(listHead(scalar_attributes), length) else listReverse(scalar_attributes);
     end scalarizeInt;
 
     function scalarizeBool
@@ -984,11 +1005,13 @@ public
       input Option<Boolean>           finalPrefix "Defined as final";
       input Integer                   length "length of result";
       output list<VariableAttributes> scalar_attributes = {};
+      output Boolean uniform;
     protected
       Option<Expression> quantity_e, start_e, fixed_e, binding_e;
       ExpressionIterator quantity_loc = quantity_iter, start_loc = start_iter, fixed_loc = fixed_iter, binding_loc = binding_iter;
     algorithm
-      for i in 1:length loop
+      uniform := length > 1 and allUniform({quantity_iter, start_iter, fixed_iter, binding_iter});
+      for i in 1:(if uniform then 1 else length) loop
         (quantity_loc, quantity_e) := ExpressionIterator.nextOpt(quantity_loc);
         (start_loc, start_e)       := ExpressionIterator.nextOpt(start_loc);
         (fixed_loc, fixed_e)       := ExpressionIterator.nextOpt(fixed_loc);
@@ -1000,7 +1023,7 @@ public
           Util.applyOption(binding_e,  expToGeneratedBinding),
           isProtected, finalPrefix) :: scalar_attributes;
       end for;
-      scalar_attributes := listReverse(scalar_attributes);
+      scalar_attributes := if uniform then List.fill(listHead(scalar_attributes), length) else listReverse(scalar_attributes);
     end scalarizeBool;
 
     function scalarizeClock
@@ -1008,6 +1031,7 @@ public
       input Option<Boolean>               finalPrefix "Defined as final";
       input Integer                       length "length of result";
       output list<VariableAttributes>     scalar_attributes = List.fill(VAR_ATTR_CLOCK(isProtected, finalPrefix), length);
+      output Boolean uniform = true;
     end scalarizeClock;
 
     function scalarizeString
@@ -1019,11 +1043,13 @@ public
       input Option<Boolean>           finalPrefix "Defined as final";
       input Integer                   length "length of result";
       output list<VariableAttributes> scalar_attributes = {};
+      output Boolean uniform;
     protected
       Option<Expression> quantity_e, start_e, fixed_e, binding_e;
       ExpressionIterator quantity_loc = quantity_iter, start_loc = start_iter, fixed_loc = fixed_iter, binding_loc = binding_iter;
     algorithm
-      for i in 1:length loop
+      uniform := length > 1 and allUniform({quantity_iter, start_iter, fixed_iter, binding_iter});
+      for i in 1:(if uniform then 1 else length) loop
         (quantity_loc, quantity_e) := ExpressionIterator.nextOpt(quantity_loc);
         (start_loc, start_e)       := ExpressionIterator.nextOpt(start_loc);
         (fixed_loc, fixed_e)       := ExpressionIterator.nextOpt(fixed_loc);
@@ -1035,7 +1061,7 @@ public
           Util.applyOption(binding_e,  expToGeneratedBinding),
           isProtected, finalPrefix) :: scalar_attributes;
       end for;
-      scalar_attributes := listReverse(scalar_attributes);
+      scalar_attributes := if uniform then List.fill(listHead(scalar_attributes), length) else listReverse(scalar_attributes);
     end scalarizeString;
 
     function scalarizeEnumeration
@@ -1049,11 +1075,13 @@ public
       input Option<Boolean>           finalPrefix "Defined as final";
       input Integer                   length "length of result";
       output list<VariableAttributes> scalar_attributes = {};
+      output Boolean uniform;
     protected
       Option<Expression> quantity_e, min_e, max_e, start_e, fixed_e, binding_e;
       ExpressionIterator quantity_loc = quantity_iter, min_loc = min_iter, max_loc = max_iter, start_loc = start_iter, fixed_loc = fixed_iter, binding_loc = binding_iter;
     algorithm
-      for i in 1:length loop
+      uniform := length > 1 and allUniform({quantity_iter, min_iter, max_iter, start_iter, fixed_iter, binding_iter});
+      for i in 1:(if uniform then 1 else length) loop
         (quantity_loc, quantity_e) := ExpressionIterator.nextOpt(quantity_loc);
         (min_loc, min_e)           := ExpressionIterator.nextOpt(min_loc);
         (max_loc, max_e)           := ExpressionIterator.nextOpt(max_loc);
@@ -1069,15 +1097,16 @@ public
           Util.applyOption(binding_e,  expToGeneratedBinding),
           isProtected, finalPrefix) :: scalar_attributes;
       end for;
-      scalar_attributes := listReverse(scalar_attributes);
+      scalar_attributes := if uniform then List.fill(listHead(scalar_attributes), length) else listReverse(scalar_attributes);
     end scalarizeEnumeration;
 
     function scalarize
       input VariableAttributes attributes;
       input Integer length;
       output list<VariableAttributes> scalar_attributes = {};
+      output Boolean uniform "every element got the same attribute record";
     algorithm
-      scalar_attributes := match attributes
+      (scalar_attributes, uniform) := match attributes
         case VAR_ATTR_REAL() then scalarizeReal(
           quantity_iter       = ExpressionIterator.fromExpOpt(Util.applyOption(attributes.quantity,    Binding.getTypedExp)),
           unit_iter           = ExpressionIterator.fromExpOpt(Util.applyOption(attributes.unit,        Binding.getTypedExp)),
@@ -1150,7 +1179,7 @@ public
         );
 
         // kabdelhak: ToDo: need to discuss this case
-        case VAR_ATTR_RECORD() then {attributes};
+        case VAR_ATTR_RECORD() then ({attributes}, false);
 
         else algorithm
           Error.terminate(getInstanceName() + "failed. Not yet handled: " + toString(attributes), sourceInfo());

@@ -232,3 +232,48 @@ fn cycle_through_shared_list_spine() {
     assert_eq!(drops.load(Ordering::SeqCst), 1, "list-spine cycle was not collected");
     assert!(weak.upgrade().is_none());
 }
+
+// ── scoped collection (`collect_since`) ────────────────────────────────
+
+/// A cycle built entirely after the mark must be collected by a scoped pass,
+/// exactly as a full pass collects it. This is the per-statement trigger's
+/// whole premise: the environment graph is born and dies inside one scope.
+#[test]
+fn scoped_collect_reclaims_a_cycle_built_after_the_mark() {
+    use metamodelica::gc::{collect_since, mark};
+
+    // Pre-existing cells, so the scope is a proper suffix of the registry.
+    let older: Vec<_> = (0..8).map(|_| Mutable::create(Arc::new(Node::Empty))).collect();
+
+    let m = mark();
+    let (weak, drops) = build_self_cycle();
+    assert_eq!(drops.load(Ordering::SeqCst), 0);
+
+    let stats = collect_since(m);
+    assert!(!stats.aborted, "scoped collection aborted");
+    assert_eq!(
+        drops.load(Ordering::SeqCst),
+        1,
+        "scoped collect freed nothing: {stats:?}"
+    );
+    assert!(weak.upgrade().is_none());
+    drop(older);
+}
+
+/// The same cycle, but with the mark taken *after* it was built: it is out of
+/// scope, so a scoped pass must leave it alone (a full `collect` still gets
+/// it). Pins the conservative direction.
+#[test]
+fn scoped_collect_ignores_a_cycle_built_before_the_mark() {
+    use metamodelica::gc::{collect_since, mark};
+
+    let (weak, drops) = build_self_cycle();
+    let m = mark();
+
+    collect_since(m);
+    assert_eq!(drops.load(Ordering::SeqCst), 0, "out-of-scope cycle was collected");
+
+    collect();
+    assert_eq!(drops.load(Ordering::SeqCst), 1, "full collect missed it");
+    assert!(weak.upgrade().is_none());
+}

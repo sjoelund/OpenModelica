@@ -299,20 +299,22 @@ protected
   SourceInfo info;
 algorithm
   try /* Stack overflow */
+    InstHashTable.init();
+    // A statement builds an FCore environment graph and throws it away; the
+    // graph is cyclic (node <-> parent/child cells), so refcounting alone
+    // never frees it. Collect the *previous* statement's graph: the init()
+    // above drops the last references to it, so this is the first quiescent
+    // point at which it is garbage.
+    GCExt.gcollectNew();
+
     outString := match inStatement
       // Evaluate algorithm statements in evaluateAlgStmt()
       case GlobalScript.IALG(algItem = algitem as Absyn.ALGORITHMITEM())
-        algorithm
-          InstHashTable.init();
-        then
-          evaluateAlgItem(algitem);
+        then evaluateAlgItem(algitem);
 
       // Evaluate expressions in evaluate_exprToStr()
       case GlobalScript.IEXP(exp = exp, info = info)
-        algorithm
-          InstHashTable.init();
-        then
-          evaluateExprToStr(exp, info);
+        then evaluateExprToStr(exp, info);
     end match;
   else
     str := "";

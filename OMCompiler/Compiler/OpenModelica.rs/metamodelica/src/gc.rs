@@ -371,29 +371,53 @@ pub trait TraceableCell {
     fn poison(&self);
 }
 
+/// A point in the registration order, from [`mark`]. Cells registered at or
+/// after it are the candidates of a scoped collection.
+pub type Mark = u64;
+
 thread_local! {
-    /// All mutable cells created on this thread that are still alive (weak
-    /// handles; dead entries are purged on every collection and, amortized,
-    /// on registration).
-    static CELL_REGISTRY: RefCell<Vec<Weak<dyn TraceableCell>>> =
+    /// All mutable cells created on this thread that are still alive, each
+    /// tagged with the [`Mark`] it was registered at (weak handles; dead
+    /// entries are purged on every collection and, amortized, on
+    /// registration). Only ever pushed to, so it stays sorted by mark and a
+    /// scoped collection can binary-search its starting point — purging
+    /// compacts the `Vec` but preserves the order.
+    static CELL_REGISTRY: RefCell<Vec<(Mark, Weak<dyn TraceableCell>)>> =
         const { RefCell::new(Vec::new()) };
+    /// The mark the next registration gets. Monotonic, never reset: an index
+    /// into the registry would not survive a purge, a mark does.
+    static NEXT_MARK: std::cell::Cell<Mark> = const { std::cell::Cell::new(1) };
     /// Registry length right after the last purge. When the registry grows
     /// to twice this, dead entries are purged inline — without this, a
     /// program that never calls [`collect`] would accumulate one `Weak`
     /// entry *and* one live control block (the `Weak` pins it) per dead
     /// cell. The 2× rule makes registration amortized O(1).
     static REGISTRY_WATERMARK: std::cell::Cell<usize> = const { std::cell::Cell::new(64) };
+    /// Where the last [`collect_new`] stopped, i.e. the start of the next
+    /// scope.
+    static LAST_SCOPE: std::cell::Cell<Mark> = const { std::cell::Cell::new(0) };
+}
+
+/// The mark a cell registered right now would get. Everything registered
+/// from here on is in scope for `collect_since(mark())`.
+pub fn mark() -> Mark {
+    NEXT_MARK.with(std::cell::Cell::get)
 }
 
 /// Register a freshly created cell as a collection candidate. Called by the
 /// cell constructors in `openmodelica_util_datatypes_basic`.
 pub fn register_cell(cell: Weak<dyn TraceableCell>) {
+    let m = NEXT_MARK.with(|n| {
+        let m = n.get();
+        n.set(m + 1);
+        m
+    });
     CELL_REGISTRY.with(|r| {
         let mut reg = r.borrow_mut();
-        reg.push(cell);
+        reg.push((m, cell));
         let watermark = REGISTRY_WATERMARK.with(std::cell::Cell::get);
         if reg.len() >= watermark.saturating_mul(2) {
-            reg.retain(|w| w.strong_count() > 0);
+            reg.retain(|(_, w)| w.strong_count() > 0);
             REGISTRY_WATERMARK.with(|m| m.set(reg.len().max(64)));
         }
     });
@@ -417,44 +441,93 @@ pub struct CollectStats {
 }
 
 /// Per shared allocation: the strong count snapshotted at first encounter,
-/// the number of in-graph handle slots found so far, and the outgoing edges
-/// (targets of handle slots inside this allocation's interior).
+/// the number of in-graph handle slots found so far, and the head of its
+/// outgoing-edge chain.
+///
+/// Allocations are addressed by a dense index, and edges live in one flat
+/// arena threaded as a per-node chain, so a collection allocates a handful of
+/// growable buffers instead of one `Vec` per traced allocation. That side
+/// table is the collector's dominant cost, and a collection runs on every
+/// interactive statement.
 struct AllocNode {
-    strong: usize,
-    slots: usize,
+    strong: u32,
+    slots: u32,
+    /// Diagnostics only, and 16 bytes on every traced allocation — see the
+    /// note above; off unless `gc-diagnostics` is on.
+    #[cfg(feature = "gc-diagnostics")]
     type_name: &'static str,
-    edges: Vec<*const ()>,
+    /// First outgoing edge, or [`NO_EDGE`].
+    edge_head: u32,
+    /// The collector holds a snapshot handle to this allocation, which no
+    /// in-graph slot accounts for.
+    is_candidate: bool,
 }
 
-/// The counting traversal: builds the allocation graph (nodes keyed by data
-/// address) while ensuring each allocation's interior is entered exactly
-/// once. `stack` tracks the allocation whose interior is currently being
-/// traversed, so each reported slot is recorded as an edge from its owner.
+const NO_EDGE: u32 = u32::MAX;
+
+/// The counting traversal: builds the allocation graph while ensuring each
+/// allocation's interior is entered exactly once. `stack` tracks the
+/// allocation whose interior is being traversed, so each reported slot is
+/// recorded as an edge from its owner.
 struct CountVisitor {
-    nodes: HashMap<*const (), AllocNode>,
-    stack: Vec<*const ()>,
+    index: HashMap<*const (), u32>,
+    nodes: Vec<AllocNode>,
+    /// `(target, next)` — an intrusive chain per owner.
+    edges: Vec<(u32, u32)>,
+    stack: Vec<u32>,
+}
+
+impl CountVisitor {
+    fn new() -> Self {
+        CountVisitor {
+            index: HashMap::new(),
+            nodes: Vec::new(),
+            edges: Vec::new(),
+            stack: Vec::new(),
+        }
+    }
+
+    /// Index of `ptr`, inserting a fresh node with the given seed values.
+    fn intern(&mut self, ptr: *const (), strong: usize, slots: u32, _type_name: &'static str) -> (u32, bool) {
+        match self.index.entry(ptr) {
+            std::collections::hash_map::Entry::Occupied(o) => (*o.get(), false),
+            std::collections::hash_map::Entry::Vacant(v) => {
+                let i = self.nodes.len() as u32;
+                v.insert(i);
+                self.nodes.push(AllocNode {
+                    strong: strong.min(u32::MAX as usize) as u32,
+                    slots,
+                    #[cfg(feature = "gc-diagnostics")]
+                    type_name: _type_name,
+                    edge_head: NO_EDGE,
+                    is_candidate: false,
+                });
+                (i, true)
+            }
+        }
+    }
+
+    fn add_edge(&mut self, owner: u32, target: u32) {
+        let e = self.edges.len() as u32;
+        let head = self.nodes[owner as usize].edge_head;
+        self.edges.push((target, head));
+        self.nodes[owner as usize].edge_head = e;
+    }
 }
 
 impl MMVisitor for CountVisitor {
     fn visit_shared(&mut self, ptr: *const (), strong: usize, type_name: &'static str) -> bool {
+        let (idx, first) = self.intern(ptr, strong, 1, type_name);
+        if !first {
+            self.nodes[idx as usize].slots += 1;
+        }
         if let Some(owner) = self.stack.last().copied() {
-            self.nodes
-                .get_mut(&owner)
-                .expect("traversal stack entries always have nodes")
-                .edges
-                .push(ptr);
+            self.add_edge(owner, idx);
         }
-        match self.nodes.entry(ptr) {
-            std::collections::hash_map::Entry::Occupied(mut o) => {
-                o.get_mut().slots += 1;
-                false
-            }
-            std::collections::hash_map::Entry::Vacant(v) => {
-                v.insert(AllocNode { strong, slots: 1, type_name, edges: Vec::new() });
-                self.stack.push(ptr);
-                true
-            }
+        if first {
+            self.stack.push(idx);
         }
+        first
     }
 
     fn leave_shared(&mut self) {
@@ -469,7 +542,38 @@ impl MMVisitor for CountVisitor {
 /// `GCExt.gcollect` sites satisfy this). Collections are never triggered
 /// implicitly; without explicit calls, cycles simply leak as before.
 pub fn collect() -> CollectStats {
-    collect_impl(false)
+    collect_impl(0, false)
+}
+
+/// Collect only over cells registered at or after `since`, bounding the
+/// traversal to that scope's own garbage instead of the whole live heap.
+///
+/// Safe in the same sense a full collection is, and strictly more
+/// conservative: handles living outside the traced subgraph — including
+/// every handle held by an older cell — are invisible, which makes their
+/// targets look externally rooted and keeps them. A scoped pass can
+/// therefore only fail to free garbage, never free something live. What it
+/// gives up is a cycle closed by updating a cell that predates `since`; that
+/// one needs a full [`collect`].
+pub fn collect_since(since: Mark) -> CollectStats {
+    collect_impl(since, false)
+}
+
+/// Collect over everything registered since the previous `collect_new`, and
+/// open a new scope. The intended per-statement / per-request trigger: the
+/// caller keeps no mark of its own, so an early return or a failed statement
+/// cannot leave the scope unbalanced.
+///
+/// Deliberately not batched. Batching was measured and is *slower*: a scope
+/// spanning N statements traverses far more than N single-statement scopes,
+/// because the union of their reachable sets overlaps heavily (400 trivial
+/// statements: 1.60 s per-statement vs 2.40 s at a 8192-cell threshold, over a
+/// 1.30 s no-collection baseline). Keep scopes minimal and make a collection
+/// cheap instead.
+pub fn collect_new() -> CollectStats {
+    let since = LAST_SCOPE.with(std::cell::Cell::get);
+    LAST_SCOPE.with(|c| c.set(mark()));
+    collect_impl(since, false)
 }
 
 /// [`collect`] with diagnostics on stderr: root/allocation counts and, for a
@@ -478,22 +582,26 @@ pub fn collect() -> CollectStats {
 /// collected?" — a path ending in an allocation with `slots < strong` shows
 /// exactly which untraced handles (globals, stack, closure captures) keep
 /// the subgraph alive.
+/// Needs the `gc-diagnostics` feature to name the types in a pin path;
+/// without it the counts still print but each step is anonymous.
 pub fn collect_with_diagnostics() -> CollectStats {
-    collect_impl(true)
+    collect_impl(0, true)
 }
 
-fn collect_impl(diagnose: bool) -> CollectStats {
+fn collect_impl(since: Mark, diagnose: bool) -> CollectStats {
     let mut stats = CollectStats::default();
 
-    // Snapshot the live cells, purging dead weak handles in the same pass.
-    // Holding strong handles for the duration of the collection keeps every
-    // candidate alive until we are done with it: each snapshot handle adds
-    // exactly 1 to its cell's strong count, accounted for below.
+    // Snapshot the in-scope live cells, purging dead weak handles in the same
+    // pass. Holding strong handles for the duration of the collection keeps
+    // every candidate alive until we are done with it: each snapshot handle
+    // adds exactly 1 to its cell's strong count, accounted for below.
     let snapshot: Vec<Arc<dyn TraceableCell>> = CELL_REGISTRY.with(|r| {
         let mut reg = r.borrow_mut();
+        // The registry is sorted by mark, so the scope is a suffix.
+        let from = reg.partition_point(|(m, _)| *m < since);
         let alive: Vec<Arc<dyn TraceableCell>> =
-            reg.iter().filter_map(Weak::upgrade).collect();
-        reg.retain(|w| w.strong_count() > 0);
+            reg[from..].iter().filter_map(|(_, w)| w.upgrade()).collect();
+        reg.retain(|(_, w)| w.strong_count() > 0);
         alive
     });
     stats.candidate_cells = snapshot.len();
@@ -510,22 +618,16 @@ fn collect_impl(diagnose: bool) -> CollectStats {
     // node is created with `slots: 1` by `visit_shared`, so entering via
     // the loop pre-creates it with `slots: 0` instead (no handle slot — we
     // got here through the registry).
-    let mut count = CountVisitor { nodes: HashMap::new(), stack: Vec::new() };
+    let mut count = CountVisitor::new();
     for cell in &snapshot {
         let a = addr(cell);
-        if count.nodes.contains_key(&a) {
+        if count.index.contains_key(&a) {
             continue; // already traversed via some handle slot
         }
-        count.nodes.insert(
-            a,
-            AllocNode {
-                strong: Arc::strong_count(cell),
-                slots: 0,
-                type_name: "<registered cell>",
-                edges: Vec::new(),
-            },
-        );
-        count.stack.push(a);
+        // Entered from the registry, not through a handle slot, so it starts
+        // with no slots of its own.
+        let (i, _) = count.intern(a, Arc::strong_count(cell), 0, "<registered cell>");
+        count.stack.push(i);
         let traced = cell.trace_content(&mut count);
         count.stack.pop();
         if traced.is_err() {
@@ -536,46 +638,48 @@ fn collect_impl(diagnose: bool) -> CollectStats {
     debug_assert!(count.stack.is_empty(), "unbalanced visit_shared/leave_shared");
     stats.traced_allocations = count.nodes.len();
 
-    // A cell entered via the registry loop never had its own handle slots
-    // double-traversed, but a cell entered via a slot first and *also*
-    // present in the snapshot must not be traversed again — handled by the
-    // `contains_key` check above. Either way the snapshot handle we hold
-    // contributes 1 to the strong count that no slot accounts for.
-    use std::collections::HashSet;
-    let snapshot_addrs: HashSet<*const ()> = snapshot.iter().map(&addr).collect();
+    // The snapshot handle we hold contributes 1 to each candidate's strong
+    // count that no slot accounts for, whether the cell was entered from the
+    // registry or first reached through a slot.
+    for cell in &snapshot {
+        if let Some(&i) = count.index.get(&addr(cell)) {
+            count.nodes[i as usize].is_candidate = true;
+        }
+    }
 
     // Root determination: any allocation with handles the traversal did not
     // find (stack, globals, closure captures, other threads, unregistered
     // owners) is an external root.
-    let allowance = |p: &*const ()| usize::from(snapshot_addrs.contains(p));
-    let mut work: Vec<*const ()> = count
-        .nodes
-        .iter()
-        .filter(|(p, n)| n.slots < n.strong.saturating_sub(allowance(p)))
-        .map(|(p, _)| *p)
-        .collect();
+    let mut reachable = vec![false; count.nodes.len()];
+    let mut is_root = vec![false; count.nodes.len()];
+    let mut work: Vec<u32> = Vec::new();
+    for (i, n) in count.nodes.iter().enumerate() {
+        if n.slots < n.strong.saturating_sub(u32::from(n.is_candidate)) {
+            is_root[i] = true;
+            work.push(i as u32);
+        }
+    }
 
     if diagnose {
         eprintln!("[gc] roots: {} of {} traced allocations", work.len(), count.nodes.len());
     }
-    let root_set: HashSet<*const ()> = work.iter().copied().collect();
     // Mark pass over the recorded edges. Under diagnostics, remember each
     // allocation's first predecessor so a path root → cell can be
     // reconstructed below.
-    let mut pred: HashMap<*const (), *const ()> = HashMap::new();
-    let mut reachable: HashSet<*const ()> = HashSet::with_capacity(work.len());
+    let mut pred: Vec<u32> = if diagnose { vec![NO_EDGE; count.nodes.len()] } else { Vec::new() };
     while let Some(p) = work.pop() {
-        if reachable.insert(p)
-            && let Some(node) = count.nodes.get(&p)
-        {
-            if diagnose {
-                for &e in &node.edges {
-                    if !reachable.contains(&e) && e != p {
-                        pred.entry(e).or_insert(p);
-                    }
-                }
+        if reachable[p as usize] {
+            continue;
+        }
+        reachable[p as usize] = true;
+        let mut e = count.nodes[p as usize].edge_head;
+        while e != NO_EDGE {
+            let (target, next) = count.edges[e as usize];
+            if diagnose && !reachable[target as usize] && target != p && pred[target as usize] == NO_EDGE {
+                pred[target as usize] = p;
             }
-            work.extend_from_slice(&node.edges);
+            work.push(target);
+            e = next;
         }
     }
 
@@ -584,29 +688,33 @@ fn collect_impl(diagnose: bool) -> CollectStats {
     // refcounted drops cascade and free the cycles.
     let mut printed = 0;
     for cell in &snapshot {
-        let a = addr(cell);
-        if !reachable.contains(&a) {
+        let Some(&i) = count.index.get(&addr(cell)) else { continue };
+        if !reachable[i as usize] {
             cell.poison();
             stats.collected_cells += 1;
-        } else if diagnose && !root_set.contains(&a) && printed < 3 {
+        } else if cfg!(feature = "gc-diagnostics") && diagnose && !is_root[i as usize] && printed < 3 {
             // A kept, non-root cell: show what pins it. The path walks the
             // mark tree from the cell back toward the root that first
             // reached it; the last entry has `slots < strong`, i.e. handles
             // the traversal could not see.
             printed += 1;
-            let mut path = vec![a];
-            let mut cur = a;
-            while let Some(&q) = pred.get(&cur) {
+            let mut path = vec![i];
+            let mut cur = i;
+            while pred[cur as usize] != NO_EDGE {
+                let q = pred[cur as usize];
                 path.push(q);
-                if root_set.contains(&q) || path.len() > 25 {
+                if is_root[q as usize] || path.len() > 25 {
                     break;
                 }
                 cur = q;
             }
             eprintln!("[gc] kept cell, pin path (cell .. root):");
-            for p in &path {
-                let n = &count.nodes[p];
+            for &pi in &path {
+                let n = &count.nodes[pi as usize];
+                #[cfg(feature = "gc-diagnostics")]
                 eprintln!("[gc]   slots {}/{} strong  {}", n.slots, n.strong, n.type_name);
+                #[cfg(not(feature = "gc-diagnostics"))]
+                eprintln!("[gc]   slots {}/{} strong", n.slots, n.strong);
             }
         }
     }
@@ -621,7 +729,7 @@ fn collect_impl(diagnose: bool) -> CollectStats {
     // eagerly so repeated collections do not rescan dead weak handles.
     CELL_REGISTRY.with(|r| {
         let mut reg = r.borrow_mut();
-        reg.retain(|w| w.strong_count() > 0);
+        reg.retain(|(_, w)| w.strong_count() > 0);
         REGISTRY_WATERMARK.with(|m| m.set(reg.len().max(64)));
     });
 

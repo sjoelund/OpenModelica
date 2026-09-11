@@ -49,6 +49,7 @@ import SCode;
 import DAE;
 import ClassInf;
 import FCore;
+import Mutable;
 import FNode;
 import InnerOuter;
 import FCore.RefTree;
@@ -168,7 +169,7 @@ public function topScope
 algorithm
   // leave only the top scope
   outGraph := match inGraph
-    case FCore.G() then arrayGet(inGraph.top.graph, 1);
+    case FCore.G() then Mutable.access(inGraph.top.graph);
   end match;
 end topScope;
 
@@ -189,18 +190,19 @@ protected
   Scope s;
   Ref nr;
   Id id;
-  array<Graph> ag;
+  Mutable<Graph> ag;
   Top top;
 algorithm
   id := System.tmpTickIndex(Global.fgraph_nextId);
   n := FNode.new(FNode.topNodeName, id, {}, FCore.TOP());
   nr := FNode.toRef(n);
   s := {nr};
-  ag := Dangerous.arrayCreateNoInit(1, emptyGraph);
+  ag := Mutable.create(emptyGraph);
   top := FCore.GTOP(ag,inGraphName,nr,FCore.EXTRA(inPath));
   outGraph := FCore.G(top,s);
-  // Creates a cycle, but faster to get the initial environment
-  arrayUpdate(ag, 1, FCore.G(top, {nr}));
+  // Creates a cycle, but faster to get the initial environment. The cell is
+  // registered with the collector, so the cycle is reclaimable.
+  Mutable.update(ag, FCore.G(top, {nr}));
 end new;
 
 public function node
@@ -246,7 +248,7 @@ algorithm
       Top t;
       Ref nt;
       Scope s;
-      array<Graph> ag;
+      Mutable<Graph> ag;
 
     case FCore.G(t, s)
       algorithm
@@ -258,10 +260,10 @@ algorithm
         (g, nt) := FNode.copyRef(nt, inGraph);
         // update scope references
         s := List.map1r(s, FNode.lookupRefFromRef, nt);
-        ag := arrayCreate(1, emptyGraph);
+        ag := Mutable.create(emptyGraph);
         t := FCore.GTOP(ag, t.name, nt, t.extra);
         g := FCore.G(t, s);
-        arrayUpdate(ag, 1, g);
+        Mutable.update(ag, g);
       then g;
 
   end match;

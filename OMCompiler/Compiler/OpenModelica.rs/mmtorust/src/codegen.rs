@@ -15,6 +15,33 @@ fn trace_alias_shadow() -> bool {
     static FLAG: OnceLock<bool> = OnceLock::new();
     *FLAG.get_or_init(|| std::env::var("MMTORUST_TRACE_ALIAS_SHADOW").is_ok())
 }
+
+/// Dotted names of the types that can transitively hold a mutable cell, from
+/// [`crate::mutable_cycles::types_with_cells`]. Set once before generation.
+static CELL_BEARING_TYPES: OnceLock<BTreeSet<String>> = OnceLock::new();
+
+pub fn set_cell_bearing_types(types: BTreeSet<String>) {
+    let _ = CELL_BEARING_TYPES.set(types);
+}
+
+/// Whether the collector needs to walk this type's interior. Unset analysis
+/// and generic types answer `true`: a type parameter can be instantiated with
+/// anything, so only a fully concrete cell-free type is safe to shortcut.
+///
+/// Getting this wrong in the `false` direction is conservative, not unsound —
+/// an unwalked subtree only lowers the collector's in-graph slot counts, and a
+/// count below the real strong count marks the allocation an external root,
+/// which keeps it. Cells themselves are always traced: they come from the
+/// registry, not from this traversal.
+fn traversal_needs_interior(qname: &str, type_vars: &[String]) -> bool {
+    if !type_vars.is_empty() {
+        return true;
+    }
+    match CELL_BEARING_TYPES.get() {
+        Some(set) => set.contains(qname),
+        None => true,
+    }
+}
 use openmodelica_ast::Absyn;
 use crate::MM;
 use std::collections::HashMap;
@@ -3259,7 +3286,7 @@ fn emit_uniontype<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM:
                 }
             }
             writeln!(out, "{inner}}}").unwrap();
-            emit_mm_trace_impl(out, &inner, &ename, &type_vars, &type_params, /*is_enum=*/true, &mm_variants);
+            emit_mm_trace_impl(out, &inner, &ename, mm_trace_qname(node), &type_vars, &type_params, /*is_enum=*/true, &mm_variants);
             // Interned singletons for fieldless constructors of Arc-wrapped
             // enums. MMC compiles a fieldless record constructor to a static
             // immediate shared by every use, so `referenceEq(NOELSE(),
@@ -3582,7 +3609,7 @@ fn emit_struct<'a>(out: &mut String, name: &str, node: &NameNode<'_>, c: &MM::Cl
             format!("<{}>", type_vars.join(", "))
         };
         let variants = vec![(String::new(), mm_fields)];
-        emit_mm_trace_impl(out, indent, &ename, &type_vars, &use_params, /*is_enum=*/false, &variants);
+        emit_mm_trace_impl(out, indent, &ename, mm_trace_qname(node), &type_vars, &use_params, /*is_enum=*/false, &variants);
     }
 
     // Hand-rolled trait impls for structs that *directly* embed an
@@ -3683,11 +3710,16 @@ fn emit_mm_trace_impl(
     out: &mut String,
     indent: &str,
     ename: &str,
+    qname: &str,
     type_vars: &[String],
     use_params: &str,
     is_enum: bool,
     variants: &[(String, Vec<String>)],
 ) {
+    if !traversal_needs_interior(qname, type_vars) {
+        emit_mm_trace_leaf_impl(out, indent, ename);
+        return;
+    }
     let impl_params = if type_vars.is_empty() {
         String::new()
     } else {
@@ -3723,6 +3755,16 @@ fn emit_mm_trace_impl(
     }
     writeln!(out, "{indent}    }}").unwrap();
     writeln!(out, "{indent}}}").unwrap();
+}
+
+/// The dotted qualified name the cell analysis keys on, from the node's own
+/// type. Empty when the node is not one of the named forms, which
+/// `traversal_needs_interior` treats as "walk it".
+fn mm_trace_qname<'n>(node: &'n NameNode<'_>) -> &'n str {
+    match &node.ty {
+        Ty::RustStruct(q) | Ty::RustEnum(q) | Ty::AliasTo(q) => q,
+        _ => "",
+    }
 }
 
 /// Leaf form of [`emit_mm_trace_impl`] for types that can never contain a

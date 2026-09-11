@@ -3,6 +3,13 @@ name = "metamodelica"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+# Keep the payload type name of every traced allocation in the cycle
+# collector's side tables, so `gc::collect_with_diagnostics` can name the
+# chain that pins a kept cell. Off by default: those tables are the
+# collector's dominant memory cost.
+gc-diagnostics = []
+
 [dependencies]
 metamodelica_derive = { path = "../metamodelica_derive" }
 arcstr.workspace=true

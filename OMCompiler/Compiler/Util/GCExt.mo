@@ -43,6 +43,14 @@ function gcollectAndUnmap
 external "C" GC_gcollect_and_unmap() annotation(Library = {"omcgc"});
 end gcollectAndUnmap;
 
+function gcollectNew
+  "Collect cycles among the values created since the previous call. Boehm
+   sweeps the whole heap either way, so this is a plain gcollect there; the
+   Rust runtime scopes the trial-deletion collector to the new values, which
+   is what makes a per-statement trigger affordable."
+external "C" GC_gcollect() annotation(Library = {"omcgc"});
+end gcollectNew;
+
 function enable
 external "C" GC_enable() annotation(Library = {"omcgc"});
 end enable;

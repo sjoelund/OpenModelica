@@ -71,6 +71,10 @@ use crate::typedexp::{TypedCase, TypedExp, TypedStmt};
 pub enum CellKind {
     Mutable,
     Pointer,
+    /// `array<T>`: `arrayUpdate` closes a cycle exactly like a cell update,
+    /// but the runtime collector does not register arrays, so these cycles
+    /// leak. `FCore.Ref` (`array<Node> "array of 1"`) is the motivating case.
+    Array,
 }
 
 impl std::fmt::Display for CellKind {
@@ -78,9 +82,19 @@ impl std::fmt::Display for CellKind {
         match self {
             CellKind::Mutable => write!(f, "Mutable"),
             CellKind::Pointer => write!(f, "Pointer"),
+            CellKind::Array => write!(f, "array"),
         }
     }
 }
+
+/// The builtins that write into an existing array, spelled as the typed-body
+/// walker sees them (see `typedexp::call_result_ty`).
+const ARRAY_UPDATERS: &[&str] = &[
+    "arrayUpdate",
+    "arrayUpdateNoBoundsChecking",
+    "Dangerous.arrayUpdateNoBoundsChecking",
+    "MetaModelica.Dangerous.arrayUpdateNoBoundsChecking",
+];
 
 /// One concrete update call site: in `function`, a call to `callee` passed a
 /// cell of kind `kind` whose content type resolved to `content` (no type
@@ -104,6 +118,10 @@ pub struct Report {
     pub gc_types_mutable_only: BTreeSet<String>,
     /// Named types needing Arc→Gc, Mutable+Pointer scope.
     pub gc_types_full: BTreeSet<String>,
+    /// Named types on a cycle once `array` counts as a cell. The runtime
+    /// collector registers no arrays, so everything here minus
+    /// `gc_types_full` leaks unconditionally.
+    pub gc_types_with_arrays: BTreeSet<String>,
     /// Subset of `gc_types_full` that transitively embeds an `Arc<dyn Fn>`
     /// field — untraceable edges, the hard part for any `Trace` derive.
     pub gc_types_with_dyn_fn: BTreeSet<String>,
@@ -114,6 +132,9 @@ pub struct Report {
 /// MM uniontype `Pointer.Pointer`, whose generic constructor name may appear
 /// in either dotted or `::` path form depending on the resolution path.
 fn cell_content(ty: &Ty) -> Option<(CellKind, &Ty)> {
+    if let Ty::Array(inner) = ty {
+        return Some((CellKind::Array, inner));
+    }
     if let Ty::Generic(name, args) = ty
         && args.len() == 1
     {
@@ -315,6 +336,24 @@ fn ty_contains_cell(ty: &Ty, kinds: &[CellKind], tainted: &BTreeSet<String>) -> 
         Ty::UnionTypeVariant(q, _) => tainted.contains(q),
         _ => false,
     }
+}
+
+/// Named types that can transitively hold a `Mutable`/`Pointer` cell.
+///
+/// These are the only types whose interior the runtime cycle collector ever
+/// needs to walk: a cycle is closed by a cell update, so a value that cannot
+/// reach a cell cannot be on one, and neither can anything below it. Codegen
+/// emits a no-op `mm_accept` for everything else, which stops the traversal
+/// at the `Arc<SCode::Element>` boundary instead of walking every loaded
+/// class on every collection.
+///
+/// Only `Mutable`/`Pointer` count, not `array` — arrays are not registered as
+/// collection candidates, so the collector never starts from one; an array
+/// *containing* a cell still taints its owner through the container recursion.
+pub fn types_with_cells(hier: &InstanceHierarchy) -> BTreeSet<String> {
+    let mut graph: BTreeMap<String, Vec<Ty>> = BTreeMap::new();
+    hierarchy::collect_struct_field_tys(&hier.top_level, "", &mut graph);
+    types_containing_cell(&graph, &[CellKind::Mutable, CellKind::Pointer])
 }
 
 fn types_containing_cell(
@@ -598,9 +637,11 @@ pub fn analyze(hier: &InstanceHierarchy<'_>) -> Report {
     hierarchy::collect_struct_field_tys(&hier.top_level, "", &mut graph);
     let back_mutable = types_containing_cell(&graph, &[CellKind::Mutable]);
     let back_pointer = types_containing_cell(&graph, &[CellKind::Pointer]);
+    let back_array = types_containing_cell(&graph, &[CellKind::Array]);
     let back_for = |k: CellKind| match k {
         CellKind::Mutable => &back_mutable,
         CellKind::Pointer => &back_pointer,
+        CellKind::Array => &back_array,
     };
 
     // Fixed point over the updater set: a function whose body passes a cell
@@ -610,6 +651,9 @@ pub fn analyze(hier: &InstanceHierarchy<'_>) -> Report {
     let mut updaters: BTreeMap<String, BTreeSet<CellKind>> = BTreeMap::new();
     updaters.insert("Mutable.update".into(), BTreeSet::from([CellKind::Mutable]));
     updaters.insert("Pointer.update".into(), BTreeSet::from([CellKind::Pointer]));
+    for u in ARRAY_UPDATERS {
+        updaters.insert((*u).into(), BTreeSet::from([CellKind::Array]));
+    }
     loop {
         let mut changed = false;
         for (qname, stmts) in &bodies {
@@ -649,7 +693,10 @@ pub fn analyze(hier: &InstanceHierarchy<'_>) -> Report {
     //     transitively contains a cell (e.g. `UnorderedSet<T>` passed to
     //     `UnorderedSet.apply`, whose buckets cell is a record field) —
     //     content is the whole argument type.
-    let primitives = ["Mutable.update", "Pointer.update"];
+    let primitives: Vec<&str> = ["Mutable.update", "Pointer.update"]
+        .into_iter()
+        .chain(ARRAY_UPDATERS.iter().copied())
+        .collect();
     let mut sites: Vec<UpdateSite> = Vec::new();
     let mut unresolved: Vec<(String, String)> = Vec::new();
     for (qname, stmts) in &bodies {
@@ -702,17 +749,24 @@ pub fn analyze(hier: &InstanceHierarchy<'_>) -> Report {
     };
 
     let seeds_mutable = seeds(&|s| s.kind == CellKind::Mutable);
+    let seeds_cells = seeds(&|s| s.kind != CellKind::Array);
     let seeds_all = seeds(&|_| true);
 
     let reach_mutable = downward_reach(&graph, &seeds_mutable);
+    let reach_cells = downward_reach(&graph, &seeds_cells);
     let reach_all = downward_reach(&graph, &seeds_all);
 
     // Types on a cell-crossing containment cycle, restricted to those whose
     // cells actually get updated (the downward reach from update contents).
     let tv_under = tv_under_cells(&graph);
     let cyclic_mutable = cell_cyclic_types(&graph, &tv_under, &[CellKind::Mutable]);
-    let cyclic_all =
+    let cyclic_cells =
         cell_cyclic_types(&graph, &tv_under, &[CellKind::Mutable, CellKind::Pointer]);
+    let cyclic_all = cell_cyclic_types(
+        &graph,
+        &tv_under,
+        &[CellKind::Mutable, CellKind::Pointer, CellKind::Array],
+    );
 
     let known = |set: BTreeSet<String>| -> BTreeSet<String> {
         set.into_iter().filter(|q| graph.contains_key(q)).collect()
@@ -720,6 +774,8 @@ pub fn analyze(hier: &InstanceHierarchy<'_>) -> Report {
     let gc_types_mutable_only: BTreeSet<String> =
         known(reach_mutable.intersection(&cyclic_mutable).cloned().collect());
     let gc_types_full: BTreeSet<String> =
+        known(reach_cells.intersection(&cyclic_cells).cloned().collect());
+    let gc_types_with_arrays: BTreeSet<String> =
         known(reach_all.intersection(&cyclic_all).cloned().collect());
     let gc_types_with_dyn_fn: BTreeSet<String> = gc_types_full
         .intersection(&hier.types_containing_dyn_fn)
@@ -728,7 +784,7 @@ pub fn analyze(hier: &InstanceHierarchy<'_>) -> Report {
 
     let generic_updaters: BTreeMap<String, BTreeSet<CellKind>> = updaters
         .into_iter()
-        .filter(|(q, _)| q != "Mutable.update" && q != "Pointer.update")
+        .filter(|(q, _)| !primitives.contains(&q.as_str()))
         .collect();
 
     Report {
@@ -737,6 +793,7 @@ pub fn analyze(hier: &InstanceHierarchy<'_>) -> Report {
         unresolved_generic_sites: unresolved,
         gc_types_mutable_only,
         gc_types_full,
+        gc_types_with_arrays,
         gc_types_with_dyn_fn,
     }
 }
@@ -748,7 +805,7 @@ fn top_package(qname: &str) -> &str {
 pub fn print_report(report: &Report) {
     let by_kind = |kind: CellKind| report.sites.iter().filter(move |s| s.kind == kind);
 
-    for kind in [CellKind::Mutable, CellKind::Pointer] {
+    for kind in [CellKind::Mutable, CellKind::Pointer, CellKind::Array] {
         let mut per_content: BTreeMap<String, (usize, BTreeSet<String>)> = BTreeMap::new();
         for site in by_kind(kind) {
             let e = per_content.entry(site.content.to_string()).or_default();
@@ -810,4 +867,25 @@ pub fn print_report(report: &Report) {
         "of those, types transitively embedding Arc<dyn Fn> (untraceable edges — Trace-derive problem cases)",
         &report.gc_types_with_dyn_fn,
     );
+    print_set(
+        "cyclic set once array counts as a cell (Mutable+Pointer+array)",
+        &report.gc_types_with_arrays,
+    );
+    let array_only: BTreeSet<&String> =
+        report.gc_types_with_arrays.difference(&report.gc_types_full).collect();
+    println!(
+        "── invisible to the runtime collector (array-only cycles): {} types ──",
+        array_only.len()
+    );
+    let mut per_pkg: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
+    for q in &array_only {
+        per_pkg.entry(top_package(q)).or_default().push(q.as_str());
+    }
+    for (pkg, types) in &per_pkg {
+        println!("  {pkg} ({}):", types.len());
+        for t in types {
+            println!("    {t}");
+        }
+    }
+    println!();
 }

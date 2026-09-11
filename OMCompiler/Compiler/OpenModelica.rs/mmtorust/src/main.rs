@@ -195,6 +195,18 @@ fn start_compilation(results: Vec<Absyn::Program>, fix: bool, mc_report_path: Op
         t0.elapsed().as_secs_f64(),
     );
 
+    // The cycle collector only ever needs to walk types that can reach a
+    // mutable cell; everything else gets a no-op `mm_accept`, which is what
+    // keeps a collection from traversing the whole loaded SCode program.
+    let t0 = std::time::Instant::now();
+    let cell_bearing = mutable_cycles::types_with_cells(&hier);
+    println!(
+        "Cell-reachability analysis: {} types can hold a cell (rest trace as leaves); {:.2}s",
+        cell_bearing.len(),
+        t0.elapsed().as_secs_f64(),
+    );
+    codegen::set_cell_bearing_types(cell_bearing);
+
     let t0 = std::time::Instant::now();
     codegen::generate_all(&hier, "openmodelica/src").expect("code generation failed");
     println!("Code generation {:.2}s", t0.elapsed().as_secs_f64())

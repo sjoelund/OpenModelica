@@ -83,7 +83,7 @@ uniontype ImportTable
   end IMPORT_TABLE;
 end ImportTable;
 
-type Ref = Array<Node> "array of 1";
+type Ref = Mutable<Node> "one mutable slot; a node's identity is its cell";
 
 uniontype Node
   record N
@@ -251,6 +251,7 @@ public constant Scope emptyScope = {} "empty scope";
 
 encapsulated package RefTree
   import BaseAvlTree;
+  import Mutable;
   import FCore.Name;
   import FCore.Ref;
   import FCore.Node;
@@ -266,7 +267,7 @@ encapsulated package RefTree
 
   redeclare function extends valueStr
   algorithm
-    Node.N(name = outString) := arrayGet(inValue, 1);
+    Node.N(name = outString) := Mutable.access(inValue);
   end valueStr;
 
   redeclare function extends keyCompare
@@ -395,7 +396,7 @@ end Graph;
 
 uniontype Top
   record GTOP
-    array<Graph> graph;
+    Mutable<Graph> graph;
     Name name "name of the graph";
     Ref node "the top node";
     Extra extra "extra information";

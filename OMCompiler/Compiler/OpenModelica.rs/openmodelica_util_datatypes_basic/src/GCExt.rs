@@ -48,6 +48,25 @@ pub fn gcollectAndUnmap() {
     metamodelica::gc::collect();
 }
 
+// Scoped to the cells registered since the previous call, which bounds the
+// traversal (and the collector's side tables) to one statement's garbage
+// instead of the whole live heap. See `gc::collect_new`.
+//
+// `OPENMODELICA_GC_DISABLE` turns the automatic collection off: an escape
+// hatch if a collection is ever suspected in a miscompare, and the way to
+// measure what it costs on a given workload.
+pub fn gcollectNew() {
+    if gc_disabled() {
+        return;
+    }
+    metamodelica::gc::collect_new();
+}
+
+fn gc_disabled() -> bool {
+    static DISABLED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *DISABLED.get_or_init(|| std::env::var_os("OPENMODELICA_GC_DISABLE").is_some())
+}
+
 pub fn getForceUnmapOnGcollect() -> bool {
     true
 }

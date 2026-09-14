@@ -31,6 +31,13 @@ impl Ord for ArgSpec {
 impl Default for ArgSpec {
     fn default() -> Self { Self::INPUT }
 }
+// NFEvalFunction builds an `Array<ArgSpec>` whether or not the call can be
+// performed, and `Array` requires `MmVal` of its element. The native module
+// carries the same impl.
+impl metamodelica::mmval::MmVal for ArgSpec {
+    type Traced = metamodelica::mmval::No;
+    fn mm_accept<V: metamodelica::mmval::Visitor>(&self, _: &mut V) -> Result<(), ()> { Ok(()) }
+}
 
 pub fn callFunction(
     _fnHandle: i32,

@@ -1493,6 +1493,18 @@ function(omc_rust_setup_codegen)
     install(PROGRAMS ${RUST_OMC_ARTIFACT_DIR}/OMShell-dioxus${RUST_OMC_EXE_SUFFIX}
             DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT omc)
   endif()
+  # The library-documentation generator. Frontend-only, so it does not link the
+  # cdylib and only DEPENDS on the transpile.
+  add_custom_target(rust_omgendoc ALL
+    WORKING_DIRECTORY ${RUST_OMC_DIR}
+    JOB_SERVER_AWARE TRUE
+    COMMAND ${CARGO_BUILD_ARTIFACT} ${RUST_OMC_PROFILE_FLAG} ${RUST_OMC_TIMINGS_FLAG} -p openmodelica_gendoc
+    DEPENDS rust_codegen
+    COMMENT "Rust: building omgendoc (${RUST_OMC_PROFILE})"
+    VERBATIM)
+  install(PROGRAMS ${RUST_OMC_ARTIFACT_DIR}/omgendoc${RUST_OMC_EXE_SUFFIX}
+          DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT omc)
+
   install(FILES
             ${CMAKE_CURRENT_SOURCE_DIR}/FrontEnd/AnnotationsBuiltin_1_x.mo
             ${CMAKE_CURRENT_SOURCE_DIR}/FrontEnd/AnnotationsBuiltin_2_x.mo

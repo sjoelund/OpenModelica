@@ -47,6 +47,7 @@ import SCode;
 protected
 
 import Flags;
+import BackendInterface;
 import Global;
 import OperatorOverloading;
 
@@ -70,7 +71,8 @@ type CachedPartialInstItemOutputs = tuple<FCore.Graph, ClassInf.State, list<DAE.
 
 type CachedInstItems = list<Option<CachedInstItem>>;
 
-function init
+
+public function init
 protected
   HashTable ht;
 algorithm

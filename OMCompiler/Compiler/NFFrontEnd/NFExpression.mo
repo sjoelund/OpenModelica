@@ -5008,6 +5008,31 @@ public
     end match;
   end isNegative;
 
+  function isIntegerValued
+    "Returns true if the expression is built only from Integer expressions and
+     integer-valued Real literals, so its value is an integer by construction."
+    input Expression exp;
+    output Boolean res;
+  protected
+    import NFOperator.Op;
+  algorithm
+    res := match exp
+      case INTEGER() then true;
+      case REAL() then floor(exp.value) == exp.value;
+      case CAST() then isIntegerValued(exp.exp);
+      case UNARY() then isIntegerValued(exp.exp);
+      case BINARY()
+        then match exp.operator.op
+          case Op.ADD then isIntegerValued(exp.exp1) and isIntegerValued(exp.exp2);
+          case Op.SUB then isIntegerValued(exp.exp1) and isIntegerValued(exp.exp2);
+          case Op.MUL then isIntegerValued(exp.exp1) and isIntegerValued(exp.exp2);
+          else Type.isInteger(typeOf(exp));
+        end match;
+      case IF() then isIntegerValued(exp.trueBranch) and isIntegerValued(exp.falseBranch);
+      else Type.isInteger(typeOf(exp));
+    end match;
+  end isIntegerValued;
+
   function isNonPositive
     input Expression exp;
     output Boolean res "true if exp is known to be <= 0, otherwise false";

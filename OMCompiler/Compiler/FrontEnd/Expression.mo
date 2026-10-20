@@ -1496,6 +1496,24 @@ algorithm
   end match;
 end realExpIntLit;
 
+public function isIntegerValued
+  "Returns true if the expression is built only from Integer expressions and
+   integer-valued Real literals, so its value is an integer by construction."
+  input DAE.Exp exp;
+  output Boolean b;
+algorithm
+  b := match exp
+    case DAE.RCONST() then isSome(realExpIntLit(exp));
+    case DAE.CAST() then isIntegerValued(exp.exp);
+    case DAE.UNARY(operator = DAE.UMINUS()) then isIntegerValued(exp.exp);
+    case DAE.BINARY(operator = DAE.ADD()) then isIntegerValued(exp.exp1) and isIntegerValued(exp.exp2);
+    case DAE.BINARY(operator = DAE.SUB()) then isIntegerValued(exp.exp1) and isIntegerValued(exp.exp2);
+    case DAE.BINARY(operator = DAE.MUL()) then isIntegerValued(exp.exp1) and isIntegerValued(exp.exp2);
+    case DAE.IFEXP() then isIntegerValued(exp.expThen) and isIntegerValued(exp.expElse);
+    else isInt(typeof(exp));
+  end match;
+end isIntegerValued;
+
 public function expInt "returns the int value if expression is constant Integer"
   input DAE.Exp exp;
   output Integer i;

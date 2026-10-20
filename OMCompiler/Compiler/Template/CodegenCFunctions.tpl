@@ -6612,6 +6612,22 @@ case BINARY(__) then
         let tmp5 = tempDecl("modelica_real", &varDecls, &varFrees) //intpart
         let tmp6 = tempDecl("modelica_real", &varDecls, &varFrees) //intpart
         let tmp7 = tempDecl("modelica_real", &varDecls, &varFrees) //fractpart
+        // MLS 10.6.7: a negative base with a Real exponent that has an integer
+        // value is only defined by a deprecated semantics.
+        let deprecatedCheck = if not metaModelicaRuntime() then if not isIntegerValued(exp2) then
+          let expStr = Util.escapeModelicaStringToCString(ExpressionDumpTpl.dumpExp(exp,"\""))
+          if Flags.getConfigBool(Flags.STRICT) then
+            'raiseStreamPrint(threadData, "Invalid exponentiation %s: the negative base %g is raised to the Real exponent %g. Use an Integer exponent.", "<%expStr%>", <%tmp1%>, <%tmp2%>);<%\n%>'
+          else
+            let warned = tempDeclZero("static int", &varDecls, &varFrees)
+            <<
+            if(!<%warned%>)
+            {
+              <%warned%> = 1;
+              if(omc_first_occurrence("<%expStr%>"))
+                warningStreamPrint(OMC_LOG_STDOUT, 0, "The exponentiation %s raises the negative base %g to the Real exponent %g. Treating a Real exponent with an integer value as an Integer is deprecated; use an Integer exponent.", "<%expStr%>", <%tmp1%>, <%tmp2%>);
+            }<%\n%>
+            >>
         let &preExp +=
           <<
           <%tmp1%> = <%e1%>;
@@ -6632,7 +6648,10 @@ case BINARY(__) then
             }
 
             if(fabs(<%tmp4%>) < 1e-10)
+            {
+              <%deprecatedCheck%>
               <%tmp3%> = pow(<%tmp1%>, <%tmp5%>);
+            }
             else
             {
               <%tmp7%> = modf(1.0/<%tmp2%>, &<%tmp6%>);

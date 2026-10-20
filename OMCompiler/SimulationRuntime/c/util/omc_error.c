@@ -28,6 +28,7 @@
 #include "setjmp.h"
 #include <stdio.h>
 #include "omc_error.h"
+#include <stdlib.h>
 #include <string.h>
 #include "omc_init.h"
 #include "simulation_options.h"
@@ -350,6 +351,29 @@ void omc_terminate_function(FILE_INFO info, const char *msg, ...)
   va_end(ap);
   fflush(NULL);
   omc_throw_function(NULL);
+}
+
+int omc_first_occurrence(const char *key)
+{
+  static char **keys = NULL;
+  static size_t numKeys = 0;
+  size_t i;
+  char **newKeys;
+
+  for (i = 0; i < numKeys; i++) {
+    if (0 == strcmp(keys[i], key)) {
+      return 0;
+    }
+  }
+  newKeys = (char**) realloc(keys, (numKeys + 1) * sizeof(char*));
+  if (newKeys) {
+    keys = newKeys;
+    keys[numKeys] = strdup(key);
+    if (keys[numKeys]) {
+      numKeys++;
+    }
+  }
+  return 1;
 }
 
 void messageText(int type, int stream, FILE_INFO info, int indentNext, char *msg, int subline, const int *indexes)

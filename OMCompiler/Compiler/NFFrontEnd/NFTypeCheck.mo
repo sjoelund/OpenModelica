@@ -1184,6 +1184,14 @@ algorithm
 
   binaryExp := Expression.BINARY(e1, op, e2);
 
+  // An Integer literal exponent is a Real literal from here on, so a Real
+  // literal one can only be told apart now.
+  if valid and Type.isReal(type2) and Expression.isNegative(e1) and
+     Expression.isLiteral(e2) and not Expression.isZero(e2) and Expression.isIntegerValued(e2) then
+    Error.addStrictMessage(Error.DEPRECATED_NEGATIVE_POW,
+      {Expression.toString(binaryExp), Expression.toString(e1), Expression.toString(e2)}, info);
+  end if;
+
   if not valid then
     printUnresolvableTypeError(binaryExp, {type1, type2}, info);
   end if;

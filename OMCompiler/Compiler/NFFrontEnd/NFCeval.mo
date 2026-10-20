@@ -192,6 +192,10 @@ algorithm
       algorithm
         exp1 := evalExp(exp.exp1, target);
         exp2 := evalExp(exp.exp2, target);
+
+        if exp.operator.op == Op.POW and not Expression.isIntegerValued(exp.exp2) then
+          checkDeprecatedPow(exp, exp1, exp2, target);
+        end if;
       then
         evalBinaryOp(exp1, exp.operator, exp2, target);
 
@@ -1311,6 +1315,29 @@ algorithm
         fail();
   end match;
 end evalBinaryPow;
+
+function checkDeprecatedPow
+  "MLS 10.6.7: a negative base with a Real exponent that has an integer value
+   is only defined by a deprecated semantics."
+  input Expression powExp;
+  input Expression base;
+  input Expression exponent;
+  input EvalTarget target;
+algorithm
+  () := match (base, exponent)
+    case (Expression.REAL(), Expression.REAL())
+      guard base.value < 0 and exponent.value <> 0 and
+            floor(exponent.value) == exponent.value and EvalTarget.hasInfo(target)
+      algorithm
+        Error.addStrictMessage(Error.DEPRECATED_NEGATIVE_POW,
+          {Expression.toString(powExp), Expression.toString(base), Expression.toString(exponent)},
+          EvalTarget.getInfo(target));
+      then
+        ();
+
+    else ();
+  end match;
+end checkDeprecatedPow;
 
 function evalBinaryScalarArray
   input Expression scalarExp;

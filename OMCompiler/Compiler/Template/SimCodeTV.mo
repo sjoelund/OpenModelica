@@ -4349,6 +4349,11 @@ package Expression
     output Option<Integer> oi;
   end realExpIntLit;
 
+  function isIntegerValued
+    input DAE.Exp exp;
+    output Boolean b;
+  end isIntegerValued;
+
   function flattenArrayExpToList
     input DAE.Exp e;
     output list<DAE.Exp> expLst;
@@ -4598,6 +4603,7 @@ package Flags
   constant ConfigFlag NEW_BACKEND;
   constant ConfigFlag FMI_EXTRA_ANNOTATIONS;
   constant ConfigFlag SIM_CODE_SCALARIZE;
+  constant ConfigFlag STRICT;
 
   function isSet
     input DebugFlag inFlag;

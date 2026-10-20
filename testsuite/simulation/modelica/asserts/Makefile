@@ -16,6 +16,7 @@ TestAssert.mos \
 powAssert1.mos \
 powAssert2.mos \
 powAssert3.mos \
+powDeprecated.mos \
 
 # test that currently fail. Move up when fixed.
 # Run make testfailing

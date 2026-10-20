@@ -187,6 +187,8 @@ CevalLog2.mo \
 CevalLogical1.mo \
 CevalMatrix1.mo \
 CevalMatrixPow1.mo \
+CevalPowDeprecated1.mo \
+CevalPowDeprecated2.mo \
 CevalMatrixProduct1.mo \
 CevalMatrixVectorMul1.mo \
 CevalMax1.mo \

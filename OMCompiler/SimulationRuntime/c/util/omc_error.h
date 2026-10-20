@@ -75,6 +75,8 @@ void omc_assert_warning_function(FILE_INFO info,  const char *msg, ...);
 void omc_set_assert_reporters(void (*err)(threadData_t*, FILE_INFO, const char*, va_list),
                               void (*warn)(FILE_INFO, const char*, va_list));
 void omc_terminate_function(FILE_INFO info, const char *msg, ...);
+/* 1 the first time it is called with a string equal to key, else 0. */
+int omc_first_occurrence(const char *key);
 void omc_throw_function(threadData_t*) __attribute__ ((noreturn));
 /* threadData, else the calling thread's from mmc_thread_data_key. If there is
    none, print pendingMessage (or the formatted message) and why, then exit. */

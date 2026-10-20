@@ -1,0 +1,73 @@
+// name: powDeprecated
+// status: correct
+//
+// MLS 10.6.7: raising a negative base to a Real exponent with an integer value
+// is deprecated. It warns once per site, and is an error with --strict.
+// Integer exponents are not affected.
+
+loadString("
+package PowDeprecated
+  function realPow
+    input Real base;
+    input Real exponent;
+    output Real y = base^exponent;
+  end realPow;
+
+  model M
+    parameter Real a = 2;
+    parameter Integer n = 3;
+    Real x = 0.5 - time;
+    Real y = x^a;
+    Real yf = realPow(x, a);
+    Real z = x^n;
+    Real dz = der(z);
+    Real w = x^(n - 1);
+  annotation(experiment(StopTime = 1));
+  end M;
+
+  model Strict
+    parameter Real x = -1;
+    parameter Real a = 2;
+    Real y = x^a;
+  end Strict;
+end PowDeprecated;
+"); getErrorString();
+
+simulate(PowDeprecated.M); getErrorString();
+val(y, 1.0);
+val(yf, 1.0);
+val(z, 1.0);
+val(w, 1.0);
+
+setCommandLineOptions("--strict"); getErrorString();
+simulate(PowDeprecated.Strict); getErrorString();
+
+// Result:
+// true
+// ""
+// record SimulationResult
+//     resultFile = "PowDeprecated.M_res.mat",
+//     simulationOptions = "startTime = 0.0, stopTime = 1.0, numberOfIntervals = 500, tolerance = 1e-6, method = 'dassl', fileNamePrefix = 'PowDeprecated.M', options = '', outputFormat = 'mat', variableFilter = '.*', cflags = '', simflags = ''",
+//     messages = "LOG_SUCCESS       | info    | The initialization finished successfully without homotopy method.
+// LOG_STDOUT        | warning | The exponentiation base ^ exponent raises the negative base -0.002 to the Real exponent 2. Treating a Real exponent with an integer value as an Integer is deprecated; use an Integer exponent.
+// LOG_STDOUT        | warning | The exponentiation x ^ a raises the negative base -0.002 to the Real exponent 2. Treating a Real exponent with an integer value as an Integer is deprecated; use an Integer exponent.
+// LOG_SUCCESS       | info    | The simulation finished successfully.
+// "
+// end SimulationResult;
+// ""
+// 0.25
+// 0.25
+// -0.125
+// 0.25
+// true
+// ""
+// record SimulationResult
+//     resultFile = "",
+//     simulationOptions = "startTime = 0.0, stopTime = 1.0, numberOfIntervals = 500, tolerance = 1e-6, method = 'dassl', fileNamePrefix = 'PowDeprecated.Strict', options = '', outputFormat = 'mat', variableFilter = '.*', cflags = '', simflags = ''",
+//     messages = "Simulation execution failed for model: PowDeprecated.Strict
+// LOG_ASSERT        | debug   | Invalid exponentiation x ^ a: the negative base -1 is raised to the Real exponent 2. Use an Integer exponent.
+// LOG_ASSERT        | info    | simulation terminated by an assertion at initialization
+// "
+// end SimulationResult;
+// ""
+// endResult

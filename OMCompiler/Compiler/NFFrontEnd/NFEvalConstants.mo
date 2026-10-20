@@ -66,6 +66,7 @@ import SimplifyExp = NFSimplifyExp;
 import ErrorExt;
 import Record = NFRecord;
 import Flatten = NFFlatten;
+import NFOperator.Op;
 
 public
 
@@ -188,7 +189,7 @@ function evaluateExpTraverser
   output Expression outExp;
   output Boolean outChanged = changed;
 protected
-  Expression e;
+  Expression e, e2;
   ComponentRef cref;
   Type ty, ty2;
   Variability var;
@@ -232,6 +233,18 @@ algorithm
 
     case Expression.ARRAY(literal = true) then (exp, false);
     case Expression.IF() then evaluateIfExp(exp, info);
+
+    case Expression.BINARY() guard exp.operator.op == Op.POW
+      algorithm
+        (outExp, outChanged) := Expression.mapFoldShallow(exp,
+          function evaluateExpTraverser(info = info), false);
+
+        if outChanged and not Expression.isIntegerValued(exp.exp2) then
+          Expression.BINARY(exp1 = e, exp2 = e2) := outExp;
+          Ceval.checkDeprecatedPow(exp, e, e2, Ceval.EvalTarget.new(info));
+        end if;
+      then
+        (outExp, outChanged);
 
     // Only evaluate the index for size expressions.
     case Expression.SIZE()

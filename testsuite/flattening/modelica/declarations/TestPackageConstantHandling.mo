@@ -10,6 +10,7 @@ package TestPackage
 
   package Water
   import TestPackage.Water.ConstantPropertyLiquidWater.simpleWaterConstants;
+  constant MyType waterConstant = simpleWaterConstants;
   package ConstantPropertyLiquidWater
     constant MyType simpleWaterConstants = blah;
     constant MyType blah = 1.0;
@@ -19,8 +20,7 @@ package TestPackage
 end TestPackage;
 
 model TestPackageConstantHandling
-  constant TestPackage.MyType x = TestPackage.Water.simpleWaterConstants;
-  annotation(__OpenModelica_commandLineOptions="-d=-newInst");
+  constant TestPackage.MyType x = TestPackage.Water.waterConstant;
 end TestPackageConstantHandling;
 
 

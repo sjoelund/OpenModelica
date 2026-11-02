@@ -476,7 +476,7 @@ algorithm
   elseif expand then
     (exp, expanded) := ExpandExp.expand(arg);
 
-    if expanded then
+    if expanded and not Expression.contains(exp, isSubscriptedCall) then
       args := Expression.arrayScalarElements(exp);
       ety := Type.arrayElementType(ty);
 
@@ -495,6 +495,16 @@ algorithm
     exp := simplifyReducedArrayConstructor(arg, call);
   end if;
 end simplifySumProduct;
+
+function isSubscriptedCall
+  input Expression exp;
+  output Boolean res;
+algorithm
+  res := match exp
+    case Expression.SUBSCRIPTED_EXP(exp = Expression.CALL()) then true;
+    else false;
+  end match;
+end isSubscriptedCall;
 
 function simplifyReducedArrayConstructor
   input Expression arg;

@@ -1,6 +1,5 @@
 // name: inlineArray2
 // status: correct
-// cflags: -d=-newInst
 
 // use new inline method
 setCommandLineOptions("+inlineMethod=append");
@@ -84,12 +83,12 @@ val(y,{0,0.5,1.0}); // 1, 1.823
 // ""
 // record SimulationResult
 //     resultFile = "foo_res.mat",
-//     simulationOptions = "startTime = 0.0, stopTime = 1.0, numberOfIntervals = 500, tolerance = 1e-06, method = 'dassl', fileNamePrefix = 'foo', options = '', outputFormat = 'mat', variableFilter = '.*', cflags = '', simflags = ''",
+//     simulationOptions = "startTime = 0.0, stopTime = 1.0, numberOfIntervals = 500, tolerance = 1e-6, method = 'dassl', fileNamePrefix = 'foo', options = '', outputFormat = 'mat', variableFilter = '.*', cflags = '', simflags = ''",
 //     messages = "LOG_SUCCESS       | info    | The initialization finished successfully without homotopy method.
 // LOG_SUCCESS       | info    | The simulation finished successfully.
 // "
 // end SimulationResult;
 // ""
-// {-1.0,-0.9862025310764797,-0.9859173056116497}
-// {1.0,1.464675331140519,1.826435278620429}
+// {-1.0, -0.9862025310297932, -0.9859173056294679}
+// {1.0, 1.4646753292984214, 1.8264352768369532}
 // endResult

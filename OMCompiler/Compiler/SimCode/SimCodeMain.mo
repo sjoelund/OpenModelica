@@ -108,6 +108,7 @@ import HpcOmTaskGraph;
 import NFConvertDAE;
 import RuntimeSources;
 import SemanticVersion;
+import SerializeFmuInit;
 import SerializeInitXML;
 import SerializeModelInfo;
 import SerializeSparsityPattern;
@@ -1167,6 +1168,11 @@ algorithm
           end for;
         end if;
 
+        // FMI 1.0 has no resources; it compiles the generated _init_fmu.c instead.
+        if FMUVersion <> "1.0" then
+          SerializeFmuInit.write(simCode, resourcesDir + simCode.fileNamePrefix + "_init.bin");
+        end if;
+
         SerializeSparsityPattern.serialize(simCode);
         for jac in simCode.jacobianMatrices loop
           if not listEmpty(jac.sparsity) then
@@ -1349,7 +1355,7 @@ algorithm
 
         System.writeFile(fmutmp+"/sources/isfmi" + (if FMUVersion=="1.0" then "1" elseif FMUVersion=="3.0" then "3" else "2"), "");
 
-        model_gen_files := list(simCode.fileNamePrefix + f for f in RuntimeSources.defaultFileSuffixes);
+        model_gen_files := list(simCode.fileNamePrefix + f for f guard FMUVersion == "1.0" or f <> "_init_fmu.c" in RuntimeSources.defaultFileSuffixes);
 
         // I need to see some tests failing or something not working to make sense of what to add here
         shared_source_files := List.flatten({fmi_export_files,

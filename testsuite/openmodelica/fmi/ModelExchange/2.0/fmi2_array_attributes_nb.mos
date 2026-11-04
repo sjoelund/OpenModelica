@@ -24,7 +24,7 @@ end fmi2_array_attributes_nb;
 buildModelFMU(fmi2_array_attributes_nb, version="2.0", fmuType="me"); getErrorString();
 
 // Scalarized elements must not be dimensioned (empty result).
-system("unzip -cqq fmi2_array_attributes_nb.fmu sources/fmi2_array_attributes_nb_init_fmu.c | grep -n 'numberOfDimensions = [1-9]' > fmi2_array_attributes_nb.dims || true"); getErrorString();
+system("python3 -c \"import struct, zipfile; d = zipfile.ZipFile('fmi2_array_attributes_nb.fmu').read('resources/fmi2_array_attributes_nb_init.bin'); n = sum(struct.unpack_from('<8I', d, 16)); r = struct.unpack_from('<I', d, 12)[0]; print(sum(struct.unpack_from('<I', d, 104 + i*r + 44)[0] > 0 for i in range(n)))\" > fmi2_array_attributes_nb.dims || true"); getErrorString();
 readFile("fmi2_array_attributes_nb.dims"); getErrorString();
 
 // Result:
@@ -38,6 +38,7 @@ readFile("fmi2_array_attributes_nb.dims"); getErrorString();
 // "
 // 0
 // ""
-// ""
+// "0
+// "
 // ""
 // endResult

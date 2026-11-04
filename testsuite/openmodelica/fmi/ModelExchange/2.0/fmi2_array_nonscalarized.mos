@@ -7,7 +7,7 @@
 //
 // #15926, new backend, non-scalarized arrays (--simCodeScalarize=false), C
 // runtime. Here the array variable IS a runtime array and must be dimensioned
-// in the exported FMU init (numberOfDimensions = 1). Confirms the native-array
+// in the exported FMU init. Confirms the native-array
 // FMU export still dimensions genuine arrays.
 
 setCommandLineOptions("--newBackend --simCodeScalarize=false"); getErrorString();
@@ -25,7 +25,7 @@ end fmi2_array_nonscalarized;
 buildModelFMU(fmi2_array_nonscalarized, version="2.0", fmuType="me"); getErrorString();
 
 // The genuine array variable must be dimensioned (non-empty result).
-system("unzip -cqq fmi2_array_nonscalarized.fmu sources/fmi2_array_nonscalarized_init_fmu.c | grep -c 'numberOfDimensions = [1-9]' > fmi2_array_nonscalarized.dims || true"); getErrorString();
+system("python3 -c \"import struct, zipfile; d = zipfile.ZipFile('fmi2_array_nonscalarized.fmu').read('resources/fmi2_array_nonscalarized_init.bin'); n = sum(struct.unpack_from('<8I', d, 16)); r = struct.unpack_from('<I', d, 12)[0]; print(sum(struct.unpack_from('<I', d, 104 + i*r + 44)[0] > 0 for i in range(n)))\" > fmi2_array_nonscalarized.dims || true"); getErrorString();
 readFile("fmi2_array_nonscalarized.dims"); getErrorString();
 
 // Result:

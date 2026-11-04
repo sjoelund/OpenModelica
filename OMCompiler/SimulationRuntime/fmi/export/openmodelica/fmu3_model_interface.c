@@ -59,6 +59,7 @@
 #include "../simulation/solver/delay.h"
 #include "../simulation/solver/spatialDistribution.h"
 #include "../simulation/solver/discrete_changes.h"
+#include "../simulation/solver/epsilon.h"
 #include "../simulation/solver/events.h"
 #include "../simulation/simulation_info_json.h"
 #include "../simulation/simulation_input_xml.h"
@@ -341,7 +342,7 @@ static inline void setThreadData(ModelInstance* comp)
 static void holdAsserts(ModelInstance *comp, int hold);
 static void releaseAsserts(ModelInstance *comp);
 
-fmi3Status internalEventUpdate(ModelInstance* c, EventInfo* eventInfo)
+fmi3Status internalEventUpdate(ModelInstance* c, EventInfo* eventInfo, LIST *eventLst)
 {
   int i, done=0;
   ModelInstance* comp = (ModelInstance *)c;
@@ -398,35 +399,50 @@ fmi3Status internalEventUpdate(ModelInstance* c, EventInfo* eventInfo)
      */
     //storePreValues(comp->fmuData);
 
-    /* activate sample event */
-    for(i=0; i<comp->fmuData->modelData->nSamples; ++i) {
-      if (comp->fmuData->simulationInfo->nextSampleTimes[i] <= comp->fmuData->localData[0]->timeValue) {
-        comp->fmuData->simulationInfo->samples[i] = 1;
+    if (eventLst) {
+      /* Co-Simulation: the FMU integrates, so it handles the event as simulationUpdate does */
+      double eventTime = comp->fmuData->localData[0]->timeValue;
+      comp->fmuData->simulationInfo->sampleActivated = comp->fmuData->simulationInfo->nextSampleEvent <= eventTime + SAMPLE_EPS;
+      if (comp->fmuData->simulationInfo->sampleActivated || listLen(eventLst) > 0) {
         comp->_event_found = 1;
-        infoStreamPrint(LOG_EVENTS, 0, "[%ld] sample(%g, %g)", comp->fmuData->modelData->samplesInfo[i].index, comp->fmuData->modelData->samplesInfo[i].start, comp->fmuData->modelData->samplesInfo[i].interval);
       }
-    }
+      comp->_held_assert_logged |= comp->fmuData->simulationInfo->needToReThrow;
+      holdAsserts(comp, 1);
+      handleEvents(comp->fmuData, threadData, eventLst, &eventTime, comp->solverInfo);
+      if (comp->fmuData->simulationInfo->discreteStateChanged) {
+        comp->_event_found = 1;
+      }
+    } else {
+      /* activate sample event */
+      for(i=0; i<comp->fmuData->modelData->nSamples; ++i) {
+        if (comp->fmuData->simulationInfo->nextSampleTimes[i] <= comp->fmuData->localData[0]->timeValue) {
+          comp->fmuData->simulationInfo->samples[i] = 1;
+          comp->_event_found = 1;
+          infoStreamPrint(LOG_EVENTS, 0, "[%ld] sample(%g, %g)", comp->fmuData->modelData->samplesInfo[i].index, comp->fmuData->modelData->samplesInfo[i].start, comp->fmuData->modelData->samplesInfo[i].interval);
+        }
+      }
 
-    /* fix issue https://github.com/OpenModelica/OpenModelica/issues/12350
-     * we need to update discreteSystem during event update, before evaluating functionDAE
-    */
-    comp->_held_assert_logged |= comp->fmuData->simulationInfo->needToReThrow;
-    holdAsserts(comp, 1);
-    updateDiscreteSystem(comp->fmuData, threadData);
-    /* The event iteration moved something, so this really is an event: the FMU has
-     * no checkEvents() of its own, and by the time updateDiscreteSystem returns the
-     * pre-values it settled make the checks below see nothing. */
-    if (comp->fmuData->simulationInfo->discreteStateChanged) {
-      comp->_event_found = 1;
-    }
+      /* fix issue https://github.com/OpenModelica/OpenModelica/issues/12350
+       * we need to update discreteSystem during event update, before evaluating functionDAE
+      */
+      comp->_held_assert_logged |= comp->fmuData->simulationInfo->needToReThrow;
+      holdAsserts(comp, 1);
+      updateDiscreteSystem(comp->fmuData, threadData);
+      /* The event iteration moved something, so this really is an event: the FMU has
+       * no checkEvents() of its own, and by the time updateDiscreteSystem returns the
+       * pre-values it settled make the checks below see nothing. */
+      if (comp->fmuData->simulationInfo->discreteStateChanged) {
+        comp->_event_found = 1;
+      }
 
-    comp->fmuData->callback->functionDAE(comp->fmuData, comp->threadData);
+      comp->fmuData->callback->functionDAE(comp->fmuData, comp->threadData);
 
-    /* deactivate sample events */
-    for(i=0; i<comp->fmuData->modelData->nSamples; ++i) {
-      if (comp->fmuData->simulationInfo->samples[i]) {
-        comp->fmuData->simulationInfo->samples[i] = 0;
-        advanceSample(comp->fmuData, i);
+      /* deactivate sample events */
+      for(i=0; i<comp->fmuData->modelData->nSamples; ++i) {
+        if (comp->fmuData->simulationInfo->samples[i]) {
+          comp->fmuData->simulationInfo->samples[i] = 0;
+          advanceSample(comp->fmuData, i);
+        }
       }
     }
 
@@ -518,14 +534,15 @@ fmi3Status internalEventUpdate(ModelInstance* c, EventInfo* eventInfo)
 }
 
 
-fmi3Status internalEventIteration(ModelInstance* c, EventInfo *eventInfo)
+fmi3Status internalEventIteration(ModelInstance* c, EventInfo *eventInfo, LIST *eventLst)
 {
   fmi3Status status = fmi3OK;
   c->_event_found = 0;
   eventInfo->newDiscreteStatesNeeded = fmi3True;
   eventInfo->terminateSimulation     = fmi3False;
   while (eventInfo->newDiscreteStatesNeeded && !eventInfo->terminateSimulation && status != fmi3Error) {
-    status = internalEventUpdate((ModelInstance *)c, eventInfo);
+    status = internalEventUpdate((ModelInstance *)c, eventInfo, eventLst);
+    eventLst = NULL;
   }
   return status;
 }
@@ -1099,7 +1116,7 @@ fmi3Status omcExitInitializationMode(ModelInstance* c)
   {
     comp->eventInfo.nextEventTimeDefined = fmi3True;
     comp->eventInfo.nextEventTime = nextSampleEvent;
-    internalEventUpdate(comp, &(comp->eventInfo));
+    internalEventUpdate(comp, &(comp->eventInfo), NULL);
   }
   else
   {
@@ -2081,7 +2098,7 @@ fmi3Status omcNewDiscreteStates(ModelInstance* c, EventInfo* eventInfo)
     return fmi3Error;
   FILTERED_LOG(comp, fmi3OK, LOG_FMI3_CALL, "omcNewDiscreteStates")
 
-  returnValue = internalEventUpdate(comp, eventInfo);
+  returnValue = internalEventUpdate(comp, eventInfo, NULL);
 
   return returnValue;
 }
@@ -2555,7 +2572,7 @@ static fmi3Status doStepInternal(ModelInstance* c, fmi3Float64 currentCommunicat
   }
 #endif
 
-  status = internalEventIteration(c, &eventInfo);
+  status = internalEventIteration(c, &eventInfo, NULL);
   if (eventInfo.terminateSimulation) {
     term = fmi3True;
     done = 1;
@@ -2725,14 +2742,9 @@ static fmi3Status doStepInternal(ModelInstance* c, fmi3Float64 currentCommunicat
     status = internalGetEventIndicators(c, "fmi3DoStep", event_indicators, NUMBER_OF_EVENT_INDICATORS);
   if (status != fmi3OK) goto doStep_cleanup;
 
-    for (i = 0; i < NUMBER_OF_EVENT_INDICATORS; i++)
-    {
-      if (event_indicators[i]*event_indicators_prev[i] < 0)
-      {
-        zc_event = 1;
-        break;
-      }
-    }
+    memcpy(comp->fmuData->simulationInfo->zeroCrossingsPre, event_indicators_prev, NUMBER_OF_EVENT_INDICATORS * sizeof(double));
+    listClear(comp->solverInfo->eventLst);
+    zc_event = checkForStateEvent(comp->fmuData, comp->solverInfo->eventLst);
 #endif
 
     comp->solverInfo->didEventStep = 0;
@@ -2765,7 +2777,7 @@ static fmi3Status doStepInternal(ModelInstance* c, fmi3Float64 currentCommunicat
       eventInfo.valuesOfContinuousStatesChanged   = fmi3True;
       eventInfo.nextEventTimeDefined              = fmi3False;
       eventInfo.nextEventTime                     = 0.0;
-      status = internalEventIteration(c, &eventInfo);
+      status = internalEventIteration(c, &eventInfo, comp->solverInfo->eventLst);
       if (eventInfo.terminateSimulation) {
         term = fmi3True;
         done = 1;
@@ -2801,6 +2813,19 @@ static fmi3Status doStepInternal(ModelInstance* c, fmi3Float64 currentCommunicat
         term = fmi3True;
         break;
       }
+    }
+
+    /* As simulationUpdate: an assert violated after an event in this step is ignored */
+    holdAsserts(comp, 1);
+    comp->fmuData->callback->checkForAsserts(comp->fmuData, threadData);
+    releaseAsserts(comp);
+    if (comp->fmuData->simulationInfo->needToReThrow) {
+      comp->fmuData->simulationInfo->needToReThrow = 0;
+      if (!comp->solverInfo->didEventStep) {
+        errorStreamPrint(OMC_LOG_ASSERT, 0, "No event found, but assert was triggered. Throwing now!");
+        omc_throw(threadData);
+      }
+      infoStreamPrint(OMC_LOG_ASSERT, 0, "Found event, previous asserts are ignored.");
     }
   }
 
@@ -3914,7 +3939,7 @@ fmi3Status fmi3UpdateDiscreteStates(fmi3Instance instance, fmi3Boolean* discrete
     ModelInstance *comp = (ModelInstance *)c;
     eventInfo.nextEventTimeDefined = comp->eventInfo.nextEventTimeDefined;
     eventInfo.nextEventTime        = comp->eventInfo.nextEventTime;
-    status = internalEventUpdate(comp, &eventInfo);
+    status = internalEventUpdate(comp, &eventInfo, NULL);
     comp->eventInfo = eventInfo;
   } else {
     status = omcNewDiscreteStates(c, &eventInfo);

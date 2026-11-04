@@ -288,7 +288,7 @@ static inline void setThreadData(ModelInstance* comp)
 static void holdAsserts(ModelInstance *comp, int hold);
 static void releaseAsserts(ModelInstance *comp);
 
-fmi2Status internalEventUpdate(fmi2Component c, fmi2EventInfo* eventInfo)
+fmi2Status internalEventUpdate(fmi2Component c, fmi2EventInfo* eventInfo, LIST *eventLst)
 {
   int i, done=0;
   ModelInstance* comp = (ModelInstance *)c;
@@ -345,35 +345,50 @@ fmi2Status internalEventUpdate(fmi2Component c, fmi2EventInfo* eventInfo)
      */
     //storePreValues(comp->fmuData);
 
-    /* activate sample event */
-    for(i=0; i<comp->fmuData->modelData->nSamples; ++i) {
-      if (comp->fmuData->simulationInfo->nextSampleTimes[i] <= comp->fmuData->localData[0]->timeValue) {
-        comp->fmuData->simulationInfo->samples[i] = 1;
+    if (eventLst) {
+      /* Co-Simulation: the FMU integrates, so it handles the event as simulationUpdate does */
+      double eventTime = comp->fmuData->localData[0]->timeValue;
+      comp->fmuData->simulationInfo->sampleActivated = comp->fmuData->simulationInfo->nextSampleEvent <= eventTime + SAMPLE_EPS;
+      if (comp->fmuData->simulationInfo->sampleActivated || listLen(eventLst) > 0) {
         comp->_event_found = 1;
-        infoStreamPrint(LOG_EVENTS, 0, "[%ld] sample(%g, %g)", comp->fmuData->modelData->samplesInfo[i].index, comp->fmuData->modelData->samplesInfo[i].start, comp->fmuData->modelData->samplesInfo[i].interval);
       }
-    }
+      comp->_held_assert_logged |= comp->fmuData->simulationInfo->needToReThrow;
+      holdAsserts(comp, 1);
+      handleEvents(comp->fmuData, threadData, eventLst, &eventTime, comp->solverInfo);
+      if (comp->fmuData->simulationInfo->discreteStateChanged) {
+        comp->_event_found = 1;
+      }
+    } else {
+      /* activate sample event */
+      for(i=0; i<comp->fmuData->modelData->nSamples; ++i) {
+        if (comp->fmuData->simulationInfo->nextSampleTimes[i] <= comp->fmuData->localData[0]->timeValue) {
+          comp->fmuData->simulationInfo->samples[i] = 1;
+          comp->_event_found = 1;
+          infoStreamPrint(LOG_EVENTS, 0, "[%ld] sample(%g, %g)", comp->fmuData->modelData->samplesInfo[i].index, comp->fmuData->modelData->samplesInfo[i].start, comp->fmuData->modelData->samplesInfo[i].interval);
+        }
+      }
 
-    /* fix issue https://github.com/OpenModelica/OpenModelica/issues/12350
-     * we need to update discreteSystem during event update, before evaluating functionDAE
-    */
-    comp->_held_assert_logged |= comp->fmuData->simulationInfo->needToReThrow;
-    holdAsserts(comp, 1);
-    updateDiscreteSystem(comp->fmuData, threadData);
-    /* The event iteration moved something, so this really is an event: the FMU has
-     * no checkEvents() of its own, and by the time updateDiscreteSystem returns the
-     * pre-values it settled make the checks below see nothing. */
-    if (comp->fmuData->simulationInfo->discreteStateChanged) {
-      comp->_event_found = 1;
-    }
+      /* fix issue https://github.com/OpenModelica/OpenModelica/issues/12350
+       * we need to update discreteSystem during event update, before evaluating functionDAE
+      */
+      comp->_held_assert_logged |= comp->fmuData->simulationInfo->needToReThrow;
+      holdAsserts(comp, 1);
+      updateDiscreteSystem(comp->fmuData, threadData);
+      /* The event iteration moved something, so this really is an event: the FMU has
+       * no checkEvents() of its own, and by the time updateDiscreteSystem returns the
+       * pre-values it settled make the checks below see nothing. */
+      if (comp->fmuData->simulationInfo->discreteStateChanged) {
+        comp->_event_found = 1;
+      }
 
-    comp->fmuData->callback->functionDAE(comp->fmuData, comp->threadData);
+      comp->fmuData->callback->functionDAE(comp->fmuData, comp->threadData);
 
-    /* deactivate sample events */
-    for(i=0; i<comp->fmuData->modelData->nSamples; ++i) {
-      if (comp->fmuData->simulationInfo->samples[i]) {
-        comp->fmuData->simulationInfo->samples[i] = 0;
-        advanceSample(comp->fmuData, i);
+      /* deactivate sample events */
+      for(i=0; i<comp->fmuData->modelData->nSamples; ++i) {
+        if (comp->fmuData->simulationInfo->samples[i]) {
+          comp->fmuData->simulationInfo->samples[i] = 0;
+          advanceSample(comp->fmuData, i);
+        }
       }
     }
 
@@ -465,14 +480,15 @@ fmi2Status internalEventUpdate(fmi2Component c, fmi2EventInfo* eventInfo)
 }
 
 
-fmi2Status internalEventIteration(fmi2Component c, fmi2EventInfo *eventInfo)
+fmi2Status internalEventIteration(fmi2Component c, fmi2EventInfo *eventInfo, LIST *eventLst)
 {
   fmi2Status status = fmi2OK;
   ((ModelInstance *)c)->_event_found = 0;
   eventInfo->newDiscreteStatesNeeded = fmi2True;
   eventInfo->terminateSimulation     = fmi2False;
   while (eventInfo->newDiscreteStatesNeeded && !eventInfo->terminateSimulation && status != fmi2Error) {
-    status = internalEventUpdate((ModelInstance *)c, eventInfo);
+    status = internalEventUpdate((ModelInstance *)c, eventInfo, eventLst);
+    eventLst = NULL;
   }
   return status;
 }
@@ -1058,7 +1074,7 @@ fmi2Status fmi2ExitInitializationMode(fmi2Component c)
   {
     comp->eventInfo.nextEventTimeDefined = fmi2True;
     comp->eventInfo.nextEventTime = nextSampleEvent;
-    internalEventUpdate(comp, &(comp->eventInfo));
+    internalEventUpdate(comp, &(comp->eventInfo), NULL);
   }
   else
   {
@@ -2052,7 +2068,7 @@ fmi2Status fmi2NewDiscreteStates(fmi2Component c, fmi2EventInfo* eventInfo)
     return fmi2Error;
   FILTERED_LOG(comp, fmi2OK, LOG_FMI2_CALL, "fmi2NewDiscreteStates")
 
-  returnValue = internalEventUpdate(comp, eventInfo);
+  returnValue = internalEventUpdate(comp, eventInfo, NULL);
 
   return returnValue;
 }
@@ -2501,7 +2517,7 @@ fmi2Status fmi2DoStep(fmi2Component c, fmi2Real currentCommunicationPoint, fmi2R
   }
 #endif
 
-  status = internalEventIteration(c, &eventInfo);
+  status = internalEventIteration(c, &eventInfo, NULL);
   if (eventInfo.terminateSimulation) {
     terminateSimulation = fmi2True;
     done = 1;
@@ -2670,14 +2686,9 @@ fmi2Status fmi2DoStep(fmi2Component c, fmi2Real currentCommunicationPoint, fmi2R
     status = internalGetEventIndicators(c, "fmi2DoStep", event_indicators, NUMBER_OF_EVENT_INDICATORS);
   if (status != fmi2OK) goto doStep_cleanup;
 
-    for (i = 0; i < NUMBER_OF_EVENT_INDICATORS; i++)
-    {
-      if (event_indicators[i]*event_indicators_prev[i] < 0)
-      {
-        zc_event = 1;
-        break;
-      }
-    }
+    memcpy(comp->fmuData->simulationInfo->zeroCrossingsPre, event_indicators_prev, NUMBER_OF_EVENT_INDICATORS * sizeof(double));
+    listClear(comp->solverInfo->eventLst);
+    zc_event = checkForStateEvent(comp->fmuData, comp->solverInfo->eventLst);
 #endif
 
     comp->solverInfo->didEventStep = 0;
@@ -2693,7 +2704,7 @@ fmi2Status fmi2DoStep(fmi2Component c, fmi2Real currentCommunicationPoint, fmi2R
       eventInfo.valuesOfContinuousStatesChanged   = fmi2True;
       eventInfo.nextEventTimeDefined              = fmi2False;
       eventInfo.nextEventTime                     = 0.0;
-      status = internalEventIteration(c, &eventInfo);
+      status = internalEventIteration(c, &eventInfo, comp->solverInfo->eventLst);
       if (eventInfo.terminateSimulation) {
         terminateSimulation = fmi2True;
         done = 1;
@@ -2723,6 +2734,19 @@ fmi2Status fmi2DoStep(fmi2Component c, fmi2Real currentCommunicationPoint, fmi2R
       #endif
 
       comp->solverInfo->didEventStep = 1;
+    }
+
+    /* As simulationUpdate: an assert violated after an event in this step is ignored */
+    holdAsserts(comp, 1);
+    comp->fmuData->callback->checkForAsserts(comp->fmuData, threadData);
+    releaseAsserts(comp);
+    if (comp->fmuData->simulationInfo->needToReThrow) {
+      comp->fmuData->simulationInfo->needToReThrow = 0;
+      if (!comp->solverInfo->didEventStep) {
+        errorStreamPrint(OMC_LOG_ASSERT, 0, "No event found, but assert was triggered. Throwing now!");
+        omc_throw(threadData);
+      }
+      infoStreamPrint(OMC_LOG_ASSERT, 0, "Found event, previous asserts are ignored.");
     }
   }
 

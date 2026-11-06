@@ -1,0 +1,42 @@
+// name: fmi_cs_daemode_c.mos
+// keywords: FMI 2.0 3.0 export CoSimulation daeMode IDA
+// status: correct
+// suite: cRuntime
+// teardown_command: rm -rf DaeModeWhenLoop_c* DaeModeWhenLoop_mecs*
+//
+// Only a --daeMode Co-Simulation FMU of the C runtime carries IDA. The C
+// runtime cannot serve Model Exchange the residual form, so me_cs exports
+// Co-Simulation only. See fmi_cs_daemode.mos for the simulation.
+
+loadFile("fmi3_wasm_daemode.mo"); getErrorString();
+setCommandLineOptions("--fmiSources=true"); getErrorString();
+
+buildModelFMU(DaeModeWhenLoop, version="3.0", fmuType="cs", fileNamePrefix="DaeModeWhenLoop_c"); getErrorString();
+system("unzip -p DaeModeWhenLoop_c.fmu sources/buildDescription.xml | grep -E \"ida_solver|dae_mode|idas/idas\\.c\" | sed \"s/^ *//\""); getErrorString();
+
+buildModelFMU(DaeModeWhenLoop, version="2.0", fmuType="me_cs", fileNamePrefix="DaeModeWhenLoop_mecs"); getErrorString();
+system("unzip -cqq DaeModeWhenLoop_mecs.fmu modelDescription.xml | grep -cE \"<(ModelExchange|CoSimulation)\" "); getErrorString();
+
+// Result:
+// true
+// ""
+// true
+// ""
+// "DaeModeWhenLoop_c.fmu"
+// "Notification: Building FMU for platform 'static' (1/1).
+// Notification: Finished FMU for platform 'static' (1/1).
+// "
+// <SourceFile name="simulation/solver/dae_mode.c"/>
+// <SourceFile name="simulation/solver/ida_solver.c"/>
+// <SourceFile name="3rdParty/sundials/src/idas/idas.c"/>
+// 0
+// ""
+// "DaeModeWhenLoop_mecs.fmu"
+// "Warning: DAE mode (--daeMode) for Model Exchange needs FMI 3.0 with --simCodeTarget=C+Rust, or platforms={\"wasm\"}. Exporting Co-Simulation only.
+// Notification: Building FMU for platform 'static' (1/1).
+// Notification: Finished FMU for platform 'static' (1/1).
+// "
+// 1
+// 0
+// ""
+// endResult

@@ -4236,8 +4236,8 @@ protected function canExportDaeModeFMU
    the residual form for both FMU kinds. A --simCodeTarget=C+Rust FMU gets its FMI
    API from the same Rust runtime component, so it serves it as fmi-ls-dae for
    FMI 3.0 Model Exchange, where the importer owns the DAE residuals and the
-   algebraic variables. The C simulation runtime of --simCodeTarget=C integrates
-   the residual form with IDA, so it serves Co-Simulation only."
+   algebraic variables. A Co-Simulation FMU of FMI 2.0 or 3.0 integrates the
+   residual form with IDA in both native runtimes."
   input String FMUType;
   input String FMUVersion;
   input Boolean isWasmFMU;
@@ -4246,8 +4246,7 @@ algorithm
   canExport := isWasmFMU or
                (FMI.isFMIVersion30(FMUVersion) and FMI.isFMIMEType(FMUType) and
                 Config.simCodeRustRuntime()) or
-               (not FMI.isFMIVersion10(FMUVersion) and not FMI.isFMIMEType(FMUType) and
-                not Config.simCodeRustRuntime());
+               (not FMI.isFMIVersion10(FMUVersion) and not FMI.isFMIMEType(FMUType));
 end canExportDaeModeFMU;
 
 protected function daeModeFMUType

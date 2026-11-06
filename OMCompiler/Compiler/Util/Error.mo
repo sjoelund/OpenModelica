@@ -1362,9 +1362,9 @@ public constant ErrorTypes.Message FMU_EXPORT_DAE_MODE_ME = ErrorTypes.MESSAGE(7
 public constant ErrorTypes.Message USER_CANCELLED = ErrorTypes.MESSAGE(7028, ErrorTypes.SCRIPTING(), ErrorTypes.ERROR(),
   "Operation cancelled by user.");
 public constant ErrorTypes.Message FMU_EXPORT_DAE_MODE_CS = ErrorTypes.MESSAGE(7030, ErrorTypes.SCRIPTING(), ErrorTypes.ERROR(),
-  "DAE mode (--daeMode) is not supported for a Co-Simulation FMU with --simCodeTarget=C+Rust. Export with --simCodeTarget=C, with platforms={\"wasm\"}, or remove the --daeMode flag.");
+  "DAE mode (--daeMode) is not supported for an FMI 1.0 Co-Simulation FMU. Export FMI 2.0 or 3.0, or remove the --daeMode flag.");
 public constant ErrorTypes.Message FMU_EXPORT_DAE_MODE_ME_DROPPED = ErrorTypes.MESSAGE(7036, ErrorTypes.SCRIPTING(), ErrorTypes.WARNING(),
-  "DAE mode (--daeMode) is not supported by the C simulation runtime for Model Exchange. Exporting Co-Simulation only.");
+  "DAE mode (--daeMode) for Model Exchange needs FMI 3.0 with --simCodeTarget=C+Rust, or platforms={\"wasm\"}. Exporting Co-Simulation only.");
 public constant ErrorTypes.Message ALARM_EXPIRED = ErrorTypes.MESSAGE(7031, ErrorTypes.SCRIPTING(), ErrorTypes.ERROR(),
   "Operation aborted: the time limit set by the alarm ran out.");
 public constant ErrorTypes.Message FMU_EXPORT_FMI_LS_DAE_DRAFT = ErrorTypes.MESSAGE(7032, ErrorTypes.SCRIPTING(), ErrorTypes.NOTIFICATION(),

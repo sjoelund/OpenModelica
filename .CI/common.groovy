@@ -1245,6 +1245,13 @@ void partestRust(String simCodeTarget, partition, partitionmodulo) {
   if (isWasmTarget) {
     suites += ',-cSources,-fmuCSources,-nativeSharedLib,-realTime'
   }
+  // cRuntime/cRustRuntime expect the C or the native Rust simulation runtime.
+  if (simCodeTarget && simCodeTarget != 'C') {
+    suites += ',-cRuntime'
+  }
+  if (simCodeTarget == 'C+Rust') {
+    suites += ',+cRustRuntime'
+  }
   // wasmtime reserves ~4 GiB of address space per wasm memory, and shrinking that
   // reservation to fit an RLIMIT_AS costs the bounds-check-free fast path.
   String asLimit = isWasmTarget
@@ -1684,7 +1691,7 @@ String sharedTestSuites() {
 // sources of a C FMU. The Rust runtime has gbode disabled. The clang shards
 // evaluate scripts with the old frontend, see ofScriptingArgs().
 String rustRuntimeTestSuites() {
-  return "${sharedTestSuites()},-cpp,-fmuCSources,-gbode,+ofScripting,-nfScripting"
+  return "${sharedTestSuites()},-cpp,-fmuCSources,-cRuntime,+cRustRuntime,-gbode,+ofScripting,-nfScripting"
 }
 
 // The C+Rust and wasm-jit lanes evaluate scripts with the old frontend

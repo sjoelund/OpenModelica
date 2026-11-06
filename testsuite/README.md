@@ -54,6 +54,11 @@ rtest special directives added to help creating testcases:
   Rust omc implements those targets, so the suite is off by default and the Rust
   partest turns it on with `-suites=+wasm`. `rtest test.mos` runs such a test
   regardless, as it does for the other tag suites.
+* suite: cRuntime, cRustRuntime — says that the test expects the C simulation
+  runtime (`--simCodeTarget=C`) or the natively linked Rust one
+  (`--simCodeTarget=C+Rust`), and runs under whatever target the run was given
+  rather than selecting it. The C+Rust run passes
+  `-suites=-cRuntime,+cRustRuntime`; cRustRuntime is off by default.
 * suite: disabled — says that the test is not part of the testsuite, i.e. that it
   is listed in its makefile as a failing, not compiling, not simulating or manual
   test rather than in `TESTFILES`. Such a test is expected to fail, and some of

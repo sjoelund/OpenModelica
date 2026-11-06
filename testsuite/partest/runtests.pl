@@ -83,7 +83,7 @@ my $osname = $^O;
 # it belongs to are enabled. 'disabled' is such a tag: a test carrying it is not
 # part of the testsuite at all, see %suite_enabled.
 my @category_suites = qw(default cpp cppmsl tearing hpcom);
-my @tag_suites = qw(metamodelica 63bit antlr cSources fmuCSources stackoverflow wasm hdf5 arrow nativeSharedLib realTime smoke gbode ofScripting nfScripting disabled);
+my @tag_suites = qw(metamodelica 63bit antlr cSources fmuCSources cRuntime cRustRuntime stackoverflow wasm hdf5 arrow nativeSharedLib realTime smoke gbode ofScripting nfScripting disabled);
 my %suite_enabled = (
   default      => 1,  # Everything not claimed by another category.
   cpp          => 1,  # */cppruntime/*
@@ -96,6 +96,9 @@ my %suite_enabled = (
   cSources     => 1,  # Inspects the generated C files and the init XML beside them,
                       # which only the C target writes.
   fmuCSources  => 1,  # Inspects sources/ inside an FMU, which only the C export has.
+  cRuntime     => 1,  # Expects the C simulation runtime (--simCodeTarget=C).
+  cRustRuntime => 0,  # Expects the Rust simulation runtime linked natively
+                      # (--simCodeTarget=C+Rust), so only the C+Rust run turns it on.
   stackoverflow => 1, # Recurses until the stack runs out; needs MMC's SEGV-handler
                       # recovery, which the Rust port has no equivalent of.
   wasm         => 0,  # Selects the wasm-jit/wasm target itself, so it only runs

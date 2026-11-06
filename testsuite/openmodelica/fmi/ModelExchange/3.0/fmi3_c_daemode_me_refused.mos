@@ -1,0 +1,20 @@
+// name: fmi3_c_daemode_me_refused.mos
+// keywords: FMI 3.0 export Model Exchange daeMode
+// status: correct
+// suite: cRuntime
+// teardown_command: rm -rf DaeModeMeC*
+//
+// The C simulation runtime has no residual form to serve, so it refuses a
+// `--daeMode` Model Exchange FMU. The Rust simulation runtime exports it
+// (fmi3_c_daemode_me).
+
+loadFile("fmi3_c_daemode_me.mo"); getErrorString();
+buildModelFMU(DaeModeMeC, version="3.0", fmuType="me"); getErrorString();
+
+// Result:
+// true
+// ""
+// ""
+// "Error: DAE mode (--daeMode) is not supported by the C simulation runtime for a Model Exchange FMU (fmuType=\"me\"). Export a Co-Simulation FMU (fmuType=\"cs\"), export with platforms={\"wasm\"}, whose runtime serves the residual form (as fmi-ls-dae for Model Exchange), with --simCodeTarget=C+Rust for an FMI 3.0 Model Exchange FMU (as fmi-ls-dae), or remove the --daeMode flag.
+// "
+// endResult

@@ -1,15 +1,16 @@
 // name: fmi3_c_daemode_me.mos
 // keywords: FMI 3.0 export Model Exchange daeMode fmi-ls-dae
 // status: correct
+// suite: cRustRuntime
 // teardown_command: rm -rf DaeModeMeC*
 //
 // A `--daeMode` model exported as a Model Exchange FMU by the C target on the
 // Rust simulation runtime (--simCodeTarget=C+Rust), through fmi-ls-dae. The C
-// simulation runtime of --simCodeTarget=C has no residual form to serve, so that
-// export is refused. The FMU is an ordinary ODE FMU until the importer sets the
-// structural parameter the manifest names, and a DAE FMU after: the importer
-// then owns the states, their derivatives and the algebraic variables, sets
-// them like any other variable, and reads the residuals back.
+// simulation runtime refuses it (fmi3_c_daemode_me_refused). The FMU is an
+// ordinary ODE FMU until the importer sets the structural parameter the
+// manifest names, and a DAE FMU after: the importer then owns the states, their
+// derivatives and the algebraic variables, sets them like any other variable,
+// and reads the residuals back.
 //
 // The value references of the switch and the residuals follow the event
 // indicators, the same numbers the wasm target assigns (fmi3_wasm_daemode_me).
@@ -20,11 +21,6 @@
 setCommandLineOptions("--fmiSources=true"); getErrorString();
 loadFile("fmi3_c_daemode_me.mo"); getErrorString();
 
-// the C simulation runtime: refused
-setCommandLineOptions("--simCodeTarget=C"); getErrorString();
-buildModelFMU(DaeModeMeC, version="3.0", fmuType="me"); getErrorString();
-
-setCommandLineOptions("--simCodeTarget=C+Rust"); getErrorString();
 buildModelFMU(DaeModeMeC, version="3.0", fmuType="me"); getErrorString();
 
 system("unzip -cqq DaeModeMeC.fmu extra/org.fmi-standard.fmi-ls-dae/fmi-ls-manifest.xml > DaeModeMeC_lsdae.xml"); getErrorString();
@@ -38,13 +34,6 @@ system("unzip -cqq DaeModeMeC.fmu sources/DaeModeMeC_FMU.c | grep \"compiledInDA
 // Result:
 // true
 // ""
-// true
-// ""
-// true
-// ""
-// ""
-// "Error: DAE mode (--daeMode) is not supported by the C simulation runtime for a Model Exchange FMU (fmuType=\"me\"). Export a Co-Simulation FMU (fmuType=\"cs\"), export with platforms={\"wasm\"}, whose runtime serves the residual form (as fmi-ls-dae for Model Exchange), with --simCodeTarget=C+Rust for an FMI 3.0 Model Exchange FMU (as fmi-ls-dae), or remove the --daeMode flag.
-// "
 // true
 // ""
 // "DaeModeMeC.fmu"

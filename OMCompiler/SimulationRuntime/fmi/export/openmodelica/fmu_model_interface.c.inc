@@ -494,14 +494,18 @@ static fmiXStatus unsupportedFunction(ModelInstance *comp, const char *func)
 /**
  * @brief Helper for macro FILTERED_LOG
  *
+ * An error is logged whatever the categories are: the status alone does not
+ * tell the reason.
+ *
  * @param comp            Pointer to FMU component.
+ * @param status          Status of the message.
  * @param categoryIndex   Logging category index.
- * @return fmiXBoolean    Return `fmiXTrue` if logging category is enabled,
+ * @return fmiXBoolean    Return `fmiXTrue` if the message is logged,
  *                        otherwise return `fmiXFalse`.
  */
-fmiXBoolean isCategoryLogged(ModelInstance *comp, int categoryIndex)
+fmiXBoolean isLogged(ModelInstance *comp, fmiXStatus status, int categoryIndex)
 {
-  if (categoryIndex < NUMBER_OF_CATEGORIES && (comp->logCategories[categoryIndex] || comp->logCategories[LOG_ALL])) {
+  if (categoryIndex < NUMBER_OF_CATEGORIES && (status == fmiXError || status == fmiXFatal || comp->logCategories[categoryIndex] || comp->logCategories[LOG_ALL])) {
     return fmiXTrue;
   }
   return fmiXFalse;
@@ -511,7 +515,7 @@ static void omc_assert_fmi_common(threadData_t *threadData, fmiXStatus status, i
 {
   ModelInstance* c = threadData ? (ModelInstance*) threadData->localRoots[LOCAL_ROOT_FMI_DATA] : NULL;
   char str[2048];
-  if (c && !isCategoryLogged(c, categoryIndex)) {
+  if (c && !isLogged(c, status, categoryIndex)) {
     return;
   }
   vsnprintf(str, sizeof(str), msg, args);

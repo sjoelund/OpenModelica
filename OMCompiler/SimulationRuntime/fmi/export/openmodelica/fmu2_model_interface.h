@@ -130,7 +130,7 @@ typedef struct {
   size_t nHistory;
 } INTERNAL_FMU_STATE;
 
-fmi2Boolean isCategoryLogged(ModelInstance *comp, int categoryIndex);
+fmi2Boolean isLogged(ModelInstance *comp, fmi2Status status, int categoryIndex);
 
 static fmi2String logCategoriesNames[] = {"logEvents", "logSingularLinearSystems", "logNonlinearSystems", "logDynamicStateSelection",
     "logStatusWarning", "logStatusDiscard", "logStatusError", "logStatusFatal", "logStatusPending", "logAll", "logFmi2Call"};
@@ -139,9 +139,9 @@ static fmi2String logCategoriesNames[] = {"logEvents", "logSingularLinearSystems
 /**
  * @brief Macro to be used to log messages.
  *
- * The macro check if current log category is active and, if true, call the
- * logger provided by simulator. Prevents evaluation of arguments if logging
- * category is disabled.
+ * The macro checks with isLogged if the message is logged and, if true, calls
+ * the logger provided by simulator. Prevents evaluation of arguments if the
+ * message is not logged.
  *
  * @param instance        FMU instance.
  * @param status          FMI2 status.
@@ -149,7 +149,7 @@ static fmi2String logCategoriesNames[] = {"logEvents", "logSingularLinearSystems
  * @param message         Pointer to null-terminated format string to log.
  * @param ...             Arguments specifying data to log.
  */
-#define FILTERED_LOG(instance, status, categoryIndex, message, ...) if (isCategoryLogged(instance, categoryIndex)) { \
+#define FILTERED_LOG(instance, status, categoryIndex, message, ...) if (isLogged(instance, status, categoryIndex)) { \
     instance->logger(instance->componentEnvironment, instance->instanceName, status, \
         logCategoriesNames[categoryIndex], message, ##__VA_ARGS__); }
 #endif

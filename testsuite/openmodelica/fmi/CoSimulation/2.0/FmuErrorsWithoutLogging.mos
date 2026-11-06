@@ -1,0 +1,54 @@
+// name:     FmuErrorsWithoutLogging
+// keywords: FMI 2.0 3.0 export logger loggingOn
+// status:   correct
+// teardown_command: rm -rf FmuErrorsWithoutLogging2* FmuErrorsWithoutLogging3*
+//
+// With logging off (loggingOn = false), an FMU must still log the reason of an
+// error: the status alone does not tell it.
+
+loadString("
+model FmuErrorsWithoutLogging
+  function g
+    input Real x;
+    output Real y;
+  algorithm
+    assert(x > 0, \"g: x must be positive\");
+    y := log(x);
+  end g;
+  Real x(start = 1, fixed = true);
+  Real y = g(x);
+equation
+  der(x) = -1;
+end FmuErrorsWithoutLogging;
+"); getErrorString();
+buildModelFMU(FmuErrorsWithoutLogging, version = "2.0", fmuType = "cs", fileNamePrefix = "FmuErrorsWithoutLogging2", platforms = {"static"}); getErrorString();
+buildModelFMU(FmuErrorsWithoutLogging, version = "3.0", fmuType = "cs", fileNamePrefix = "FmuErrorsWithoutLogging3", platforms = {"static"}); getErrorString();
+system("\"" + (if getEnvironmentVar("FMPY_TOOL") == "" then "python3" else getEnvironmentVar("FMPY_TOOL")) + "\" FmuErrorsWithoutLogging.py FmuErrorsWithoutLogging2.fmu FmuErrorsWithoutLogging2_out.txt > FmuErrorsWithoutLogging2.log 2>&1"); getErrorString();
+readFile("FmuErrorsWithoutLogging2_out.txt"); getErrorString();
+system("\"" + (if getEnvironmentVar("FMPY_TOOL") == "" then "python3" else getEnvironmentVar("FMPY_TOOL")) + "\" FmuErrorsWithoutLogging.py FmuErrorsWithoutLogging3.fmu FmuErrorsWithoutLogging3_out.txt > FmuErrorsWithoutLogging3.log 2>&1"); getErrorString();
+readFile("FmuErrorsWithoutLogging3_out.txt"); getErrorString();
+
+// Result:
+// true
+// ""
+// "FmuErrorsWithoutLogging2.fmu"
+// "Notification: Building FMU for platform 'static' (1/1).
+// Notification: Finished FMU for platform 'static' (1/1).
+// "
+// "FmuErrorsWithoutLogging3.fmu"
+// "Notification: Building FMU for platform 'static' (1/1).
+// Notification: Finished FMU for platform 'static' (1/1).
+// "
+// 0
+// ""
+// "a step failed
+// reason logged = True
+// "
+// ""
+// 0
+// ""
+// "a step failed
+// reason logged = True
+// "
+// ""
+// endResult

@@ -159,7 +159,7 @@ typedef struct {
   size_t nHistory;
 } INTERNAL_FMU_STATE;
 
-fmi3Boolean isCategoryLogged(ModelInstance *comp, int categoryIndex);
+fmi3Boolean isLogged(ModelInstance *comp, fmi3Status status, int categoryIndex);
 
 static fmi3String logCategoriesNames[] = {"logEvents", "logSingularLinearSystems", "logNonlinearSystems", "logDynamicStateSelection",
     "logStatusWarning", "logStatusDiscard", "logStatusError", "logStatusFatal", "logStatusPending", "logAll", "logFmi3Call"};
@@ -176,7 +176,7 @@ void omc_fmi3_logCallback(fmi3LogMessageCallback logMessage, fmi3InstanceEnviron
 /**
  * @brief Macro to be used to log messages.
  */
-#define FILTERED_LOG(instance, status, categoryIndex, message, ...) if (isCategoryLogged(instance, categoryIndex)) { \
+#define FILTERED_LOG(instance, status, categoryIndex, message, ...) if (isLogged(instance, status, categoryIndex)) { \
     omc_fmi3_logMessage(instance, status, categoryIndex, message, ##__VA_ARGS__); }
 #endif
 

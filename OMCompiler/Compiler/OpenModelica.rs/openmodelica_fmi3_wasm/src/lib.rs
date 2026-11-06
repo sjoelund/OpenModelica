@@ -339,7 +339,7 @@ pub fn log_solver_assert(nonlinear: bool, msg: &str) {
     fmi_log(Status::Ok, if nonlinear { CAT_NONLINEAR } else { CAT_ALL }, msg);
 }
 
-/// C's `FILTERED_LOG` / `isCategoryLogged`. The reason a call fails is not
+/// C's `FILTERED_LOG` / `isLogged`. The reason a call fails is not
 /// filtered: the status alone tells the importer nothing.
 fn fmi_log(status: Status, cat: u32, msg: &str) {
     let cats = logger().cats;

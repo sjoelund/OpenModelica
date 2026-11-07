@@ -4161,7 +4161,16 @@ pub fn solve_nls(
         hom_method,
         ..
     } = *spec;
-    let (nominal, bounds) = (spec.nominal, spec.bounds);
+    // The solvers scale by the nominal: use its magnitude, and 1.0 when that is 0, inf or NaN.
+    let nominal: alloc::vec::Vec<f64> = spec
+        .nominal
+        .iter()
+        .map(|v| {
+            let a = fmath::fabs(*v);
+            if a > 0.0 && a.is_finite() { a } else { 1.0 }
+        })
+        .collect();
+    let (nominal, bounds) = (&nominal[..], spec.bounds);
     let casual = spec.casual;
     let n = spec.size as u32;
     let hom_support = u32::from(spec.hom_support);

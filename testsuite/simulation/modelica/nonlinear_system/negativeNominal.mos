@@ -1,0 +1,43 @@
+// name: negativeNominal
+// keywords: nonlinear nominal scaling
+// status: correct
+// teardown_command: rm -f NegativeNominal*
+//
+// x starts at 0 and has a negative nominal. The solvers scale by the nominal,
+// which must not give a scale factor of 0 and an iteration variable of NaN.
+
+loadString("
+model NegativeNominal
+  Real x(start = 0, nominal = -2);
+equation
+  x + x^3 = -10;
+end NegativeNominal;
+"); getErrorString();
+
+simulate(NegativeNominal, stopTime = 0); getErrorString();
+val(x, 0);
+simulate(NegativeNominal, stopTime = 0, simflags = "-nls=hybrid"); getErrorString();
+val(x, 0);
+
+// Result:
+// true
+// ""
+// record SimulationResult
+//     resultFile = "NegativeNominal_res.mat",
+//     simulationOptions = "startTime = 0.0, stopTime = 0.0, numberOfIntervals = 500, tolerance = 1e-6, method = 'dassl', fileNamePrefix = 'NegativeNominal', options = '', outputFormat = 'mat', variableFilter = '.*', cflags = '', simflags = ''",
+//     messages = "LOG_SUCCESS       | info    | The initialization finished successfully without homotopy method.
+// LOG_SUCCESS       | info    | The simulation finished successfully.
+// "
+// end SimulationResult;
+// ""
+// -2.0
+// record SimulationResult
+//     resultFile = "NegativeNominal_res.mat",
+//     simulationOptions = "startTime = 0.0, stopTime = 0.0, numberOfIntervals = 500, tolerance = 1e-6, method = 'dassl', fileNamePrefix = 'NegativeNominal', options = '', outputFormat = 'mat', variableFilter = '.*', cflags = '', simflags = '-nls=hybrid'",
+//     messages = "LOG_SUCCESS       | info    | The initialization finished successfully without homotopy method.
+// LOG_SUCCESS       | info    | The simulation finished successfully.
+// "
+// end SimulationResult;
+// ""
+// -2.0
+// endResult

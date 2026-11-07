@@ -377,6 +377,16 @@ static inline modelica_boolean adaptiveHomotopy(DATA *data, NONLINEAR_SYSTEM_DAT
  * @param nonlinsys         Pointer to non-linear system.
  * @param sysNum            Number of non-linear system.
  */
+/* The solvers scale by the nominal: use its magnitude, and 1.0 when that is 0, inf or NaN. */
+static void makeNominalsPositive(NONLINEAR_SYSTEM_DATA *nonlinsys)
+{
+  modelica_integer i;
+  for (i = 0; i < nonlinsys->size; i++) {
+    double nominal = fabs(nonlinsys->nominal[i]);
+    nonlinsys->nominal[i] = nominal > 0 && isfinite(nominal) ? nominal : 1.0;
+  }
+}
+
 void initializeNonlinearSystemData(DATA *data, threadData_t *threadData, NONLINEAR_SYSTEM_DATA *nonlinsys, int sysNum) {
   modelica_integer size;
   struct dataSolver *solverData;
@@ -447,6 +457,7 @@ void initializeNonlinearSystemData(DATA *data, threadData_t *threadData, NONLINE
   nonlinsys->max = (double*) malloc(size*sizeof(double));
   /* Init sparsitiy pattern */
   nonlinsys->initializeStaticNLSData(data, threadData, nonlinsys, 1 /* true */, 1 /* true */);
+  makeNominalsPositive(nonlinsys);
 
   if(nonlinsys->sparsePattern) {
     /* only test for singularity if sparsity pattern is supposed to be there */
@@ -646,6 +657,7 @@ int updateStaticDataOfNonlinearSystems(DATA *data, threadData_t *threadData)
   for(i=0; i<data->modelData->nNonLinearSystems; ++i)
   {
     nonlinsys[i].initializeStaticNLSData(data, threadData, &nonlinsys[i], FALSE, FALSE);
+    makeNominalsPositive(&nonlinsys[i]);
   }
 
   messageClose(OMC_LOG_NLS);

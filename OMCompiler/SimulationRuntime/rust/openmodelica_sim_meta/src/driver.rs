@@ -10543,6 +10543,11 @@ impl CsDriver {
                     if terminated(e, sim_data, layout)? {
                         return Ok(CsStep::Terminated);
                     }
+                    if fire_clocks(e, &mut self.sync, model, sim_data, tr, SYNC_EPS, None)?
+                        && terminated(e, sim_data, layout)?
+                    {
+                        return Ok(CsStep::Terminated);
+                    }
                     self.after_walk_event(e, layout)?;
                     continue;
                 }
@@ -10582,6 +10587,11 @@ impl CsDriver {
                     self.core.time_events += 1;
                     self.core.note_time_event();
                     if terminated(e, sim_data, layout)? {
+                        return Ok(CsStep::Terminated);
+                    }
+                    if fire_clocks(e, &mut self.sync, model, sim_data, te, SYNC_EPS, None)?
+                        && terminated(e, sim_data, layout)?
+                    {
                         return Ok(CsStep::Terminated);
                     }
                     self.after_walk_event(e, layout)?;
@@ -11136,6 +11146,12 @@ impl Driver for EventsDriver {
                             emit_row(e, &mut self.rows, sim_data, layout, te, model.stop_time)?;
                         }
                         if terminated(e, sim_data, layout)? {
+                            self.finished = true;
+                            return Ok(Advance::Terminated);
+                        }
+                        if fire_clocks(e, &mut self.sync, model, sim_data, te, SYNC_EPS, Some(&mut self.rows))?
+                            && terminated(e, sim_data, layout)?
+                        {
                             self.finished = true;
                             return Ok(Advance::Terminated);
                         }

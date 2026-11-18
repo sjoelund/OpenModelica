@@ -1,0 +1,32 @@
+// name: EventClockTimeEvent
+// keywords: synchronous event clock time event
+// status: correct
+//
+// A time event between two output points fires the event clock.
+
+loadString("
+model EventClockTimeEvent
+  Real trig = if time < 0.502 then 1 else 0.2;
+  Clock clk = Clock(trig < 0.4);
+  Real y = sample(time, clk);
+annotation(experiment(StopTime=1, Interval=0.01));
+end EventClockTimeEvent;
+"); getErrorString();
+simulate(EventClockTimeEvent); getErrorString();
+val(y, 0.505);
+val(y, 1.0);
+
+// Result:
+// true
+// ""
+// record SimulationResult
+//     resultFile = "EventClockTimeEvent_res.mat",
+//     simulationOptions = "startTime = 0.0, stopTime = 1.0, numberOfIntervals = 100, tolerance = 1e-6, method = 'auto', fileNamePrefix = 'EventClockTimeEvent', options = '', outputFormat = 'mat', variableFilter = '.*', cflags = '', simflags = ''",
+//     messages = "LOG_SUCCESS       | info    | The initialization finished successfully without homotopy method.
+// LOG_SUCCESS       | info    | The simulation finished successfully.
+// "
+// end SimulationResult;
+// ""
+// 0.502
+// 0.502
+// endResult

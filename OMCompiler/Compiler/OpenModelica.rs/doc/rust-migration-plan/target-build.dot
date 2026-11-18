@@ -1,0 +1,41 @@
+digraph target_build {
+  graph [rankdir=LR, fontname="Helvetica", fontsize=14, nodesep=0.25, ranksep=0.5,
+         label="Target: omc is an ordinary cargo workspace; CMake only drives cargo, the C/C++ runtimes and packaging", labelloc=t];
+  node  [fontname="Helvetica", fontsize=10, shape=box, style="rounded,filled", fillcolor="#ffffff"];
+  edge  [fontname="Helvetica", fontsize=9, color="#555555"];
+
+  subgraph cluster_src {
+    label="Sources in git"; style="rounded,filled"; fillcolor="#f2f2f2"; color="#999999";
+    rs   [label="Rust crates (all maintained by hand)\nOMCompiler/Compiler/<crate>/\n~1.0-1.1M lines after the removals", fillcolor="#d9ead3"];
+    simrs [label="OMCompiler/SimulationRuntime/rust/<crate>/", fillcolor="#d9ead3"];
+    tpl  [label="Susan templates *.tpl\n+ *TV interface lists\n(until the code generators are rewritten)", fillcolor="#fff2a8"];
+    mb   [label="ModelicaBuiltin.mo, NFModelicaBuiltin.mo\n(Modelica declarations = data,\nalso the scripting API signatures)", fillcolor="#e0e0ff"];
+    simc [label="SimulationRuntime/c, cpp\n+ 3rdParty", fillcolor="#e0e0ff"];
+    ws   [label="Cargo.toml (workspace root), Cargo.lock,\nrust-toolchain.toml, rustfmt.toml,\nclippy.toml, [workspace.lints]", fillcolor="#d9ead3"];
+  }
+
+  subgraph cluster_cargo {
+    label="cargo (works on a clean checkout: cargo check / test / clippy / rust-analyzer)"; style="rounded"; color="#38761d";
+    br1 [label="build.rs of codegen_* crates:\nsusan (library) *.tpl -> $OUT_DIR/*.rs"];
+    br2 [label="build.rs of scripting_qt:\nscripting_api_gen -> typed API (Rust)\n+ OpenModelicaScriptingAPIQt C++"];
+    comp [label="rustc (incremental)\nonly changed crates rebuild"];
+    out [label="libOpenModelicaCompiler.so / .dll / .dylib\n+ omc launcher, wasm-jit, web bundle", fillcolor="#d9ead3"];
+  }
+
+  subgraph cluster_cmake {
+    label="CMake (top level)"; style="rounded"; color="#cc7a00";
+    rt  [label="C / C++ simulation runtime,\n3rdParty, GUI clients"];
+    drv [label="calls cargo with features + env\n(SUNDIALS, wasm blobs, ...)"];
+    inst [label="install / packaging"];
+  }
+
+  gone [label="Gone: bomc + bootstrap tarball, *.mo -> C, mmtorust,\nrust_src_sync mirror, *.rust.mo / *.handwritten.rs,\nANTLR parser, Compiler/runtime/*.c, FrontEndCpp,\nOpenModelicaScriptingAPI.mo", shape=note, fillcolor="#f4cccc"];
+
+  rs -> comp; simrs -> comp; ws -> comp;
+  tpl -> br1 -> comp;
+  mb -> br2 -> comp;
+  comp -> out;
+  simc -> rt;
+  drv -> comp [style=dashed];
+  out -> inst; rt -> inst;
+}

@@ -1,0 +1,465 @@
+{
+ "total": 1218,
+ "levels": {
+  "warning": 1218,
+  "failure-note": 2
+ },
+ "by_lint": {
+  "unused_unsafe": 2,
+  "clippy::excessive_precision": 5,
+  "clippy::too_many_arguments": 47,
+  "clippy::needless_range_loop": 91,
+  "clippy::explicit_counter_loop": 4,
+  "clippy::manual_memcpy": 3,
+  "clippy::type_complexity": 51,
+  "clippy::assign_op_pattern": 1,
+  "clippy::collapsible_if": 50,
+  "clippy::sliced_string_as_bytes": 2,
+  "unused_variables": 60,
+  "clippy::while_let_loop": 1,
+  "clippy::manual_contains": 2,
+  "clippy::result_unit_err": 3,
+  "clippy::unnecessary_sort_by": 2,
+  "clippy::for_kv_map": 1,
+  "clippy::uninit_vec": 1,
+  "clippy::should_implement_trait": 2,
+  "clippy::unnecessary_lazy_evaluations": 56,
+  "clippy::cloned_ref_to_slice_refs": 1,
+  "clippy::needless_return": 30,
+  "clippy::enum_variant_names": 3,
+  "clippy::bytes_nth": 1,
+  "clippy::clone_on_copy": 5,
+  "clippy::derived_hash_with_manual_eq": 322,
+  "clippy::large_enum_variant": 4,
+  "clippy::missing_const_for_thread_local": 3,
+  "clippy::manual_is_multiple_of": 3,
+  "clippy::non_canonical_partial_ord_impl": 2,
+  "non_upper_case_globals": 1,
+  "clippy::neg_cmp_op_on_partial_ord": 6,
+  "clippy::not_unsafe_ptr_arg_deref": 37,
+  "clippy::empty_line_after_doc_comments": 3,
+  "clippy::drop_non_drop": 4,
+  "clippy::len_without_is_empty": 1,
+  "clippy::needless_borrow": 167,
+  "clippy::manual_swap": 1,
+  "dead_code": 9,
+  "clippy::unnecessary_map_or": 3,
+  "clippy::redundant_closure": 21,
+  "clippy::needless_lifetimes": 2,
+  "E0133": 8,
+  "clippy::needless_option_as_deref": 3,
+  "clippy::approx_constant": 5,
+  "clippy::same_item_push": 1,
+  "clippy::missing_safety_doc": 13,
+  "clippy::manual_clamp": 1,
+  "clippy::map_or_identity": 1,
+  "clippy::arc_with_non_send_sync": 73,
+  "clippy::if_same_then_else": 1,
+  "non_snake_case": 19,
+  "unused_doc_comments": 3,
+  "clippy::manual_range_contains": 1,
+  "clippy::manual_checked_ops": 1,
+  "clippy::needless_borrows_for_generic_args": 1,
+  "clippy::wrong_self_convention": 3,
+  "clippy::useless_format": 1,
+  "clippy::let_and_return": 1,
+  "clippy::field_reassign_with_default": 4,
+  "clippy::only_used_in_recursion": 2,
+  "clippy::inherent_to_string": 1,
+  "clippy::never_loop": 1,
+  "unused_imports": 4,
+  "clippy::redundant_field_names": 4,
+  "clippy::precedence": 3,
+  "unused_mut": 4,
+  "unused_assignments": 1,
+  "clippy::unneeded_struct_pattern": 4,
+  "clippy::manual_inspect": 3,
+  "clippy::result_large_err": 1,
+  "clippy::unnecessary_cast": 8,
+  "clippy::explicit_auto_deref": 8,
+  "clippy::collapsible_match": 1,
+  "clippy::doc_lazy_continuation": 5,
+  "clippy::useless_conversion": 3,
+  "clippy::ptr_arg": 1,
+  "clippy::self_assignment": 2,
+  "private_interfaces": 9
+ },
+ "by_lint_gen": {
+  "clippy::derived_hash_with_manual_eq": 264,
+  "clippy::approx_constant": 5,
+  "non_snake_case": 3,
+  "clippy::never_loop": 1,
+  "clippy::self_assignment": 2
+ },
+ "by_lint_mach": {
+  "clippy::excessive_precision": 5,
+  "clippy::assign_op_pattern": 1,
+  "clippy::collapsible_if": 50,
+  "unused_variables": 60,
+  "clippy::manual_contains": 2,
+  "clippy::for_kv_map": 1,
+  "clippy::unnecessary_lazy_evaluations": 56,
+  "clippy::cloned_ref_to_slice_refs": 1,
+  "clippy::needless_return": 30,
+  "clippy::bytes_nth": 1,
+  "clippy::clone_on_copy": 5,
+  "clippy::missing_const_for_thread_local": 3,
+  "clippy::manual_is_multiple_of": 3,
+  "clippy::needless_borrow": 167,
+  "clippy::manual_swap": 1,
+  "clippy::unnecessary_map_or": 3,
+  "clippy::redundant_closure": 21,
+  "clippy::needless_lifetimes": 2,
+  "E0133": 5,
+  "clippy::needless_option_as_deref": 3,
+  "clippy::map_or_identity": 1,
+  "clippy::manual_range_contains": 1,
+  "clippy::needless_borrows_for_generic_args": 1,
+  "clippy::useless_format": 1,
+  "clippy::let_and_return": 1,
+  "clippy::never_loop": 1,
+  "unused_imports": 4,
+  "clippy::redundant_field_names": 4,
+  "clippy::precedence": 3,
+  "unused_mut": 4,
+  "clippy::unneeded_struct_pattern": 4,
+  "clippy::manual_inspect": 3,
+  "clippy::unnecessary_cast": 8,
+  "clippy::explicit_auto_deref": 8,
+  "clippy::collapsible_match": 1,
+  "clippy::useless_conversion": 3
+ },
+ "by_crate": {
+  "openmodelica_lapack": 2,
+  "minpack": 17,
+  "openmodelica_result_diff": 3,
+  "openmodelica_wasi": 2,
+  "openmodelica_modelica_diff": 3,
+  "openmodelica_ext_native": 2,
+  "build-script-build": 1,
+  "openmodelica_fmi": 2,
+  "openmodelica_result_files": 1,
+  "metamodelica": 15,
+  "openmodelica_package_manager": 5,
+  "openmodelica_error": 7,
+  "openmodelica_solvers": 53,
+  "openmodelica_util_datatypes_basic": 6,
+  "openmodelica_nls": 176,
+  "openmodelica_ast": 68,
+  "openmodelica_fmi_driver": 5,
+  "openmodelica_sim_meta": 79,
+  "openmodelica_frontend_types": 53,
+  "openmodelica_util": 84,
+  "openmodelica_wasm_jit": 41,
+  "openmodelica_omgraphics": 5,
+  "openmodelica_backend_util": 10,
+  "openmodelica_codegen_graphml": 12,
+  "openmodelica_frontend_dump": 10,
+  "openmodelica_ast_collections": 1,
+  "openmodelica_frontend_inst": 4,
+  "openmodelica_script_util": 36,
+  "openmodelica_backend_types": 14,
+  "openmodelica_loader": 2,
+  "openmodelica_simcode_types": 20,
+  "openmodelica_frontend_base": 2,
+  "openmodelica_nf_frontend": 37,
+  "openmodelica_frontend": 31,
+  "openmodelica_nf_api": 4,
+  "openmodelica_codegen_util": 4,
+  "openmodelica_codegen_wasm_jit": 307,
+  "openmodelica_nbackend": 18,
+  "openmodelica_backend": 23,
+  "openmodelica_backend_tools": 15,
+  "openmodelica_backend_main": 7,
+  "OpenModelicaCompiler": 31
+ },
+ "by_crate_lint": {
+  "openmodelica_lapack": {
+   "unused_unsafe": 2
+  },
+  "minpack": {
+   "clippy::excessive_precision": 1,
+   "clippy::too_many_arguments": 1,
+   "clippy::needless_range_loop": 7,
+   "clippy::explicit_counter_loop": 3,
+   "clippy::manual_memcpy": 3,
+   "clippy::type_complexity": 1,
+   "clippy::assign_op_pattern": 1
+  },
+  "openmodelica_result_diff": {
+   "clippy::needless_range_loop": 2,
+   "clippy::too_many_arguments": 1
+  },
+  "openmodelica_wasi": {
+   "clippy::collapsible_if": 2
+  },
+  "openmodelica_modelica_diff": {
+   "clippy::sliced_string_as_bytes": 2,
+   "clippy::type_complexity": 1
+  },
+  "openmodelica_ext_native": {
+   "clippy::type_complexity": 2
+  },
+  "build-script-build": {
+   "unused_variables": 1
+  },
+  "openmodelica_fmi": {
+   "clippy::while_let_loop": 1,
+   "clippy::manual_contains": 1
+  },
+  "openmodelica_result_files": {
+   "clippy::collapsible_if": 1
+  },
+  "metamodelica": {
+   "clippy::result_unit_err": 2,
+   "clippy::unnecessary_sort_by": 1,
+   "clippy::for_kv_map": 1,
+   "clippy::uninit_vec": 1,
+   "clippy::should_implement_trait": 1,
+   "clippy::unnecessary_lazy_evaluations": 6,
+   "clippy::needless_return": 2,
+   "clippy::bytes_nth": 1
+  },
+  "openmodelica_package_manager": {
+   "clippy::cloned_ref_to_slice_refs": 1,
+   "clippy::enum_variant_names": 3,
+   "clippy::type_complexity": 1
+  },
+  "openmodelica_error": {
+   "clippy::too_many_arguments": 1,
+   "clippy::clone_on_copy": 1,
+   "clippy::result_unit_err": 1,
+   "clippy::derived_hash_with_manual_eq": 4
+  },
+  "openmodelica_solvers": {
+   "clippy::needless_return": 1,
+   "clippy::too_many_arguments": 6,
+   "clippy::needless_range_loop": 30,
+   "clippy::large_enum_variant": 1,
+   "clippy::type_complexity": 2,
+   "clippy::neg_cmp_op_on_partial_ord": 3,
+   "clippy::collapsible_if": 1,
+   "clippy::not_unsafe_ptr_arg_deref": 9
+  },
+  "openmodelica_util_datatypes_basic": {
+   "clippy::missing_const_for_thread_local": 1,
+   "clippy::manual_is_multiple_of": 1,
+   "clippy::unnecessary_sort_by": 1,
+   "clippy::non_canonical_partial_ord_impl": 2,
+   "non_upper_case_globals": 1
+  },
+  "openmodelica_nls": {
+   "clippy::empty_line_after_doc_comments": 1,
+   "clippy::too_many_arguments": 3,
+   "clippy::needless_range_loop": 12,
+   "clippy::neg_cmp_op_on_partial_ord": 1,
+   "clippy::type_complexity": 6,
+   "clippy::collapsible_if": 2,
+   "clippy::drop_non_drop": 3,
+   "clippy::len_without_is_empty": 1,
+   "clippy::needless_borrow": 145,
+   "clippy::manual_swap": 1,
+   "clippy::excessive_precision": 1
+  },
+  "openmodelica_ast": {
+   "dead_code": 1,
+   "clippy::derived_hash_with_manual_eq": 54,
+   "clippy::unnecessary_map_or": 2,
+   "clippy::too_many_arguments": 2,
+   "clippy::redundant_closure": 9
+  },
+  "openmodelica_fmi_driver": {
+   "clippy::needless_lifetimes": 1,
+   "clippy::manual_is_multiple_of": 1,
+   "clippy::needless_range_loop": 1,
+   "clippy::large_enum_variant": 1,
+   "clippy::neg_cmp_op_on_partial_ord": 1
+  },
+  "openmodelica_sim_meta": {
+   "E0133": 1,
+   "dead_code": 2,
+   "clippy::needless_range_loop": 23,
+   "clippy::type_complexity": 11,
+   "clippy::collapsible_if": 4,
+   "clippy::redundant_closure": 2,
+   "clippy::needless_option_as_deref": 3,
+   "clippy::needless_lifetimes": 1,
+   "clippy::too_many_arguments": 6,
+   "clippy::needless_borrow": 2,
+   "clippy::unnecessary_lazy_evaluations": 1,
+   "clippy::neg_cmp_op_on_partial_ord": 1,
+   "clippy::should_implement_trait": 1,
+   "clippy::same_item_push": 1,
+   "clippy::missing_safety_doc": 12,
+   "clippy::not_unsafe_ptr_arg_deref": 1,
+   "clippy::excessive_precision": 3,
+   "clippy::manual_clamp": 1,
+   "clippy::large_enum_variant": 1,
+   "clippy::manual_is_multiple_of": 1,
+   "clippy::map_or_identity": 1
+  },
+  "openmodelica_frontend_types": {
+   "clippy::derived_hash_with_manual_eq": 52,
+   "clippy::approx_constant": 1
+  },
+  "openmodelica_util": {
+   "unused_variables": 1,
+   "dead_code": 1,
+   "clippy::derived_hash_with_manual_eq": 26,
+   "clippy::unnecessary_lazy_evaluations": 6,
+   "clippy::type_complexity": 3,
+   "clippy::arc_with_non_send_sync": 8,
+   "clippy::too_many_arguments": 13,
+   "clippy::missing_const_for_thread_local": 1,
+   "clippy::not_unsafe_ptr_arg_deref": 15,
+   "clippy::needless_return": 4,
+   "clippy::if_same_then_else": 1,
+   "clippy::needless_range_loop": 2,
+   "clippy::collapsible_if": 1,
+   "clippy::missing_safety_doc": 1,
+   "non_snake_case": 1
+  },
+  "openmodelica_wasm_jit": {
+   "unused_doc_comments": 1,
+   "clippy::empty_line_after_doc_comments": 1,
+   "unused_variables": 9,
+   "clippy::type_complexity": 2,
+   "clippy::collapsible_if": 3,
+   "clippy::needless_borrows_for_generic_args": 1,
+   "clippy::too_many_arguments": 5,
+   "clippy::redundant_closure": 5,
+   "clippy::wrong_self_convention": 1,
+   "clippy::useless_format": 1,
+   "clippy::unnecessary_lazy_evaluations": 4,
+   "clippy::let_and_return": 1,
+   "clippy::field_reassign_with_default": 1,
+   "clippy::clone_on_copy": 4,
+   "clippy::needless_borrow": 1,
+   "clippy::only_used_in_recursion": 1
+  },
+  "openmodelica_omgraphics": {
+   "clippy::manual_range_contains": 1,
+   "clippy::manual_checked_ops": 1,
+   "clippy::needless_borrow": 3
+  },
+  "openmodelica_backend_util": {
+   "clippy::needless_range_loop": 10
+  },
+  "openmodelica_codegen_graphml": {
+   "clippy::derived_hash_with_manual_eq": 12
+  },
+  "openmodelica_frontend_dump": {
+   "clippy::derived_hash_with_manual_eq": 10
+  },
+  "openmodelica_ast_collections": {
+   "clippy::derived_hash_with_manual_eq": 1
+  },
+  "openmodelica_frontend_inst": {
+   "clippy::derived_hash_with_manual_eq": 4
+  },
+  "openmodelica_script_util": {
+   "unused_variables": 8,
+   "clippy::needless_return": 8,
+   "clippy::unnecessary_lazy_evaluations": 1,
+   "clippy::not_unsafe_ptr_arg_deref": 6,
+   "clippy::derived_hash_with_manual_eq": 4,
+   "clippy::too_many_arguments": 1,
+   "clippy::wrong_self_convention": 2,
+   "clippy::inherent_to_string": 1,
+   "clippy::field_reassign_with_default": 2,
+   "clippy::type_complexity": 1,
+   "non_snake_case": 2
+  },
+  "openmodelica_backend_types": {
+   "clippy::derived_hash_with_manual_eq": 14
+  },
+  "openmodelica_loader": {
+   "clippy::derived_hash_with_manual_eq": 2
+  },
+  "openmodelica_simcode_types": {
+   "clippy::derived_hash_with_manual_eq": 20
+  },
+  "openmodelica_frontend_base": {
+   "clippy::derived_hash_with_manual_eq": 1,
+   "clippy::approx_constant": 1
+  },
+  "openmodelica_nf_frontend": {
+   "clippy::derived_hash_with_manual_eq": 36,
+   "clippy::never_loop": 1
+  },
+  "openmodelica_frontend": {
+   "clippy::derived_hash_with_manual_eq": 29,
+   "clippy::arc_with_non_send_sync": 1,
+   "clippy::approx_constant": 1
+  },
+  "openmodelica_nf_api": {
+   "clippy::type_complexity": 3,
+   "clippy::derived_hash_with_manual_eq": 1
+  },
+  "openmodelica_codegen_util": {
+   "clippy::derived_hash_with_manual_eq": 4
+  },
+  "openmodelica_codegen_wasm_jit": {
+   "unused_imports": 4,
+   "clippy::redundant_field_names": 4,
+   "clippy::precedence": 3,
+   "clippy::empty_line_after_doc_comments": 1,
+   "unused_doc_comments": 1,
+   "unused_variables": 41,
+   "unused_mut": 4,
+   "unused_assignments": 1,
+   "dead_code": 5,
+   "clippy::unneeded_struct_pattern": 4,
+   "clippy::redundant_closure": 5,
+   "clippy::needless_range_loop": 4,
+   "clippy::type_complexity": 18,
+   "clippy::arc_with_non_send_sync": 63,
+   "clippy::collapsible_if": 36,
+   "clippy::manual_inspect": 3,
+   "clippy::field_reassign_with_default": 1,
+   "clippy::needless_borrow": 16,
+   "clippy::too_many_arguments": 8,
+   "clippy::result_large_err": 1,
+   "clippy::needless_return": 15,
+   "clippy::unnecessary_cast": 8,
+   "clippy::explicit_auto_deref": 8,
+   "clippy::unnecessary_lazy_evaluations": 38,
+   "clippy::explicit_counter_loop": 1,
+   "clippy::drop_non_drop": 1,
+   "clippy::manual_contains": 1,
+   "clippy::large_enum_variant": 1,
+   "clippy::collapsible_match": 1,
+   "clippy::only_used_in_recursion": 1,
+   "clippy::doc_lazy_continuation": 4,
+   "clippy::missing_const_for_thread_local": 1,
+   "clippy::useless_conversion": 3,
+   "clippy::unnecessary_map_or": 1
+  },
+  "openmodelica_nbackend": {
+   "clippy::doc_lazy_continuation": 1,
+   "clippy::ptr_arg": 1,
+   "clippy::derived_hash_with_manual_eq": 8,
+   "non_snake_case": 8
+  },
+  "openmodelica_backend": {
+   "clippy::derived_hash_with_manual_eq": 18,
+   "clippy::approx_constant": 2,
+   "clippy::self_assignment": 2,
+   "clippy::arc_with_non_send_sync": 1
+  },
+  "openmodelica_backend_tools": {
+   "clippy::derived_hash_with_manual_eq": 15
+  },
+  "openmodelica_backend_main": {
+   "clippy::derived_hash_with_manual_eq": 7
+  },
+  "OpenModelicaCompiler": {
+   "unused_doc_comments": 1,
+   "E0133": 7,
+   "private_interfaces": 9,
+   "clippy::not_unsafe_ptr_arg_deref": 6,
+   "non_snake_case": 8
+  }
+ },
+ "errors": []
+}

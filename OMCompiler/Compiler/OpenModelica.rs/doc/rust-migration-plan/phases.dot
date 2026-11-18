@@ -1,0 +1,45 @@
+digraph phases {
+  graph [rankdir=LR, fontname="Helvetica", fontsize=14, nodesep=0.3, ranksep=0.35,
+         label="Order of the work. Each box is a set of PRs; an arrow means \"must be finished first\".", labelloc=t];
+  node  [fontname="Helvetica", fontsize=10, shape=box, style="rounded,filled", fillcolor="#ffffff"];
+  edge  [color="#555555"];
+
+  subgraph cluster_p0 {
+    label="Phase 0 - now, before the branch (master still MetaModelica)"; style="rounded"; color="#888888";
+    p0a [label="Decisions:\nlayout, naming, Integer width,\ntemplates, lint policy"];
+    p0b [label="Generator work in mmtorust/susan:\ntop lints, Integer, names,\nheader comment with .mo origin"];
+    p0c [label="Rust omc at parity:\nall CI lanes + Windows/macOS\n+ OMEdit + installers"];
+    p0d [label="Freeze tools:\ntag mmtorust,\nport-a-PR script"];
+  }
+  br [label="Release branch\nmaintenance/v1.28\n(MetaModelica, C omc)", shape=cds, fillcolor="#e0e0ff"];
+  subgraph cluster_p1 {
+    label="Phase 1 - weeks 1-2 after the branch"; style="rounded"; color="#888888";
+    p1a [label="Rust omc is the only omc:\ndrop bomc / C build of omc"];
+    p1b [label="Delete in .mo:\nFMI 1.0, old frontend entry\npoints, -g=MetaModelica"];
+  }
+  subgraph cluster_p2 {
+    label="Phase 2 - the flip (announced date, 2-3 day .mo freeze)"; style="rounded"; color="#888888";
+    p2a [label="Commit generated Rust,\nrustfmt, delete *.mo,\nmove crates, one workspace"];
+    p2b [label="CI: cargo fmt --check +\nclippy -D warnings with the\nworkspace allow-list"];
+  }
+  subgraph cluster_p3 {
+    label="Phase 3 - weeks 1-6 after the flip"; style="rounded"; color="#888888";
+    p3a [label="Lint burn-down\n(one lint per PR,\nclippy --fix)"];
+    p3b [label="Remove leftovers:\nmmtorust, Stubs, C runtime\nfor omc, ANTLR parser, ..."];
+    p3c [label="Port open .mo PRs\nwith the frozen mmtorust"];
+  }
+  subgraph cluster_p4 {
+    label="Phase 4 - months after: redesign"; style="rounded"; color="#888888";
+    p4a [label="Scripting API on NF only\n(no FCore/FGraph, no Inst)"];
+    p4b [label="Errors, globals, data\nstructures (List/Array/HashTable)"];
+    p4c [label="NB default -> remove old\nbackend, DAE, SimCode on NF types"];
+    p4d [label="Rewrite code generators\n(drop Susan)"];
+  }
+
+  p0a -> p0b -> p0c;
+  p0b -> p0d;
+  p0c -> br [style=invis];
+  br -> p1a -> p1b -> p2a -> p2b -> p3a;
+  p2a -> p3b; p2a -> p3c;
+  p3a -> p4b; p3b -> p4a; p4a -> p4c -> p4d;
+}

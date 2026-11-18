@@ -1,0 +1,67 @@
+digraph target_structure {
+  graph [rankdir=TB, fontname="Helvetica", fontsize=14, nodesep=0.25, ranksep=0.5, newrank=true,
+         label="Target crate structure at the end of this plan (all Rust maintained by hand; one cargo workspace).\nDashed red = goes later, when the new backend is the default and SimCode no longer uses DAE.", labelloc=t];
+  node  [fontname="Helvetica", fontsize=10, shape=box, style="rounded,filled", fillcolor="#d9ead3"];
+  edge  [color="#777777", arrowsize=0.6];
+
+  subgraph cluster_top {
+    label="Entry points + scripting API"; style="rounded"; color="#888888";
+    omc [label="omc (launcher)"];
+    lib [label="libomc (cdylib)\nlibOpenModelicaCompiler.so"];
+    api [label="scripting API\n(CevalScript*, Interactive split out of backend_main;\nworks on NF + NFApi only, no FCore/FGraph)"];
+    qt  [label="scripting_qt\n(generated in build.rs from ModelicaBuiltin.mo)", fillcolor="#fff2a8"];
+    drv [label="compile driver\n(SimCodeMain, Main)"];
+  }
+
+  subgraph cluster_fe {
+    label="Frontend"; style="rounded"; color="#888888";
+    nf  [label="nf_frontend + nf_api\n(the only frontend)"];
+    ld  [label="loader, package_manager"];
+  }
+
+  subgraph cluster_be {
+    label="Backends"; style="rounded"; color="#888888";
+    nb  [label="nbackend"];
+    ob  [label="backend, backend_types,\nbackend_util, backend_tools\n(old backend, ~316k lines Rust)", style="rounded,filled,dashed", color="#cc0000", fillcolor="#fde9e9"];
+  }
+
+  subgraph cluster_sc {
+    label="SimCode + code generators"; style="rounded"; color="#888888";
+    sc  [label="simcode_types, simcode_util"];
+    tpl [label="codegen_* (C, C++, FMU 2/3, XML)\nSusan templates compiled in build.rs", fillcolor="#fff2a8"];
+    wj  [label="codegen_wasm_jit, wasm_jit"];
+  }
+
+  subgraph cluster_data {
+    label="Shared data (what is left of FrontEnd/)"; style="rounded"; color="#888888";
+    k1 [label="frontend_types, frontend_dump\nAbsyn, SCode, Values, ClassInf, Dump, AbsynUtil,\nSCodeUtil, ElementSource, ... (K1)"];
+    dae [label="DAE + DAE toolbox (K2): Expression, ComponentReference,\nTypes, DAEUtil, ExpressionSimplify, Inline, Ceval-lite, ...\n(frontend_base, ~98k lines Rust)\nNFConvertDAE", style="rounded,filled,dashed", color="#cc0000", fillcolor="#fde9e9"];
+  }
+
+  subgraph cluster_found {
+    label="Foundation"; style="rounded"; color="#888888";
+    ast  [label="ast (parser; Modelica grammar only)"];
+    util [label="util (Flags, Error, System, File, ...)"];
+    mm   [label="metamodelica -> core runtime types\n(List, Array, Ref, Result; shrinks over time)"];
+  }
+
+  subgraph cluster_tools {
+    label="Build tools"; style="rounded"; color="#888888";
+    susan [label="susan (template compiler, Rust)\nsusan_index, scripting_api_gen"];
+  }
+
+  simrt [label="SimulationRuntime/rust/*\n(same workspace)", shape=box3d];
+
+  removed [label="Removed in this plan:\nfrontend (Inst, Lookup, Static, Mod, FGraph, ... 119k lines Rust),\nfrontend_inst, MetaModelica grammar + MetaModelicaBuiltin,\nPatternm/MetaUtil, FMI 1.0 export/import, mmtorust,\n*.rust.mo / *.handwritten.rs, Stubs/", shape=note, fillcolor="#f4cccc"];
+
+  omc -> lib -> api; lib -> qt; lib -> wj;
+  api -> nf; api -> drv; drv -> nb; drv -> ob [style=dashed, color="#cc0000"];
+  drv -> sc; drv -> tpl;
+  tpl -> sc; wj -> sc; wj -> simrt;
+  nb -> nf; nb -> sc; nb -> dae [label="NSimCode -> old SimCode", fontsize=8];
+  ob -> dae [style=dashed, color="#cc0000"]; ob -> sc [style=dashed, color="#cc0000"];
+  sc -> dae; nf -> dae [label="NFConvertDAE", fontsize=8, style=dashed, color="#cc0000"];
+  nf -> k1; dae -> k1; ld -> k1; api -> ld;
+  k1 -> ast; ast -> mm; util -> mm; nf -> util;
+  tpl -> susan [style=dotted, label="build-dependency", fontsize=8];
+}

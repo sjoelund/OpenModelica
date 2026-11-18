@@ -1,0 +1,598 @@
+{
+ "libopenmodelica_compiler": [
+  "metamodelica",
+  "openmodelica_backend_main",
+  "openmodelica_codegen_wasm_jit",
+  "openmodelica_fmi_guide",
+  "openmodelica_frontend_types",
+  "openmodelica_modelica_utilities",
+  "openmodelica_result_files",
+  "openmodelica_revision",
+  "openmodelica_script_util",
+  "openmodelica_scripting_qt",
+  "openmodelica_sim_meta",
+  "openmodelica_util",
+  "openmodelica_wasi",
+  "openmodelica_wasm_jit"
+ ],
+ "metamodelica": [
+  "metamodelica_derive",
+  "openmodelica_wasi"
+ ],
+ "metamodelica_derive": [],
+ "mmtorust": [
+  "metamodelica",
+  "openmodelica_ast"
+ ],
+ "omshell_core": [],
+ "omshell_egui": [],
+ "omshell_omc": [
+  "openmodelica_backend_main",
+  "openmodelica_revision"
+ ],
+ "omshell_wgpu": [],
+ "openmodelica": [],
+ "openmodelica_animation": [],
+ "openmodelica_animation_wasm": [
+  "openmodelica_animation"
+ ],
+ "openmodelica_ast": [
+  "metamodelica",
+  "openmodelica_error",
+  "openmodelica_wasi"
+ ],
+ "openmodelica_ast_collections": [
+  "metamodelica",
+  "openmodelica_ast",
+  "openmodelica_frontend_dump",
+  "openmodelica_util"
+ ],
+ "openmodelica_backend": [
+  "metamodelica",
+  "openmodelica_ast",
+  "openmodelica_ast_collections",
+  "openmodelica_backend_types",
+  "openmodelica_backend_util",
+  "openmodelica_codegen_graphml",
+  "openmodelica_codegen_util",
+  "openmodelica_error",
+  "openmodelica_frontend",
+  "openmodelica_frontend_base",
+  "openmodelica_frontend_dump",
+  "openmodelica_frontend_types",
+  "openmodelica_loader",
+  "openmodelica_nf_frontend",
+  "openmodelica_program_util",
+  "openmodelica_script_util",
+  "openmodelica_simcode_types",
+  "openmodelica_simcode_util",
+  "openmodelica_tpl",
+  "openmodelica_util",
+  "openmodelica_util_datatypes_basic"
+ ],
+ "openmodelica_backend_main": [
+  "metamodelica",
+  "openmodelica_ast",
+  "openmodelica_backend",
+  "openmodelica_backend_tools",
+  "openmodelica_backend_types",
+  "openmodelica_codegen",
+  "openmodelica_codegen_c",
+  "openmodelica_codegen_cfunctions",
+  "openmodelica_codegen_cpp",
+  "openmodelica_codegen_cpp_ext",
+  "openmodelica_codegen_fmu",
+  "openmodelica_codegen_fmu_c",
+  "openmodelica_codegen_util",
+  "openmodelica_codegen_wasm_jit",
+  "openmodelica_codegen_xml",
+  "openmodelica_dump_extra",
+  "openmodelica_error",
+  "openmodelica_frontend",
+  "openmodelica_frontend_base",
+  "openmodelica_frontend_dump",
+  "openmodelica_frontend_inst",
+  "openmodelica_frontend_types",
+  "openmodelica_loader",
+  "openmodelica_nbackend",
+  "openmodelica_nf_api",
+  "openmodelica_nf_frontend",
+  "openmodelica_omgraphics",
+  "openmodelica_program_util",
+  "openmodelica_script_util",
+  "openmodelica_simcode_types",
+  "openmodelica_simcode_util",
+  "openmodelica_susan",
+  "openmodelica_tpl",
+  "openmodelica_util",
+  "openmodelica_util_datatypes_basic"
+ ],
+ "openmodelica_backend_tools": [
+  "metamodelica",
+  "openmodelica_ast",
+  "openmodelica_backend",
+  "openmodelica_backend_types",
+  "openmodelica_backend_util",
+  "openmodelica_codegen_util",
+  "openmodelica_frontend",
+  "openmodelica_frontend_base",
+  "openmodelica_frontend_dump",
+  "openmodelica_frontend_types",
+  "openmodelica_loader",
+  "openmodelica_program_util",
+  "openmodelica_simcode_types",
+  "openmodelica_tpl",
+  "openmodelica_util",
+  "openmodelica_util_datatypes_basic"
+ ],
+ "openmodelica_backend_types": [
+  "metamodelica",
+  "openmodelica_ast",
+  "openmodelica_ast_collections",
+  "openmodelica_frontend_dump",
+  "openmodelica_frontend_types",
+  "openmodelica_util",
+  "openmodelica_util_datatypes_basic"
+ ],
+ "openmodelica_backend_util": [
+  "metamodelica",
+  "openmodelica_util",
+  "openmodelica_util_datatypes_basic"
+ ],
+ "openmodelica_codegen": [
+  "metamodelica",
+  "openmodelica_ast",
+  "openmodelica_backend_types",
+  "openmodelica_codegen_util",
+  "openmodelica_frontend_base",
+  "openmodelica_frontend_dump",
+  "openmodelica_frontend_types",
+  "openmodelica_simcode_types",
+  "openmodelica_tpl",
+  "openmodelica_util",
+  "openmodelica_util_datatypes_basic"
+ ],
+ "openmodelica_codegen_c": [
+  "metamodelica",
+  "openmodelica_ast",
+  "openmodelica_backend_types",
+  "openmodelica_codegen",
+  "openmodelica_codegen_cfunctions",
+  "openmodelica_codegen_util",
+  "openmodelica_frontend_base",
+  "openmodelica_frontend_dump",
+  "openmodelica_frontend_types",
+  "openmodelica_simcode_types",
+  "openmodelica_simcode_util",
+  "openmodelica_tpl",
+  "openmodelica_util",
+  "openmodelica_util_datatypes_basic"
+ ],
+ "openmodelica_codegen_cfunctions": [
+  "metamodelica",
+  "openmodelica_ast",
+  "openmodelica_backend_types",
+  "openmodelica_codegen_util",
+  "openmodelica_frontend",
+  "openmodelica_frontend_base",
+  "openmodelica_frontend_dump",
+  "openmodelica_frontend_types",
+  "openmodelica_simcode_types",
+  "openmodelica_simcode_util",
+  "openmodelica_tpl",
+  "openmodelica_util",
+  "openmodelica_util_datatypes_basic"
+ ],
+ "openmodelica_codegen_cpp": [
+  "metamodelica",
+  "openmodelica_ast",
+  "openmodelica_backend_types",
+  "openmodelica_codegen",
+  "openmodelica_codegen_cpp_common",
+  "openmodelica_codegen_util",
+  "openmodelica_frontend_base",
+  "openmodelica_frontend_dump",
+  "openmodelica_frontend_types",
+  "openmodelica_simcode_types",
+  "openmodelica_simcode_util",
+  "openmodelica_tpl",
+  "openmodelica_util",
+  "openmodelica_util_datatypes_basic"
+ ],
+ "openmodelica_codegen_cpp_common": [
+  "metamodelica",
+  "openmodelica_ast",
+  "openmodelica_backend_types",
+  "openmodelica_codegen_fmu",
+  "openmodelica_codegen_util",
+  "openmodelica_frontend_base",
+  "openmodelica_frontend_dump",
+  "openmodelica_frontend_types",
+  "openmodelica_simcode_types",
+  "openmodelica_simcode_util",
+  "openmodelica_tpl",
+  "openmodelica_util",
+  "openmodelica_util_datatypes_basic"
+ ],
+ "openmodelica_codegen_cpp_ext": [
+  "metamodelica",
+  "openmodelica_ast",
+  "openmodelica_backend_types",
+  "openmodelica_codegen_cpp",
+  "openmodelica_codegen_cpp_common",
+  "openmodelica_codegen_fmu",
+  "openmodelica_codegen_util",
+  "openmodelica_frontend_base",
+  "openmodelica_frontend_dump",
+  "openmodelica_frontend_types",
+  "openmodelica_simcode_types",
+  "openmodelica_tpl",
+  "openmodelica_util",
+  "openmodelica_util_datatypes_basic"
+ ],
+ "openmodelica_codegen_fmu": [
+  "metamodelica",
+  "openmodelica_ast",
+  "openmodelica_backend_types",
+  "openmodelica_codegen",
+  "openmodelica_codegen_util",
+  "openmodelica_frontend_base",
+  "openmodelica_frontend_dump",
+  "openmodelica_frontend_types",
+  "openmodelica_simcode_types",
+  "openmodelica_simcode_util",
+  "openmodelica_tpl",
+  "openmodelica_util",
+  "openmodelica_util_datatypes_basic"
+ ],
+ "openmodelica_codegen_fmu_c": [
+  "metamodelica",
+  "openmodelica_ast",
+  "openmodelica_codegen",
+  "openmodelica_codegen_c",
+  "openmodelica_codegen_cfunctions",
+  "openmodelica_codegen_fmu",
+  "openmodelica_codegen_util",
+  "openmodelica_frontend_base",
+  "openmodelica_frontend_dump",
+  "openmodelica_frontend_types",
+  "openmodelica_simcode_types",
+  "openmodelica_tpl",
+  "openmodelica_util",
+  "openmodelica_util_datatypes_basic"
+ ],
+ "openmodelica_codegen_graphml": [
+  "metamodelica",
+  "openmodelica_tpl",
+  "openmodelica_util",
+  "openmodelica_util_datatypes_basic"
+ ],
+ "openmodelica_codegen_util": [
+  "metamodelica",
+  "openmodelica_ast",
+  "openmodelica_backend_types",
+  "openmodelica_error",
+  "openmodelica_frontend",
+  "openmodelica_frontend_base",
+  "openmodelica_frontend_dump",
+  "openmodelica_frontend_types",
+  "openmodelica_program_util",
+  "openmodelica_script_util",
+  "openmodelica_simcode_types",
+  "openmodelica_simcode_util",
+  "openmodelica_tpl",
+  "openmodelica_util",
+  "openmodelica_util_datatypes_basic"
+ ],
+ "openmodelica_codegen_wasm_jit": [
+  "metamodelica",
+  "openmodelica_ast",
+  "openmodelica_backend_types",
+  "openmodelica_codegen_util",
+  "openmodelica_error",
+  "openmodelica_ext_native",
+  "openmodelica_fmi",
+  "openmodelica_fmi_driver",
+  "openmodelica_frontend_base",
+  "openmodelica_frontend_dump",
+  "openmodelica_frontend_types",
+  "openmodelica_mat_reader",
+  "openmodelica_mat_writer",
+  "openmodelica_modelica_utilities",
+  "openmodelica_plt_writer",
+  "openmodelica_result_files",
+  "openmodelica_sim_meta",
+  "openmodelica_simcode_types",
+  "openmodelica_tpl",
+  "openmodelica_util",
+  "openmodelica_wasi",
+  "openmodelica_wasm_jit",
+  "openmodelica_zip"
+ ],
+ "openmodelica_codegen_wasm_jit_runtime": [
+  "openmodelica_lapack",
+  "openmodelica_mat_writer",
+  "openmodelica_nls",
+  "openmodelica_plt_writer",
+  "openmodelica_sim_meta",
+  "openmodelica_solvers"
+ ],
+ "openmodelica_codegen_xml": [
+  "metamodelica",
+  "openmodelica_ast",
+  "openmodelica_backend_types",
+  "openmodelica_frontend_base",
+  "openmodelica_frontend_dump",
+  "openmodelica_frontend_types",
+  "openmodelica_simcode_types",
+  "openmodelica_simcode_util",
+  "openmodelica_tpl",
+  "openmodelica_util",
+  "openmodelica_util_datatypes_basic"
+ ],
+ "openmodelica_download": [
+  "openmodelica_wasi"
+ ],
+ "openmodelica_dump_extra": [
+  "metamodelica",
+  "openmodelica_ast",
+  "openmodelica_frontend_dump"
+ ],
+ "openmodelica_error": [
+  "metamodelica"
+ ],
+ "openmodelica_ext_native": [
+  "openmodelica_ext_native_marshal"
+ ],
+ "openmodelica_ext_native_marshal": [],
+ "openmodelica_fmi": [],
+ "openmodelica_fmi3_wasm": [
+  "openmodelica_codegen_wasm_jit_runtime",
+  "openmodelica_ext_native_marshal",
+  "openmodelica_mat_writer",
+  "openmodelica_plt_writer",
+  "openmodelica_sim_meta"
+ ],
+ "openmodelica_fmi_driver": [
+  "openmodelica_arrow_writer",
+  "openmodelica_ext_native",
+  "openmodelica_fmi",
+  "openmodelica_mat_writer",
+  "openmodelica_solvers"
+ ],
+ "openmodelica_fmi_guide": [],
+ "openmodelica_fmi_ls_wasm_aot": [],
+ "openmodelica_fmi_ls_wasm_to_native": [
+  "openmodelica_ext_native",
+  "openmodelica_fmi_state_machine"
+ ],
+ "openmodelica_fmi_state_machine": [],
+ "openmodelica_fmi_web": [
+  "openmodelica_fmi",
+  "openmodelica_fmi_driver"
+ ],
+ "openmodelica_frontend": [
+  "metamodelica",
+  "openmodelica_ast",
+  "openmodelica_ast_collections",
+  "openmodelica_codegen_graphml",
+  "openmodelica_error",
+  "openmodelica_frontend_base",
+  "openmodelica_frontend_dump",
+  "openmodelica_frontend_inst",
+  "openmodelica_frontend_types",
+  "openmodelica_loader",
+  "openmodelica_script_util",
+  "openmodelica_tpl",
+  "openmodelica_util",
+  "openmodelica_util_datatypes_basic"
+ ],
+ "openmodelica_frontend_base": [
+  "metamodelica",
+  "openmodelica_ast",
+  "openmodelica_ast_collections",
+  "openmodelica_error",
+  "openmodelica_frontend_dump",
+  "openmodelica_frontend_inst",
+  "openmodelica_frontend_types",
+  "openmodelica_tpl",
+  "openmodelica_util",
+  "openmodelica_util_datatypes_basic"
+ ],
+ "openmodelica_frontend_dump": [
+  "metamodelica",
+  "openmodelica_ast",
+  "openmodelica_frontend_types",
+  "openmodelica_tpl",
+  "openmodelica_util",
+  "openmodelica_util_datatypes_basic"
+ ],
+ "openmodelica_frontend_inst": [
+  "metamodelica",
+  "openmodelica_ast",
+  "openmodelica_frontend_dump",
+  "openmodelica_frontend_types",
+  "openmodelica_util_datatypes_basic"
+ ],
+ "openmodelica_frontend_types": [
+  "metamodelica",
+  "openmodelica_ast"
+ ],
+ "openmodelica_gendoc": [
+  "metamodelica",
+  "openmodelica_ast",
+  "openmodelica_error",
+  "openmodelica_frontend_dump",
+  "openmodelica_frontend_types",
+  "openmodelica_loader",
+  "openmodelica_nf_api",
+  "openmodelica_nf_frontend",
+  "openmodelica_omgraphics",
+  "openmodelica_revision",
+  "openmodelica_script_util",
+  "openmodelica_util"
+ ],
+ "openmodelica_lapack": [],
+ "openmodelica_loader": [
+  "metamodelica",
+  "openmodelica_ast",
+  "openmodelica_ast_collections",
+  "openmodelica_error",
+  "openmodelica_frontend_dump",
+  "openmodelica_script_util",
+  "openmodelica_util",
+  "openmodelica_util_datatypes_basic"
+ ],
+ "openmodelica_modelica_diff": [],
+ "openmodelica_modelica_utilities": [
+  "openmodelica_sim_meta"
+ ],
+ "openmodelica_nbackend": [
+  "metamodelica",
+  "openmodelica_ast",
+  "openmodelica_backend_types",
+  "openmodelica_backend_util",
+  "openmodelica_error",
+  "openmodelica_frontend_base",
+  "openmodelica_frontend_dump",
+  "openmodelica_frontend_types",
+  "openmodelica_nf_frontend",
+  "openmodelica_program_util",
+  "openmodelica_simcode_types",
+  "openmodelica_simcode_util",
+  "openmodelica_util",
+  "openmodelica_util_datatypes_basic"
+ ],
+ "openmodelica_nf_api": [
+  "metamodelica",
+  "openmodelica_ast",
+  "openmodelica_ast_collections",
+  "openmodelica_error",
+  "openmodelica_frontend",
+  "openmodelica_frontend_dump",
+  "openmodelica_frontend_types",
+  "openmodelica_loader",
+  "openmodelica_nf_frontend",
+  "openmodelica_util",
+  "openmodelica_util_datatypes_basic"
+ ],
+ "openmodelica_nf_frontend": [
+  "metamodelica",
+  "openmodelica_ast",
+  "openmodelica_error",
+  "openmodelica_frontend_dump",
+  "openmodelica_frontend_types",
+  "openmodelica_util",
+  "openmodelica_util_datatypes_basic",
+  "openmodelica_wasm_jit"
+ ],
+ "openmodelica_omgraphics": [
+  "metamodelica",
+  "openmodelica_util",
+  "openmodelica_wasi"
+ ],
+ "openmodelica_package_manager": [
+  "openmodelica_download",
+  "openmodelica_version",
+  "openmodelica_wasi",
+  "openmodelica_zip"
+ ],
+ "openmodelica_program_util": [
+  "metamodelica",
+  "openmodelica_ast",
+  "openmodelica_frontend",
+  "openmodelica_frontend_dump",
+  "openmodelica_script_util",
+  "openmodelica_util",
+  "openmodelica_util_datatypes_basic"
+ ],
+ "openmodelica_revision": [],
+ "openmodelica_script_util": [
+  "metamodelica",
+  "openmodelica_ast",
+  "openmodelica_error",
+  "openmodelica_frontend_dump",
+  "openmodelica_frontend_types",
+  "openmodelica_package_manager",
+  "openmodelica_result_files",
+  "openmodelica_util",
+  "openmodelica_util_datatypes_basic",
+  "openmodelica_zip"
+ ],
+ "openmodelica_scripting_api_gen": [
+  "metamodelica",
+  "openmodelica_ast"
+ ],
+ "openmodelica_scripting_qt": [
+  "metamodelica",
+  "openmodelica_backend_main"
+ ],
+ "openmodelica_simcode_types": [
+  "metamodelica",
+  "openmodelica_ast",
+  "openmodelica_backend_types",
+  "openmodelica_frontend_dump",
+  "openmodelica_frontend_types",
+  "openmodelica_util",
+  "openmodelica_util_datatypes_basic"
+ ],
+ "openmodelica_simcode_util": [
+  "metamodelica",
+  "openmodelica_ast",
+  "openmodelica_ast_collections",
+  "openmodelica_frontend",
+  "openmodelica_frontend_base",
+  "openmodelica_frontend_dump",
+  "openmodelica_frontend_types",
+  "openmodelica_program_util",
+  "openmodelica_simcode_types",
+  "openmodelica_util",
+  "openmodelica_util_datatypes_basic"
+ ],
+ "openmodelica_susan": [
+  "metamodelica",
+  "openmodelica_error",
+  "openmodelica_susan_index",
+  "openmodelica_tpl",
+  "openmodelica_util",
+  "openmodelica_util_datatypes_basic"
+ ],
+ "openmodelica_susan_index": [],
+ "openmodelica_tpl": [
+  "metamodelica",
+  "openmodelica_util",
+  "openmodelica_util_datatypes_basic"
+ ],
+ "openmodelica_util": [
+  "metamodelica",
+  "openmodelica_error",
+  "openmodelica_fmi",
+  "openmodelica_lapack",
+  "openmodelica_modelica_diff",
+  "openmodelica_regex",
+  "openmodelica_util_datatypes_basic",
+  "openmodelica_version",
+  "openmodelica_wasi",
+  "openmodelica_zip"
+ ],
+ "openmodelica_util_datatypes_basic": [
+  "metamodelica"
+ ],
+ "openmodelica_version": [],
+ "openmodelica_wasi": [],
+ "openmodelica_wasi_libc": [],
+ "openmodelica_wasm_bindgen": [],
+ "openmodelica_wasm_jit": [
+  "metamodelica",
+  "openmodelica_error",
+  "openmodelica_ext_native",
+  "openmodelica_modelica_utilities",
+  "openmodelica_sim_meta",
+  "openmodelica_util",
+  "openmodelica_wasi",
+  "openmodelica_wasi_libc"
+ ],
+ "openmodelica_zip": [
+  "openmodelica_wasi"
+ ]
+}

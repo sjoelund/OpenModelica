@@ -1,0 +1,32 @@
+digraph old_frontend_deps {
+  graph [rankdir=LR, fontname="Helvetica", fontsize=14, nodesep=0.3, ranksep=0.9,
+         label="What is left of FrontEnd/ + FFrontEnd/ (172k lines .mo) once the old frontend is removed.\nEdge labels: \"Absyn 50\" = 50 packages of that area import Absyn; \"calls\" = call sites (state of 2026-11-18).", labelloc=t];
+  node  [fontname="Helvetica", fontsize=10, shape=box, style="rounded,filled"];
+  edge  [fontname="Helvetica", fontsize=9, color="#555555"];
+
+  subgraph cluster_users {
+    label="Users"; style="rounded"; color="#888888";
+    nf  [label="NFFrontEnd (84 pkgs)", fillcolor="#d9ead3"];
+    nb  [label="NBackEnd + NSimCode (38 pkgs)", fillcolor="#d9ead3"];
+    ob  [label="BackEnd (53 pkgs)", fillcolor="#ffe6b3"];
+    sc  [label="SimCode (18) + Template/*.tpl (32)", fillcolor="#ffe6b3"];
+    scr [label="Script (27) + Main", fillcolor="#ffe6b3"];
+  }
+
+  k1 [label=<<b>K1: shared AST and data — stays</b><br/>29k lines .mo<br align="left"/>Absyn, AbsynUtil, AbsynToSCode, SCode, SCodeUtil, SCodeDump,<br align="left"/>Dump, DAE, DAEDumpTypes, ClassInf, ElementSource, Values,<br align="left"/>ValuesDump, ValuesMake, ValuesUtil, Parser, ParserExt,<br align="left"/>ClassLoader, AvlTreePathFunction, MMath, InstBasics,<br align="left"/>BackendInterface, ComponentReferenceBasics, ExpressionBasics<br align="left"/>>, fillcolor="#d9ead3"];
+
+  k2 [label=<<b>K2: old DAE toolbox — stays while the old backend lives</b><br/>65k lines .mo (98k lines Rust)<br align="left"/>Expression, ExpressionSimplify, ExpressionDump, ComponentReference,<br align="left"/>DAEUtil, DAEDump, Types, TypesDump, Inline, Algorithm, CheckModel,<br align="left"/>ClassInfUtil, StateMachineFlatten, PrefixUtil, Builtin, UnitAbsyn*,<br align="left"/>Graphviz, Patternm (1 helper), <b>Ceval</b> (old constant evaluation),<br align="left"/><b>FCore.Cache / FGraph.Graph</b> (passed around as dummies: 438 + 403 refs),<br align="left"/>FBuiltin.getInitialFunctions (builtin program, also used by NF)<br align="left"/>>, fillcolor="#fff2cc"];
+
+  d [label=<<b>D: old instantiation engine — removed</b><br/>79k lines .mo (119k lines Rust)<br align="left"/>Inst, Inst* (13 packages), Lookup, Static, Mod, ConnectUtil,<br align="left"/>ConnectionGraph, InnerOuter, CevalFunction, OperatorOverloading,<br align="left"/>MetaUtil, SCodeInstUtil, DumpGraphviz, NFSCode* / NFEnv* / NFInst*<br align="left"/>(the 2012 prototype), FFrontEnd/* except FCore, FGraph, FBuiltin<br align="left"/>>, fillcolor="#f4cccc"];
+
+  nf -> k1 [label="21 pkgs; Absyn 50, DAE 44,\nSCode 31, AbsynUtil 29"];
+  nf -> k2 [label="FBuiltin only\n(NFInstanceAPI)", style=dashed];
+  nb -> k1 [label="Absyn 17, DAE 15"];
+  nb -> k2 [label="Expression, DAEUtil,\nComponentReference (few)"];
+  ob -> k1; ob -> k2 [label="DAE 42, Expression 37,\nCeval 8, Inline 8"];
+  ob -> d [label="Inst.instExp (1),\nConnectUtil, InnerOuter", color="#cc0000"];
+  sc -> k1; sc -> k2;
+  sc -> d [label="Static, Mod (SimCodeUtil)", color="#cc0000"];
+  scr -> k1; scr -> k2;
+  scr -> d [label="Inst 50 calls, Lookup 38,\nStatic 12, FGraph/FCore threaded\nthrough the whole API", color="#cc0000", penwidth=2];
+}

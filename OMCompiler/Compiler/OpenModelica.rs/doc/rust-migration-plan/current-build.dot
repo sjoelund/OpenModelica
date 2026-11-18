@@ -1,0 +1,59 @@
+digraph current_build {
+  graph [rankdir=LR, fontname="Helvetica", fontsize=11, nodesep=0.25, ranksep=0.45, label="Current state (master, Nov 2026): two ways to build omc from the same MetaModelica sources", labelloc=t, fontsize=14];
+  node  [fontname="Helvetica", fontsize=10, shape=box, style="rounded,filled", fillcolor="#ffffff"];
+  edge  [fontname="Helvetica", fontsize=9, color="#555555"];
+
+  subgraph cluster_src {
+    label="Sources in git"; style="rounded,filled"; fillcolor="#f2f2f2"; color="#999999";
+    mo   [label="MetaModelica *.mo\n~460 packages, ~620k lines\n(source of truth)", fillcolor="#ffe6b3"];
+    tpl  [label="Susan *.tpl\n32 templates, 61k lines", fillcolor="#ffe6b3"];
+    tv   [label="Template/*TV.mo\n(template interfaces)", fillcolor="#ffe6b3"];
+    rso  [label="*.rust.mo overrides\n*.handwritten.rs", fillcolor="#ffd9d9"];
+    hwrs [label="Hand-written Rust\nOpenModelica.rs: 380 files, 227k lines\nmetamodelica, util, ast/parser,\nwasm-jit, fmi, web, ...", fillcolor="#d9ead3"];
+    simrs [label="SimulationRuntime/rust\n(second cargo workspace)", fillcolor="#d9ead3"];
+    bootc [label="boot/bomc\nbootstrap C sources\n(tarball)", fillcolor="#ffd9d9"];
+    rtc  [label="Compiler/runtime/*.c\nexternal \"C\" of omc", fillcolor="#ffd9d9"];
+    antlr [label="Parser/*.g (ANTLR)\nFrontEndCpp", fillcolor="#ffd9d9"];
+    simc [label="SimulationRuntime/c, cpp\n(+ 3rdParty)", fillcolor="#e0e0ff"];
+  }
+
+  subgraph cluster_c {
+    label="C build (default: OM_OMC_ENABLE_RUST=OFF)"; style="rounded"; color="#cc7a00";
+    bomc   [label="bomc\n(compiled from bootstrap C)"];
+    tplmo  [label="Template/*.mo\n(generated)"];
+    cfiles [label="*.c per package\n(generated)"];
+    omcc   [label="libOpenModelicaCompiler\n+ omc (C, Boehm GC, 64-bit Integer)", fillcolor="#fff2cc"];
+  }
+
+  subgraph cluster_r {
+    label="Rust build (OM_OMC_ENABLE_RUST=ON, CI lanes 19 wasm-jit, web, gui-rust)"; style="rounded"; color="#38761d";
+    mirror [label="rust_src_sync\nper-build mirror rust-src/"];
+    tools  [label="cargo --release\nmmtorust, susan, susan-index,\nscripting_api_gen"];
+    susanmo [label="susan: *.tpl -> *.mo\n(signatures only)"];
+    mmt    [label="mmtorust --sources\n(analyses + transpile ~3.5 min,\nwhole codegen step 7 min)"];
+    genrs  [label="generated *.rs (build tree only)\n1.04M lines from mmtorust\n+ 0.28M lines from Susan\n#![allow(warnings)]"];
+    cargo  [label="cargo build\n(debug=cranelift / release)"];
+    omcr   [label="libOpenModelicaCompiler.so\n+ omc launcher (Rust, 32-bit Integer)\n+ wasm-jit, web bundle", fillcolor="#d9ead3"];
+  }
+
+  omedit [label="OMEdit / OMShell / OMNotebook\n(link libOpenModelicaCompiler)", shape=component, fillcolor="#e0e0ff"];
+  sims   [label="simulation executables\nC / C+Rust / C++ / wasm-jit", shape=component, fillcolor="#e0e0ff"];
+
+  bootc -> bomc;
+  tpl -> bomc [label="compile templates"];
+  bomc -> tplmo;
+  mo -> bomc; tplmo -> bomc;
+  bomc -> cfiles [label="old frontend\ncompiles MetaModelica"];
+  cfiles -> omcc; rtc -> omcc; antlr -> omcc;
+
+  hwrs -> mirror; simrs -> mirror;
+  mirror -> tools;
+  tools -> susanmo; tpl -> susanmo; tv -> susanmo;
+  mo -> mmt; rso -> mmt; susanmo -> mmt; tools -> mmt;
+  mmt -> genrs [label="+ susan writes\ntemplate Rust"];
+  genrs -> cargo; mirror -> cargo;
+  cargo -> omcr;
+
+  omcc -> omedit [style=dashed]; omcr -> omedit [style=dashed];
+  omcc -> sims; omcr -> sims; simc -> sims;
+}

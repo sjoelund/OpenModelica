@@ -16,6 +16,7 @@ function_diff.mos\
 function_partial_der.mos\
 functionPointerBinding.mos\
 function_inline_retype.mos\
+inlineNoFunctionAlias.mos\
 
 # test that currently fail. Move up when fixed.
 # Run make failingtest

@@ -924,8 +924,38 @@ protected
     Function fn = Call.typedFunction(call);
   algorithm
     // an empty array result has no elements to solve for, the call stays where it is used
-    b := not Type.isEmptyArray(Call.typeOf(call)) and (forceReplacement(fn) or not (Function.isSpecialBuiltin(fn) or replaceException(fn)));
+    b := not Type.isEmptyArray(Call.typeOf(call)) and (forceReplacement(fn) or not (Function.isSpecialBuiltin(fn) or replaceException(fn) or isEarlyInlined(fn)));
   end checkCallReplacement;
+
+  function isEarlyInlined
+    "the early inline module replaces calls of these functions by their body. Not if
+    the body calls a non-builtin function: the alias computes identical calls once."
+    input Function fn;
+    output Boolean b;
+  algorithm
+    b := match Function.inlineBuiltin(fn)
+      case DAE.InlineType.NORM_INLINE() then true;
+      case DAE.InlineType.EARLY_INLINE() then true;
+      case DAE.InlineType.BUILTIN_EARLY_INLINE() then true;
+      else false;
+    end match;
+    if b then
+      b := Inline.functionInlineable(fn);
+    end if;
+    if b then
+      b := not Expression.contains(Function.getSingleBodyExp(fn), isNonBuiltinCall);
+    end if;
+  end isEarlyInlined;
+
+  function isNonBuiltinCall
+    input Expression exp;
+    output Boolean b;
+  algorithm
+    b := match exp
+      case Expression.CALL(call = Call.TYPED_CALL()) then not Function.isBuiltin(Call.typedFunction(exp.call));
+      else false;
+    end match;
+  end isNonBuiltinCall;
 
   function forceReplacement
     "returns true if the call has to be force replaced without exception"

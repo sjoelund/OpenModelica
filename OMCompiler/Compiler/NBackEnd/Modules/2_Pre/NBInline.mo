@@ -57,6 +57,7 @@ protected
   import Component = NFComponent;
   import ComponentRef = NFComponentRef;
   import Dimension = NFDimension;
+  import ExpandExp = NFExpandExp;
   import Expression = NFExpression;
   import NFFunction.Function;
   import NFFlatten.FunctionTree;
@@ -80,6 +81,7 @@ protected
   import NBVariable.{VariablePointer, VariablePointers, VarData};
 
   // Util
+  import Array;
   import Slice = NBSlice;
   import StringUtil;
 
@@ -737,6 +739,7 @@ public
           Dimension dim;
           list<Expression> elements;
           Integer size;
+          Boolean expanded;
 
         // don't inline simple cref equalities
         case Equation.RECORD_EQUATION(lhs = Expression.CREF(), rhs = Expression.CREF()) guard(not inlineSimple) then eqn;
@@ -774,6 +777,18 @@ public
         // exp = {...} array equation
         case Equation.ARRAY_EQUATION(lhs = lhs, rhs = rhs as Expression.ARRAY()) guard(not Expression.isCref(lhs))
         then inlineArrayEquation(eqn, subscriptElements(lhs, arrayLength(rhs.elements)), rhs.elements, eqn.attr, iter, variables, new_eqns, set, index);
+
+        // CREF = exp with a zero in an array literal, expanded so that the zero
+        // elements do not depend on the other operands
+        case Equation.ARRAY_EQUATION(lhs = Expression.CREF(), rhs = rhs) guard(Expression.contains(rhs, isArrayWithZero)) algorithm
+          (rhs, expanded) := ExpandExp.expand(rhs);
+          if expanded and Expression.isArray(rhs) then
+            eqn.rhs := SimplifyExp.simplify(rhs);
+            new_eqn := inlineRecordTupleArrayEquation(eqn, iter, variables, new_eqns, set, index, inlineSimple);
+          else
+            new_eqn := eqn;
+          end if;
+        then new_eqn;
 
         // CREF = {... for i in []} array constructor equation
         case Equation.ARRAY_EQUATION(lhs = lhs as Expression.CREF(), rhs=Expression.CALL(call = call as Call.TYPED_ARRAY_CONSTRUCTOR()))
@@ -975,6 +990,16 @@ protected
     Pointer.update(new_eqns, eqns);
     eqn := Equation.DUMMY_EQUATION();
   end inlineArrayEquation;
+
+  function isArrayWithZero
+    input Expression exp;
+    output Boolean b;
+  algorithm
+    b := match exp
+      case Expression.ARRAY() then Array.any(exp.elements, Expression.isZero);
+      else false;
+    end match;
+  end isArrayWithZero;
 
   function subscriptElements
     "subscripts the outermost dimension of an array expression element by element.

@@ -19,6 +19,7 @@ raggedComponentArrays.mos \
 scalarDivArray.mos \
 retypeNestedArrayDivision.mos \
 bindingArrayOperand.mos \
+arrayLiteralZero.mos \
 arrayRowScalar.mos \
 emptyArrayTupleArgument.mos \
 algorithmForSubscript.mos \

@@ -876,7 +876,18 @@ public
   function differentiateExpression
     input output Expression exp;
     input output DifferentiationArguments diffArguments;
+  protected
+    Type ty;
   algorithm
+    // an expression without variables (e.g. fill(1.0, n) * c) has the derivative zero
+    if diffArguments.diffType == DifferentiationType.JACOBIAN and isNone(diffArguments.adjoint_map)
+       and not Expression.isLiteral(exp) and not Expression.isCref(exp) then
+      ty := Expression.typeOf(exp);
+      if Type.isReal(Type.arrayElementType(ty)) and Type.hasKnownSize(ty) and not Expression.contains(exp, hasVariableInput) then
+        exp := Expression.makeZero(ty);
+        return;
+      end if;
+    end if;
     (exp, diffArguments) := match exp
       local
         Expression elem1, elem2, current_grad, gradTrue, gradFalse;
@@ -1849,6 +1860,19 @@ public
       print("Differentiate-ExpCall-result: " + Expression.toString(exp) + "\n");
     end if;
   end differentiateCall;
+
+  function hasVariableInput
+    "true for the parts of an expression that can depend on a variable"
+    input Expression exp;
+    output Boolean b;
+  algorithm
+    b := match exp
+      case Expression.CREF() then true;
+      case Expression.PARTIAL_FUNCTION_APPLICATION() then true;
+      case Expression.CALL() then Call.isImpure(exp.call);
+      else false;
+    end match;
+  end hasVariableInput;
 
   function differentiateReduction
     "This function differentiates reduction expressions with respect to a given variable.
@@ -3572,6 +3596,7 @@ public
           addOp := Operator.fromClassification((NFOperator.MathClassification.ADDITION, Operator.classifyAddition(operator)), operator.ty);
           mulOp := Operator.fromClassification((NFOperator.MathClassification.MULTIPLICATION, sizeClass), operator.ty);
       then (if not isReverse and bothZero(diffExp1, diffExp2, operator) then Expression.makeZero(Operator.typeOf(operator))
+            elseif not isReverse and isZeroDerivative(diffExp2) then Expression.BINARY(diffExp1, operator, exp2)
             else Expression.MULTARY(
               {Expression.MULTARY(
                 {Expression.BINARY(diffExp1, mulOp, exp2)},              // f'g
@@ -3876,7 +3901,8 @@ public
           diff_divisor := Expression.MULTARY(diff_inv_arguments, {}, addOp);
           // g
           divisor := Expression.MULTARY(inv_arguments, {}, operator);
-      then Expression.MULTARY(
+      then if List.all(diff_inv_arguments, isZeroDerivative) then Expression.MULTARY({diff_enumerator}, inv_arguments, operator)
+           else Expression.MULTARY(
               {Expression.MULTARY(
                 {Expression.MULTARY(diff_enumerator :: inv_arguments, {}, operator)},   // f'g
                 {Expression.MULTARY(diff_divisor :: arguments, {}, operator)},          // -g'f

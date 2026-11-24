@@ -1,0 +1,43 @@
+// name: evaluateConstantArrays
+// keywords: NewBackend
+// status: correct
+// suite: cSources
+// teardown_command: rm -rf EvaluateConstantArrays*
+// Constant array subexpressions are evaluated after tearing, also in the
+// Jacobian of the algebraic loop. The generated equations have no fill().
+
+loadString("
+model EvaluateConstantArrays
+  Real x(start = 1);
+  Real y[3];
+equation
+  y = x * (fill(1.0, 3) * 2 + {1, 2, 3}) .^ 2;
+  x^3 + sum(y) = 30 + time;
+end EvaluateConstantArrays;
+"); getErrorString();
+setCommandLineOptions("--newBackend"); getErrorString();
+simulate(EvaluateConstantArrays); getErrorString();
+val(x, 1);
+val(y[3], 1);
+system("grep -c 'fill(' EvaluateConstantArrays_info.json", outputFile = "EvaluateConstantArrays_cnt.txt"); getErrorString();
+readFile("EvaluateConstantArrays_cnt.txt");
+// Result:
+// true
+// ""
+// true
+// ""
+// record SimulationResult
+//     resultFile = "EvaluateConstantArrays_res.mat",
+//     simulationOptions = "startTime = 0.0, stopTime = 1.0, numberOfIntervals = 500, tolerance = 1e-6, method = 'auto', fileNamePrefix = 'EvaluateConstantArrays', options = '', outputFormat = 'mat', variableFilter = '.*', cflags = '', simflags = ''",
+//     messages = "LOG_SUCCESS       | info    | The initialization finished successfully without homotopy method.
+// LOG_SUCCESS       | info    | The simulation finished successfully.
+// "
+// end SimulationResult;
+// ""
+// 0.6153401099457599
+// 15.383502748643998
+// 1
+// ""
+// "0
+// "
+// endResult

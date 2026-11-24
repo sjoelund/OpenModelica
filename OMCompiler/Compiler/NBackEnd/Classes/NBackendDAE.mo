@@ -80,6 +80,7 @@ protected
   import MutableWeak;
   import Prefixes = NFPrefixes;
   import SimplifyExp = NFSimplifyExp;
+  import Ceval = NFCeval;
   import Statement = NFStatement;
   import Subscript = NFSubscript;
   import Type = NFType;
@@ -105,6 +106,8 @@ protected
   import Tearing = NBTearing;
 
   // Util imports
+  import AbsynUtil;
+  import Array;
   import ClockIndexes;
   import ElementSource;
   import Error;
@@ -762,6 +765,7 @@ public
       (Evaluation.removeDummies,              "Remove Dummies"),
       (function Tearing.main(kind = kind),    "Tearing"),
       (Partitioning.categorize,               "Categorize"),
+      (evaluateConstants,                     "Evaluate Constants"),
       (Solve.main,                            "Solve"),
       (function Jacobian.main(kind = kind),   "Jacobian"),
       (Initialization.minimizeHomotopySystem, "Minimize Homotopy System"),
@@ -892,6 +896,192 @@ public
       else bdae;
     end match;
   end simplify;
+
+  function evaluateConstants
+    "Evaluates constant array subexpressions, e.g. fill(1.0, n) * c + {...}, which
+    the frontend keeps when it does not scalarize. Only after tearing: the result
+    has the same crefs, but a different form could change the tearing."
+    input output BackendDAE bdae;
+  algorithm
+    () := match bdae
+      case MAIN() algorithm
+        for part in List.flatten({bdae.ode, bdae.algebraic, bdae.ode_event, bdae.alg_event, bdae.clocked, bdae.init,
+                                  Util.getOptionOrDefault(bdae.init_0, {}), Util.getOptionOrDefault(bdae.dae, {})}) loop
+          if isSome(part.strongComponents) then
+            for comp in Util.getOption(part.strongComponents) loop
+              evaluateConstantsComp(comp);
+            end for;
+          end if;
+        end for;
+      then ();
+      else ();
+    end match;
+  end evaluateConstants;
+
+  function evaluateConstantsComp
+    input StrongComponent comp;
+  algorithm
+    () := match comp
+      case StrongComponent.ALGEBRAIC_LOOP() algorithm
+        evaluateConstantsTearing(comp.strict);
+        Util.applyOption(comp.casual, evaluateConstantsTearing);
+      then ();
+      case StrongComponent.ALIAS() then ();
+      else algorithm
+        for eqn in StrongComponent.getEquations(comp) loop
+          evaluateConstantsEqn(eqn);
+        end for;
+      then ();
+    end match;
+  end evaluateConstantsComp;
+
+  function evaluateConstantsTearing
+    input Tearing tearing;
+  algorithm
+    for eqn in Tearing.getResidualEqns(tearing) loop
+      evaluateConstantsEqn(eqn);
+    end for;
+    () := match tearing
+      case Tearing.TEARING_SET() algorithm
+        for comp in tearing.innerEquations loop
+          evaluateConstantsComp(comp);
+        end for;
+      then ();
+    end match;
+  end evaluateConstantsTearing;
+
+  function evaluateConstantsEqn
+    input Pointer<Equation> eqn_ptr;
+  protected
+    Equation eqn = Pointer.access(eqn_ptr), new_eqn;
+  algorithm
+    new_eqn := Equation.map(eqn, evaluateConstantExp, NONE(), Expression.fakeMap);
+    if not referenceEq(eqn, new_eqn) then
+      Pointer.update(eqn_ptr, new_eqn);
+    end if;
+  end evaluateConstantsEqn;
+
+  function evaluateConstantExp
+    input output Expression exp;
+  protected
+    Expression eexp;
+    Type ty;
+  algorithm
+    if Expression.isLiteral(exp) or Expression.isKnownSizeFill(exp) then
+      return;
+    end if;
+
+    ty := Expression.typeOf(exp);
+    if Type.isArray(ty) and Type.hasKnownSize(ty) and Type.sizeOf(ty) <= 1000 and not isRange(exp) and isConstantExp(exp, {}) then
+      eexp := SimplifyExp.simplify(Ceval.tryEvalExp(exp));
+      if Expression.isLiteral(eexp) then
+        exp := eexp;
+        return;
+      end if;
+    end if;
+
+    exp := Expression.mapShallow(exp, evaluateConstantExp);
+  end evaluateConstantExp;
+
+  function isRange
+    input Expression exp;
+    output Boolean b;
+  algorithm
+    b := match exp
+      case Expression.RANGE() then true;
+      else false;
+    end match;
+  end isRange;
+
+  function isConstantExp
+    "true if the expression only has literals, iterators bound in it and pure
+    builtin math functions"
+    input Expression exp;
+    input list<String> iters;
+    output Boolean b;
+  algorithm
+    b := match exp
+      local
+        Call call;
+        list<String> new_iters;
+
+      case Expression.INTEGER() then true;
+      case Expression.REAL() then true;
+      case Expression.BOOLEAN() then true;
+      case Expression.STRING() then true;
+      case Expression.ENUM_LITERAL() then true;
+      case Expression.CREF() then ComponentRef.isSimple(exp.cref) and List.isMemberOnTrue(ComponentRef.firstName(exp.cref), iters, stringEq);
+      case Expression.CALL(call = call as Call.TYPED_ARRAY_CONSTRUCTOR()) algorithm
+        new_iters := listAppend(list(InstNode.name(Util.tuple21(i)) for i in call.iters), iters);
+      then List.all(list(Util.tuple22(i) for i in call.iters), function isConstantExp(iters = iters))
+        and isConstantExp(call.exp, new_iters);
+      case Expression.CALL(call = call as Call.TYPED_CALL())
+      then isEvaluableBuiltin(call.fn) and List.all(call.arguments, function isConstantExp(iters = iters));
+      case Expression.ARRAY() then Array.all(exp.elements, function isConstantExp(iters = iters));
+      case Expression.RANGE() then isConstantExp(exp.start, iters) and isConstantExp(exp.stop, iters)
+        and Util.applyOptionOrDefault(exp.step, function isConstantExp(iters = iters), true);
+      case Expression.BINARY() then isConstantExp(exp.exp1, iters) and isConstantExp(exp.exp2, iters);
+      case Expression.UNARY() then isConstantExp(exp.exp, iters);
+      case Expression.MULTARY() then List.all(exp.arguments, function isConstantExp(iters = iters))
+        and List.all(exp.inv_arguments, function isConstantExp(iters = iters));
+      case Expression.CAST() then isConstantExp(exp.exp, iters);
+      case Expression.SUBSCRIPTED_EXP() then isConstantExp(exp.exp, iters)
+        and List.all(exp.subscripts, function isConstantSubscript(iters = iters));
+      else false;
+    end match;
+  end isConstantExp;
+
+  function isConstantSubscript
+    input Subscript sub;
+    input list<String> iters;
+    output Boolean b;
+  algorithm
+    b := match sub
+      case Subscript.INDEX() then isConstantExp(sub.index, iters);
+      case Subscript.SLICE() then isConstantExp(sub.slice, iters);
+      case Subscript.WHOLE() then true;
+      else false;
+    end match;
+  end isConstantSubscript;
+
+  function isEvaluableBuiltin
+    input Function fn;
+    output Boolean b;
+  algorithm
+    if not Function.isBuiltin(fn) or Function.isImpure(fn) then
+      b := false;
+      return;
+    end if;
+    b := match AbsynUtil.pathFirstIdent(Function.nameConsiderBuiltin(fn))
+      case "abs" then true;
+      case "sign" then true;
+      case "sqrt" then true;
+      case "exp" then true;
+      case "log" then true;
+      case "log10" then true;
+      case "sin" then true;
+      case "cos" then true;
+      case "tan" then true;
+      case "asin" then true;
+      case "acos" then true;
+      case "atan" then true;
+      case "atan2" then true;
+      case "sinh" then true;
+      case "cosh" then true;
+      case "tanh" then true;
+      case "max" then true;
+      case "min" then true;
+      case "sum" then true;
+      case "product" then true;
+      case "fill" then true;
+      case "zeros" then true;
+      case "ones" then true;
+      case "linspace" then true;
+      case "transpose" then true;
+      case "cat" then true;
+      else false;
+    end match;
+  end isEvaluableBuiltin;
 
   function detectAlgorithmLocals
     "Protected discrete variables that only one algorithm uses (e.g. the buffers of

@@ -55,6 +55,7 @@ public
   import Component = NFComponent;
   import ComponentRef = NFComponentRef;
   import Dimension = NFDimension;
+  import ExpandExp = NFExpandExp;
   import Expression = NFExpression;
   import InstContext = NFInstContext;
   import NFInstNode.{InstNode, CachedData};
@@ -1838,8 +1839,10 @@ public
             // no argument depends on the differentiation variable (keeps the arguments out of the derivative)
             ret := Expression.makeZero(Expression.typeOf(exp));
           else
-            arguments := listAppend(call.arguments, arguments);
-            ret := Expression.CALL(Call.makeTypedCall(der_func, arguments, call.var, call.purity));
+            ret := Expression.CALL(Call.makeTypedCall(der_func, listAppend(call.arguments, arguments), call.var, call.purity));
+            if diffArguments.diffType == DifferentiationType.JACOBIAN and not skippedVarying then
+              ret := skipZeroDirection(ret, arguments);
+            end if;
           end if;
         else
           // The function is not in the function tree and not builtin -> error
@@ -1873,6 +1876,74 @@ public
       else false;
     end match;
   end hasVariableInput;
+
+  function skipZeroDirection
+    "A scalar derivative call is zero if all its derivative arguments are zero, e.g. in the
+    columns of a colored jacobian that do not seed them: the call is skipped then."
+    input output Expression exp;
+    input list<Expression> d_args;
+  protected
+    constant Integer max_parts = 1000;
+    Type ty = Expression.typeOf(exp);
+    list<Expression> parts;
+    Expression cond;
+  algorithm
+    if not Type.isReal(ty) then
+      return;
+    end if;
+    try
+      parts := List.flatten(list(zeroTestParts(a, max_parts) for a in d_args));
+    else
+      return;
+    end try;
+    if listEmpty(parts) or listLength(parts) > max_parts then
+      return;
+    end if;
+    cond := List.reduce(list(Expression.RELATION(p, Operator.makeEqual(Type.REAL()), Expression.REAL(0.0), -1) for p in parts),
+      makeAnd);
+    cond := Expression.CALL(Call.makeTypedCall(NFBuiltinFuncs.NO_EVENT, {cond}, Variability.CONTINUOUS, NFPrefixes.Purity.PURE, Type.BOOLEAN()));
+    exp := Expression.IF(ty, cond, Expression.makeZero(ty), exp);
+  end skipZeroDirection;
+
+  function makeAnd
+    input Expression exp1;
+    input Expression exp2;
+    output Expression exp = Expression.LBINARY(exp1, Operator.makeAnd(Type.BOOLEAN()), exp2);
+  end makeAnd;
+
+  function zeroTestParts
+    "the scalar Real parts of a derivative argument, fails if it can not be split
+    or can not be zero"
+    input Expression exp;
+    input Integer max_parts;
+    output list<Expression> parts;
+  protected
+    Type ty = Expression.typeOf(exp);
+    Expression expanded;
+    Boolean ok;
+    list<ComponentRef> children;
+  algorithm
+    parts := match exp
+      case Expression.REAL() guard(exp.value == 0.0) then {};
+      case Expression.INTEGER() then {};
+      case Expression.BOOLEAN() then {};
+      case Expression.ARRAY() then List.flatten(list(zeroTestParts(e, max_parts) for e in exp.elements));
+      case Expression.CREF() guard(Type.isComplex(Type.arrayElementType(ty)) and not Type.isArray(ty)) algorithm
+        children := BVariable.getRecordChildrenCref(exp.cref);
+        if listEmpty(children) then
+          fail();
+        end if;
+      then List.flatten(list(zeroTestParts(Expression.fromCref(c), max_parts) for c in children));
+      case Expression.CREF() guard(Type.isArray(ty) and Type.hasKnownSize(ty) and Type.sizeOf(ty) <= max_parts) algorithm
+        (expanded, ok) := ExpandExp.expand(exp);
+        if not (ok and Expression.isArray(expanded)) then
+          fail();
+        end if;
+      then zeroTestParts(expanded, max_parts);
+      case _ guard(Type.isReal(ty)) then {exp};
+      case _ guard(Type.isInteger(ty) or Type.isBoolean(ty) or Type.isString(ty)) then {};
+    end match;
+  end zeroTestParts;
 
   function differentiateReduction
     "This function differentiates reduction expressions with respect to a given variable.

@@ -316,6 +316,53 @@ public
          + List.toString(blcks, function toString(str = str + "  "), List.Style.NEWLINE);
     end ifTplStr;
 
+    function genericCallIterations
+      "The iterations of a slice of a for-equation with an array body: one call solves the
+      whole body of an iteration, which is in the lowest digits of a scalar index. Not if
+      the body uses the variable it solves twice, an element can then depend on another."
+      input Pointer<Equation> eqn_ptr;
+      input ComponentRef var_cref;
+      input list<Integer> indices;
+      output list<Integer> iterations = indices;
+    protected
+      Iterator iter = Equation.getForIterator(Pointer.access(eqn_ptr));
+      Integer n_iter = if Iterator.isEmpty(iter) then 0 else Iterator.size(iter);
+      ComponentRef name = ComponentRef.stripSubscriptsAll(var_cref);
+      Boolean independent;
+      UnorderedSet<Integer> seen;
+    algorithm
+      independent := match Pointer.access(eqn_ptr)
+        local
+          Equation body;
+        case Equation.FOR_EQUATION(body = {body as Equation.ARRAY_EQUATION()})
+          then Expression.fold(body.lhs, function countName(name = name), 0)
+             + Expression.fold(body.rhs, function countName(name = name), 0) == 1;
+        else false;
+      end match;
+      if independent and n_iter > 0 and intDiv(Equation.size(eqn_ptr), n_iter) > 1 then
+        seen := UnorderedSet.new(Util.id, intEq);
+        iterations := {};
+        for i in indices loop
+          if not UnorderedSet.contains(intMod(i, n_iter), seen) then
+            UnorderedSet.add(intMod(i, n_iter), seen);
+            iterations := intMod(i, n_iter) :: iterations;
+          end if;
+        end for;
+        iterations := listReverse(iterations);
+      end if;
+    end genericCallIterations;
+
+    function countName
+      input Expression exp;
+      input ComponentRef name;
+      input output Integer n;
+    algorithm
+      n := match exp
+        case Expression.CREF() guard(ComponentRef.isEqual(ComponentRef.stripSubscriptsAll(exp.cref), name)) then n + 1;
+        else n;
+      end match;
+    end countName;
+
     function getIndex
       input Block blck;
       output Integer index;
@@ -990,7 +1037,9 @@ public
           eqn     := Pointer.access(eqn_ptr);
           ident   := Identifier.IDENTIFIER(eqn_ptr, comp.var_cref, false);
           generic_call_index := UnorderedMap.tryAdd(ident, UnorderedMap.size(simCodeIndices.generic_call_map), simCodeIndices.generic_call_map);
-          tmp     := GENERIC_ASSIGN(simCodeIndices.equationIndex, generic_call_index, comp.eqn.indices, Equation.getSource(eqn), Equation.getAttributes(eqn));
+          tmp     := GENERIC_ASSIGN(simCodeIndices.equationIndex, generic_call_index,
+            if entwined then comp.eqn.indices else genericCallIterations(eqn_ptr, comp.var_cref, comp.eqn.indices),
+            Equation.getSource(eqn), Equation.getAttributes(eqn));
           UnorderedMap.add(Equation.getEqnName(eqn_ptr), tmp, equation_map);
           simCodeIndices.equationIndex := simCodeIndices.equationIndex + 1;
         then (tmp, getIndex(tmp));

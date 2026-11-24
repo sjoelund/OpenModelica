@@ -2860,6 +2860,9 @@ public
         String der_func_name;
         list<InstNode> inputs, locals, outputs, local_outputs, uninitialized;
         list<Slot> slots;
+        Option<InstNode> cse_template;
+        Integer cse_offset;
+        Pointer<list<InstNode>> cse_locals = Pointer.create({});
 
       case der_func as Function.FUNCTION() algorithm
         node := InstNode.fromHandle(der_func.node);
@@ -2946,12 +2949,21 @@ public
                   fail();
                 end try;
 
+                cse_template := cseTemplate(listAppend(der_func.inputs, der_func.locals));
+                if isSome(cse_template) then
+                  cse_offset := cseOffset(listAppend(der_func.inputs, der_func.locals));
+                  algorithms := list(cseAlgorithm(alg, Util.getOption(cse_template), cse_offset, cse_locals) for alg in algorithms);
+                end if;
+
                 // add them to new node
                 sections.algorithms := algorithms;
                 new_cls.sections    := sections;
               then funcDiffArgs;
               else funcDiffArgs;
             end match;
+
+            der_func.locals  := listAppend(der_func.locals, listReverse(Pointer.access(cse_locals)));
+            new_cls.elements := ClassTree.appendComponentsToFlatTree(Pointer.access(cse_locals), new_cls.elements);
 
             // update the class pointer in place; the fake node created above for
             // recursive differentiation shares it and reaches codegen via the cache
@@ -2966,6 +2978,8 @@ public
             // check the generated body for use-before-assign and initialize
             // variables not provably assigned (the frontend check is skipped here)
             uninitialized := Function.checkUseBeforeAssignGenerated(der_func);
+            // a $fcse local is assigned right before the statement that uses it
+            uninitialized := list(v for v guard not List.any(Pointer.access(cse_locals), function InstNode.nameEqual(node1 = v)) in uninitialized);
             if not listEmpty(uninitialized) then
               new_cls.sections := Function.initializeUninitialized(new_cls.sections, uninitialized, AbsynUtil.pathString(der_func.path));
               InstNode.CLASS_NODE(cls = cls) := node;
@@ -3004,6 +3018,262 @@ public
       print("\n[AFTER ] " + Function.toFlatString(der_func) + "\n\n");
     end if;
   end differentiateFunction;
+
+  function cseTemplate
+    "a scalar Real component without binding to copy for the new locals of cseAlgorithm"
+    input list<InstNode> nodes;
+    output Option<InstNode> template = NONE();
+  algorithm
+    for node in nodes loop
+      if InstNode.isComponent(node) and Type.isReal(InstNode.getType(node))
+         and not Binding.isBound(Component.getBinding(InstNode.component(node))) then
+        template := SOME(node);
+        return;
+      end if;
+    end for;
+  end cseTemplate;
+
+  function cseOffset
+    "the highest n of the $fcse<n> locals a differentiated function already has"
+    input list<InstNode> nodes;
+    output Integer offset = 0;
+  protected
+    String name;
+  algorithm
+    for node in nodes loop
+      name := InstNode.name(node);
+      if stringLength(name) > 5 and substring(name, 1, 5) == "$fcse" then
+        try
+          offset := max(offset, stringInt(substring(name, 6, stringLength(name))));
+        else
+        end try;
+      end if;
+    end for;
+  end cseOffset;
+
+  function cseAlgorithm
+    "common subexpression elimination in a differentiated function body: a call or power
+    that occurs several times in the right hand side of an assignment is computed once
+    into a new local before it. The derivative rules repeat their operands."
+    input output Algorithm alg;
+    input InstNode template;
+    input Integer offset;
+    input Pointer<list<InstNode>> new_locals;
+  algorithm
+    alg.statements := cseStatements(alg.statements, template, offset, new_locals);
+  end cseAlgorithm;
+
+  function cseStatements
+    input output list<Statement> stmts;
+    input InstNode template;
+    input Integer offset;
+    input Pointer<list<InstNode>> new_locals;
+  algorithm
+    stmts := List.flatten(list(cseStatement(stmt, template, offset, new_locals) for stmt in stmts));
+  end cseStatements;
+
+  function cseStatement
+    input Statement stmt;
+    input InstNode template;
+    input Integer offset;
+    input Pointer<list<InstNode>> new_locals;
+    output list<Statement> stmts;
+  algorithm
+    stmts := match stmt
+      local
+        Statement s;
+      case s as Statement.ASSIGNMENT() then cseAssignment(s, template, offset, new_locals);
+      case s as Statement.FOR() algorithm
+        s.body := cseStatements(s.body, template, offset, new_locals);
+      then {s};
+      case s as Statement.WHILE() algorithm
+        s.body := cseStatements(s.body, template, offset, new_locals);
+      then {s};
+      case s as Statement.IF() algorithm
+        s.branches := list((Util.tuple21(b), cseStatements(Util.tuple22(b), template, offset, new_locals)) for b in s.branches);
+      then {s};
+      else {stmt};
+    end match;
+  end cseStatement;
+
+  function cseAssignment
+    input Statement stmt;
+    input InstNode template;
+    input Integer offset;
+    input Pointer<list<InstNode>> new_locals;
+    output list<Statement> stmts = {};
+  protected
+    Expression lhs, rhs, cand, cref_exp;
+    Type ty;
+    DAE.ElementSource source;
+    list<Expression> candidates = {}, repeated;
+    list<tuple<Expression, Expression>> done = {};
+    InstNode node;
+    UnorderedSet<String> bound;
+  algorithm
+    Statement.ASSIGNMENT(lhs = lhs, rhs = rhs, ty = ty, source = source) := stmt;
+    candidates := cseCollect(rhs, {});
+    bound := UnorderedSet.new(stringHashDjb2, stringEq);
+    Expression.apply(rhs, function cseBoundIterators(bound = bound));
+    repeated := {};
+    for c in candidates loop
+      if not List.contains(repeated, c, Expression.isEqual) and cseCount(rhs, c) > 1
+         and not Expression.contains(c, function cseUsesName(names = bound)) then
+        repeated := c :: repeated;
+      end if;
+    end for;
+    // the inner ones first, the outer ones contain their replacements
+    repeated := List.sort(repeated, cseLarger);
+    for c in repeated loop
+      cand := c;
+      for tpl in done loop
+        cand := Expression.map(cand, function cseReplace(target = Util.tuple21(tpl), replacement = Util.tuple22(tpl)));
+      end for;
+      if cseCount(rhs, cand) > 1 then
+        node := template;
+        node := match node
+          local
+            InstNode qual;
+          case qual as InstNode.COMPONENT_NODE() algorithm
+            qual.name := "$fcse" + intString(offset + listLength(Pointer.access(new_locals)) + 1);
+          then InstNode.reidentify(qual);
+        end match;
+        node := InstNode.protect(InstNode.setComponentDirection(NFPrefixes.Direction.NONE, node));
+        Pointer.update(new_locals, node :: Pointer.access(new_locals));
+        cref_exp := Expression.fromCref(ComponentRef.fromNode(node, Type.REAL()));
+        stmts := Statement.ASSIGNMENT(cref_exp, cand, Type.REAL(), source) :: stmts;
+        rhs := Expression.map(rhs, function cseReplace(target = cand, replacement = cref_exp));
+        done := (cand, cref_exp) :: done;
+      end if;
+    end for;
+    stmts := listReverse(Statement.ASSIGNMENT(lhs, rhs, ty, source) :: stmts);
+  end cseAssignment;
+
+  function cseCollect
+    "scalar Real calls of pure functions and powers that are evaluated whenever the
+    expression is: not in if-branches, reductions, array constructors or the second
+    operand of and/or"
+    input Expression exp;
+    input output list<Expression> candidates;
+  protected
+    Pointer<list<Expression>> acc;
+  algorithm
+    () := match exp
+      case Expression.IF() algorithm
+        candidates := cseCollect(exp.condition, candidates);
+      then ();
+      case Expression.CALL(call = Call.TYPED_REDUCTION()) then ();
+      case Expression.CALL(call = Call.TYPED_ARRAY_CONSTRUCTOR()) then ();
+      case Expression.LBINARY() algorithm
+        candidates := cseCollect(exp.exp1, candidates);
+      then ();
+      else algorithm
+        if isCseCandidate(exp) then
+          candidates := exp :: candidates;
+        end if;
+        acc := Pointer.create(candidates);
+        Expression.applyShallow(exp, function cseCollectPtr(acc = acc));
+        candidates := Pointer.access(acc);
+      then ();
+    end match;
+  end cseCollect;
+
+  function cseBoundIterators
+    "the names of the iterators of the reductions and array constructors in an
+    expression: a replacement inside them must not use one of these names"
+    input Expression exp;
+    input UnorderedSet<String> bound;
+  algorithm
+    () := match exp
+      local
+        list<tuple<InstNode, Expression>> iters;
+      case Expression.CALL(call = Call.TYPED_REDUCTION(iters = iters)) algorithm
+        for i in iters loop
+          UnorderedSet.add(InstNode.name(Util.tuple21(i)), bound);
+        end for;
+      then ();
+      case Expression.CALL(call = Call.TYPED_ARRAY_CONSTRUCTOR(iters = iters)) algorithm
+        for i in iters loop
+          UnorderedSet.add(InstNode.name(Util.tuple21(i)), bound);
+        end for;
+      then ();
+      else ();
+    end match;
+  end cseBoundIterators;
+
+  function cseUsesName
+    "true for a cref whose root has one of the names"
+    input Expression exp;
+    input UnorderedSet<String> names;
+    output Boolean b;
+  algorithm
+    b := match exp
+      case Expression.CREF() then UnorderedSet.contains(ComponentRef.firstName(ComponentRef.last(exp.cref)), names);
+      else false;
+    end match;
+  end cseUsesName;
+
+  function cseCollectPtr
+    input Expression exp;
+    input Pointer<list<Expression>> acc;
+  algorithm
+    Pointer.update(acc, cseCollect(exp, Pointer.access(acc)));
+  end cseCollectPtr;
+
+  function isCseCandidate
+    input Expression exp;
+    output Boolean b;
+  algorithm
+    b := Type.isReal(Expression.typeOf(exp)) and (match exp
+      case Expression.CALL(call = Call.TYPED_CALL()) then not Call.isImpure(exp.call);
+      case Expression.BINARY() then Operator.getMathClassification(exp.operator) == NFOperator.MathClassification.POWER;
+      else false;
+    end match);
+  end isCseCandidate;
+
+  function cseCount
+    input Expression exp;
+    input Expression target;
+    output Integer n = Expression.fold(exp, function cseCountEqual(target = target), 0);
+  end cseCount;
+
+  function cseCountEqual
+    input Expression exp;
+    input Expression target;
+    input output Integer n;
+  algorithm
+    if Expression.isEqual(exp, target) then
+      n := n + 1;
+    end if;
+  end cseCountEqual;
+
+  function cseSize
+    input Expression exp;
+    output Integer n = Expression.fold(exp, cseSizeCount, 0);
+  end cseSize;
+
+  function cseSizeCount
+    input Expression exp;
+    input output Integer n;
+  algorithm
+    n := n + 1;
+  end cseSizeCount;
+
+  function cseLarger
+    input Expression e1;
+    input Expression e2;
+    output Boolean b = cseSize(e1) > cseSize(e2);
+  end cseLarger;
+
+  function cseReplace
+    input output Expression exp;
+    input Expression target;
+    input Expression replacement;
+  algorithm
+    if Expression.isEqual(exp, target) then
+      exp := replacement;
+    end if;
+  end cseReplace;
 
   function differentiateFunctionInterfaceNodes
     "differentiates function interface nodes (inputs, outputs, locals) and

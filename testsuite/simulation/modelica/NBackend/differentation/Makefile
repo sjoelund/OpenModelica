@@ -25,6 +25,7 @@ iteratorElementDerivative.mos \
 recordArgumentDerivative.mos \
 loopJacobianIterators.mos \
 integerEnumDerivative.mos \
+derivativeFunctionCSE.mos \
 
 # test that currently fail. Move up when fixed.
 # Run make failingtest

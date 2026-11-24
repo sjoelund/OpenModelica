@@ -17,6 +17,7 @@ function_partial_der.mos\
 functionPointerBinding.mos\
 function_inline_retype.mos\
 inlineNoFunctionAlias.mos\
+functionLoopInvariant.mos\
 
 # test that currently fail. Move up when fixed.
 # Run make failingtest

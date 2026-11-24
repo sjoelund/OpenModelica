@@ -769,7 +769,8 @@ public
       (Solve.main,                            "Solve"),
       (function Jacobian.main(kind = kind),   "Jacobian"),
       (Initialization.minimizeHomotopySystem, "Minimize Homotopy System"),
-      (DataReconciliation.createJacobian,     "Data Reconciliation Jacobian")
+      (DataReconciliation.createJacobian,     "Data Reconciliation Jacobian"),
+      (optimizeFunctions,                     "Optimize Functions")
     };
 
     (bdae, preOptClocks)  := applyModules(bdae, preOptModules, eq_filter_opt, ClockIndexes.RT_CLOCK_NEW_BACKEND_MODULE);
@@ -896,6 +897,17 @@ public
       else bdae;
     end match;
   end simplify;
+
+  function optimizeFunctions
+    input output BackendDAE bdae;
+  algorithm
+    () := match bdae
+      case MAIN() algorithm
+        Differentiate.licmFunctions(bdae.funcMap);
+      then ();
+      else ();
+    end match;
+  end optimizeFunctions;
 
   function evaluateConstants
     "Evaluates constant array subexpressions, e.g. fill(1.0, n) * c + {...}, which

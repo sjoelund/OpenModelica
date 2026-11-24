@@ -1,0 +1,68 @@
+// name: functionLoopInvariant
+// keywords: NewBackend
+// status: correct
+// suite: cSources
+// teardown_command: rm -rf FunctionLoopInvariant*
+// Calls of total functions that do not depend on the inner loop of a function
+// are computed once per iteration of the outer loop, also in its derivative.
+
+loadString("
+package FunctionLoopInvariant
+  function g
+    input Real u;
+    output Real y;
+  algorithm
+    y := u*exp(u);
+    annotation(Inline = true);
+  end g;
+
+  function f
+    input Real x[:];
+    input Real c;
+    output Real y;
+  protected
+    Real a[size(x, 1)];
+    Real m[size(x, 1), size(x, 1)];
+  algorithm
+    for i in 1:size(x, 1) loop
+      a[i] := c*x[i];
+    end for;
+    for i in 1:size(x, 1) loop
+      for j in 1:size(x, 1) loop
+        m[i, j] := (g(a[i]) + sin(a[i]))*cos(a[j]);
+      end for;
+    end for;
+    y := sum(m);
+  end f;
+
+  model M
+    Real z(start = 0.1);
+  equation
+    f({1, 2, 3}, z) + z = 2 + time;
+  end M;
+end FunctionLoopInvariant;
+"); getErrorString();
+setCommandLineOptions("--newBackend"); getErrorString();
+simulate(FunctionLoopInvariant.M); getErrorString();
+val(z, 1);
+system("grep -c 'fcse[0-9]* = ' FunctionLoopInvariant.M_functions.c", outputFile = "FunctionLoopInvariant_cnt.txt"); getErrorString();
+readFile("FunctionLoopInvariant_cnt.txt");
+// Result:
+// true
+// ""
+// true
+// ""
+// record SimulationResult
+//     resultFile = "FunctionLoopInvariant.M_res.mat",
+//     simulationOptions = "startTime = 0.0, stopTime = 1.0, numberOfIntervals = 500, tolerance = 1e-6, method = 'auto', fileNamePrefix = 'FunctionLoopInvariant.M', options = '', outputFormat = 'mat', variableFilter = '.*', cflags = '', simflags = ''",
+//     messages = "LOG_SUCCESS       | info    | The initialization finished successfully without homotopy method.
+// LOG_SUCCESS       | info    | The simulation finished successfully.
+// "
+// end SimulationResult;
+// ""
+// 0.07524855634913251
+// 0
+// ""
+// "7
+// "
+// endResult

@@ -3019,6 +3019,421 @@ public
     end if;
   end differentiateFunction;
 
+  function licmFunctions
+    "Moves calls of total functions that do not depend on a for-loop out of it, in
+    all function bodies, e.g. exp(c * x[i]) out of a loop over j inside a loop over i."
+    input UnorderedMap<Path, Function> funcMap;
+  protected
+    Function new_fn;
+  algorithm
+    for fn in UnorderedMap.valueList(funcMap) loop
+      new_fn := licmFunction(fn, funcMap);
+      if not referenceEq(fn, new_fn) then
+        UnorderedMap.add(new_fn.path, new_fn, funcMap);
+      end if;
+    end for;
+  end licmFunctions;
+
+  function licmFunction
+    input Function fn;
+    input UnorderedMap<Path, Function> funcMap;
+    output Function new_fn = fn;
+  protected
+    InstNode node;
+    Pointer<Class> cls;
+    Class new_cls;
+    Option<InstNode> template = NONE();
+    Pointer<list<InstNode>> new_locals = Pointer.create({});
+    CachedData cachedData;
+    Boolean ok;
+  algorithm
+    node := InstNode.fromHandle(fn.node);
+    ok := InstNode.isClass(node) and not Function.isExternal(fn);
+    if ok then
+      template := cseTemplate(listAppend(fn.inputs, fn.locals));
+      ok := isSome(template);
+    end if;
+    if ok then
+      InstNode.CLASS_NODE(cls = cls) := node;
+      (ok, new_cls) := match Pointer.access(cls)
+        local
+          Sections sections;
+        case new_cls as Class.INSTANCED_CLASS(sections = sections as Sections.SECTIONS()) algorithm
+          sections.algorithms := list(licmAlgorithm(alg, Util.getOption(template), cseOffset(listAppend(fn.inputs, fn.locals)), new_locals, funcMap)
+            for alg in sections.algorithms);
+          new_cls.sections := sections;
+          new_cls.elements := ClassTree.appendComponentsToFlatTree(Pointer.access(new_locals), new_cls.elements);
+        then (not listEmpty(Pointer.access(new_locals)), new_cls);
+        else (false, Pointer.access(cls));
+      end match;
+      if ok then
+        node := InstNode.replaceClass(new_cls, node);
+        new_fn.locals := listAppend(fn.locals, listReverse(Pointer.access(new_locals)));
+        cachedData := CachedData.FUNCTION({new_fn}, true, false);
+        new_fn.node := NFInstNode.NodeHandle.VALUE(InstNode.newFuncCache(node, cachedData));
+      end if;
+    end if;
+  end licmFunction;
+
+  function licmAlgorithm
+    input output Algorithm alg;
+    input InstNode template;
+    input Integer offset;
+    input Pointer<list<InstNode>> new_locals;
+    input UnorderedMap<Path, Function> funcMap;
+  algorithm
+    alg.statements := licmStatements(alg.statements, template, offset, new_locals, funcMap);
+  end licmAlgorithm;
+
+  function licmStatements
+    input output list<Statement> stmts;
+    input InstNode template;
+    input Integer offset;
+    input Pointer<list<InstNode>> new_locals;
+    input UnorderedMap<Path, Function> funcMap;
+  algorithm
+    stmts := List.flatten(list(licmStatement(stmt, template, offset, new_locals, funcMap) for stmt in stmts));
+  end licmStatements;
+
+  function licmStatement
+    input Statement stmt;
+    input InstNode template;
+    input Integer offset;
+    input Pointer<list<InstNode>> new_locals;
+    input UnorderedMap<Path, Function> funcMap;
+    output list<Statement> stmts;
+  algorithm
+    stmts := match stmt
+      local
+        Statement s;
+        list<Statement> hoisted, body;
+      case s as Statement.FOR() algorithm
+        body := licmStatements(s.body, template, offset, new_locals, funcMap);
+        (hoisted, body) := licmLoop(s.iterator, s.range, body, s.source, template, offset, new_locals, funcMap);
+        s.body := body;
+      then listAppend(hoisted, {s});
+      case s as Statement.WHILE() algorithm
+        s.body := licmStatements(s.body, template, offset, new_locals, funcMap);
+      then {s};
+      case s as Statement.IF() algorithm
+        s.branches := list((Util.tuple21(b), licmStatements(Util.tuple22(b), template, offset, new_locals, funcMap)) for b in s.branches);
+      then {s};
+      else {stmt};
+    end match;
+  end licmStatement;
+
+  function licmLoop
+    "the assignments of the invariant total calls of a loop body, if the loop runs at
+    least once, and the body that uses them"
+    input InstNode iterator;
+    input Option<Expression> range;
+    output list<Statement> hoisted = {};
+    input output list<Statement> body;
+    input DAE.ElementSource source;
+    input InstNode template;
+    input Integer offset;
+    input Pointer<list<InstNode>> new_locals;
+    input UnorderedMap<Path, Function> funcMap;
+  protected
+    UnorderedSet<String> variant = UnorderedSet.new(stringHashDjb2, stringEq);
+    list<Expression> candidates;
+    InstNode node;
+    Expression cref_exp;
+    Option<Expression> runs;
+  algorithm
+    runs := licmRuns(range);
+    if isNone(runs) then
+      return;
+    end if;
+    UnorderedSet.add(InstNode.name(iterator), variant);
+    licmAssigned(body, variant);
+    for e in licmExps(body) loop
+      Expression.apply(e, function cseBoundIterators(bound = variant));
+    end for;
+    candidates := List.fold(body, function licmCollectStmt(variant = variant, funcMap = funcMap), {});
+    candidates := List.uniqueOnTrue(candidates, Expression.isEqual);
+    // the outer ones first, they contain the inner ones
+    candidates := List.sort(candidates, function cseLargerFlip());
+    for cand in candidates loop
+      if sum(cseCount(e, cand) for e in licmExps(body)) > 0 then
+        node := match template
+          local
+            InstNode qual;
+          case qual as InstNode.COMPONENT_NODE() algorithm
+            qual.name := "$fcse" + intString(offset + listLength(Pointer.access(new_locals)) + 1);
+          then InstNode.reidentify(qual);
+        end match;
+        node := InstNode.protect(InstNode.setComponentDirection(NFPrefixes.Direction.NONE, node));
+        Pointer.update(new_locals, node :: Pointer.access(new_locals));
+        cref_exp := Expression.fromCref(ComponentRef.fromNode(node, Type.REAL()));
+        hoisted := Statement.ASSIGNMENT(cref_exp, cand, Type.REAL(), source) :: hoisted;
+        body := Statement.mapExpList(body, function Expression.map(func = function cseReplace(target = cand, replacement = cref_exp)));
+      end if;
+    end for;
+    if not listEmpty(hoisted) then
+      hoisted := {Statement.IF({(Util.getOption(runs), listReverse(hoisted))}, source)};
+    end if;
+  end licmLoop;
+
+  function licmRuns
+    "the condition that a for-loop over the range runs at least once"
+    input Option<Expression> range;
+    output Option<Expression> runs;
+  algorithm
+    runs := match range
+      local
+        Expression start, stop;
+      case SOME(Expression.RANGE(start = start, step = NONE(), stop = stop))
+        then SOME(Expression.RELATION(stop, Operator.makeGreaterEq(Type.INTEGER()), start, -1));
+      case SOME(Expression.RANGE(start = start, step = SOME(Expression.INTEGER(1)), stop = stop))
+        then SOME(Expression.RELATION(stop, Operator.makeGreaterEq(Type.INTEGER()), start, -1));
+      else NONE();
+    end match;
+  end licmRuns;
+
+  function cseLargerFlip
+    input Expression e1;
+    input Expression e2;
+    output Boolean b = cseSize(e1) < cseSize(e2);
+  end cseLargerFlip;
+
+  function licmExps
+    "the expressions of statements, for counting"
+    input list<Statement> stmts;
+    output list<Expression> exps = {};
+  protected
+    Pointer<list<Expression>> acc = Pointer.create({});
+  algorithm
+    _ := Statement.mapExpList(stmts, function licmExpsCollect(acc = acc));
+    exps := Pointer.access(acc);
+  end licmExps;
+
+  function licmExpsCollect
+    input output Expression exp;
+    input Pointer<list<Expression>> acc;
+  algorithm
+    Pointer.update(acc, exp :: Pointer.access(acc));
+  end licmExpsCollect;
+
+  function licmAssigned
+    "the names of the variables a loop body assigns, including inner iterators"
+    input list<Statement> stmts;
+    input UnorderedSet<String> variant;
+  algorithm
+    for stmt in stmts loop
+      () := match stmt
+        case Statement.ASSIGNMENT() algorithm
+          licmAssignedExp(stmt.lhs, variant);
+        then ();
+        case Statement.FOR() algorithm
+          UnorderedSet.add(InstNode.name(stmt.iterator), variant);
+          licmAssigned(stmt.body, variant);
+        then ();
+        case Statement.WHILE() algorithm
+          licmAssigned(stmt.body, variant);
+        then ();
+        case Statement.IF() algorithm
+          for b in stmt.branches loop
+            licmAssigned(Util.tuple22(b), variant);
+          end for;
+        then ();
+        else algorithm
+          // a statement that can assign in other ways: no expression is invariant
+          UnorderedSet.add("", variant);
+        then ();
+      end match;
+    end for;
+  end licmAssigned;
+
+  function licmAssignedExp
+    input Expression exp;
+    input UnorderedSet<String> variant;
+  algorithm
+    () := match exp
+      case Expression.CREF() algorithm
+        UnorderedSet.add(ComponentRef.firstName(ComponentRef.last(exp.cref)), variant);
+      then ();
+      case Expression.TUPLE() algorithm
+        for e in exp.elements loop
+          licmAssignedExp(e, variant);
+        end for;
+      then ();
+      else algorithm
+        UnorderedSet.add("", variant);
+      then ();
+    end match;
+  end licmAssignedExp;
+
+  function licmCollectStmt
+    "the total calls in the statements that are executed in each iteration"
+    input Statement stmt;
+    input UnorderedSet<String> variant;
+    input UnorderedMap<Path, Function> funcMap;
+    input output list<Expression> candidates;
+  algorithm
+    if UnorderedSet.contains("", variant) then
+      return;
+    end if;
+    candidates := match stmt
+      case Statement.ASSIGNMENT() then licmCollect(stmt.rhs, variant, funcMap, candidates);
+      case Statement.FOR() then List.fold(stmt.body, function licmCollectStmt(variant = variant, funcMap = funcMap), candidates);
+      else candidates;
+    end match;
+  end licmCollectStmt;
+
+  function licmCollect
+    input Expression exp;
+    input UnorderedSet<String> variant;
+    input UnorderedMap<Path, Function> funcMap;
+    input output list<Expression> candidates;
+  protected
+    Pointer<list<Expression>> acc;
+  algorithm
+    () := match exp
+      case Expression.IF() algorithm
+        candidates := licmCollect(exp.condition, variant, funcMap, candidates);
+      then ();
+      case Expression.CALL(call = Call.TYPED_REDUCTION()) then ();
+      case Expression.CALL(call = Call.TYPED_ARRAY_CONSTRUCTOR()) then ();
+      case Expression.LBINARY() algorithm
+        candidates := licmCollect(exp.exp1, variant, funcMap, candidates);
+      then ();
+      else algorithm
+        if Type.isReal(Expression.typeOf(exp)) and isTotalExp(exp, funcMap, 3)
+           and (match exp case Expression.CALL() then true; else false; end match)
+           and not Expression.contains(exp, function isVariantCref(variant = variant)) then
+          candidates := exp :: candidates;
+        else
+          acc := Pointer.create(candidates);
+          Expression.applyShallow(exp, function licmCollectPtr(acc = acc, variant = variant, funcMap = funcMap));
+          candidates := Pointer.access(acc);
+        end if;
+      then ();
+    end match;
+  end licmCollect;
+
+  function licmCollectPtr
+    input Expression exp;
+    input Pointer<list<Expression>> acc;
+    input UnorderedSet<String> variant;
+    input UnorderedMap<Path, Function> funcMap;
+  algorithm
+    Pointer.update(acc, licmCollect(exp, variant, funcMap, Pointer.access(acc)));
+  end licmCollectPtr;
+
+  function isVariantCref
+    input Expression exp;
+    input UnorderedSet<String> variant;
+    output Boolean b;
+  algorithm
+    b := match exp
+      case Expression.CREF() then UnorderedSet.contains(ComponentRef.firstName(ComponentRef.last(exp.cref)), variant);
+      else false;
+    end match;
+  end isVariantCref;
+
+  function isTotalExp
+    "true if evaluating the expression can not fail: no division, no root of a
+    negative number, only total functions"
+    input Expression exp;
+    input UnorderedMap<Path, Function> funcMap;
+    input Integer depth;
+    output Boolean b;
+  algorithm
+    b := match exp
+      local
+        Call call;
+      case Expression.INTEGER() then true;
+      case Expression.REAL() then true;
+      case Expression.BOOLEAN() then true;
+      case Expression.CREF() then List.all(ComponentRef.subscriptsAllFlat(exp.cref), function isTotalSubscript(funcMap = funcMap, depth = depth));
+      case Expression.UNARY() then isTotalExp(exp.exp, funcMap, depth);
+      case Expression.BINARY() then isTotalOperator(exp.operator, exp.exp2)
+        and isTotalExp(exp.exp1, funcMap, depth) and isTotalExp(exp.exp2, funcMap, depth);
+      case Expression.MULTARY() then listEmpty(exp.inv_arguments)
+        and List.all(exp.arguments, function isTotalExp(funcMap = funcMap, depth = depth));
+      case Expression.CALL(call = call as Call.TYPED_CALL())
+      then isTotalFunction(call.fn, funcMap, depth) and List.all(call.arguments, function isTotalExp(funcMap = funcMap, depth = depth));
+      else false;
+    end match;
+  end isTotalExp;
+
+  function isTotalSubscript
+    input Subscript sub;
+    input UnorderedMap<Path, Function> funcMap;
+    input Integer depth;
+    output Boolean b;
+  algorithm
+    b := match sub
+      case Subscript.INDEX() then isTotalExp(sub.index, funcMap, depth);
+      else false;
+    end match;
+  end isTotalSubscript;
+
+  function isTotalAssignment
+    input Statement stmt;
+    input UnorderedMap<Path, Function> funcMap;
+    input Integer depth;
+    output Boolean b;
+  algorithm
+    b := match stmt
+      case Statement.ASSIGNMENT(lhs = Expression.CREF()) then isTotalExp(stmt.rhs, funcMap, depth);
+      else false;
+    end match;
+  end isTotalAssignment;
+
+  function hasBinding
+    input InstNode node;
+    output Boolean b = Binding.isBound(Component.getBinding(InstNode.component(node)));
+  end hasBinding;
+
+  function isTotalOperator
+    input Operator op;
+    input Expression exp2;
+    output Boolean b;
+  algorithm
+    b := match Operator.getMathClassification(op)
+      case NFOperator.MathClassification.ADDITION then true;
+      case NFOperator.MathClassification.SUBTRACTION then true;
+      case NFOperator.MathClassification.MULTIPLICATION then true;
+      case NFOperator.MathClassification.POWER then (match exp2 case Expression.INTEGER() then exp2.value >= 0; else false; end match) or
+        (match exp2 case Expression.REAL() then exp2.value == realInt(exp2.value) and exp2.value >= 0.0; else false; end match);
+      else false;
+    end match;
+  end isTotalOperator;
+
+  function isTotalFunction
+    input Function fn;
+    input UnorderedMap<Path, Function> funcMap;
+    input Integer depth;
+    output Boolean b;
+  algorithm
+    if Function.isImpure(fn) then
+      b := false;
+    elseif Function.isBuiltin(fn) then
+      b := match AbsynUtil.pathFirstIdent(Function.nameConsiderBuiltin(fn))
+        case "exp" then true;
+        case "sin" then true;
+        case "cos" then true;
+        case "atan" then true;
+        case "sinh" then true;
+        case "cosh" then true;
+        case "tanh" then true;
+        case "abs" then true;
+        case "sign" then true;
+        case "max" then true;
+        case "min" then true;
+        else false;
+      end match;
+    elseif depth > 0 and not Function.isExternal(fn) and listLength(fn.outputs) == 1 then
+      // the bindings of the output and the locals also run, and are not checked
+      b := not hasBinding(InstNode.fromHandle(listHead(fn.outputs))) and not List.any(fn.locals, hasBinding)
+        and List.all(Function.getBody(fn), function isTotalAssignment(funcMap = funcMap, depth = depth - 1));
+    else
+      b := false;
+    end if;
+  end isTotalFunction;
+
   function cseTemplate
     "a scalar Real component without binding to copy for the new locals of cseAlgorithm"
     input list<InstNode> nodes;

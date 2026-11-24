@@ -20,6 +20,7 @@ scalarDivArray.mos \
 retypeNestedArrayDivision.mos \
 bindingArrayOperand.mos \
 arrayLiteralZero.mos \
+sumConstantElements.mos \
 arrayRowScalar.mos \
 emptyArrayTupleArgument.mos \
 algorithmForSubscript.mos \

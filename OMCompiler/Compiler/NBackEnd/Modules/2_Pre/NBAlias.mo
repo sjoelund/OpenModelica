@@ -73,6 +73,7 @@ protected
   import NFBinding.Binding;
   import Call = NFCall;
   import ComponentRef = NFComponentRef;
+  import ExpandExp = NFExpandExp;
   import Expression = NFExpression;
   import ExpressionIterator = NFExpressionIterator;
   import Dimension = NFDimension;
@@ -265,6 +266,7 @@ protected
           eqData.simulation := EquationPointers.compress(newEquations);
           // aliases between slices of arrays are kept as equations, use their start values anyway
           propagateSliceAliasStarts(eqData.simulation);
+          replaceConstantSumElements(eqData.simulation);
           eqData.equations  := EquationPointers.compress(eqData.equations);
           eqData.continuous := EquationPointers.compress(eqData.continuous);
           eqData.discretes  := EquationPointers.compress(eqData.discretes);
@@ -371,6 +373,284 @@ protected
       end if;
     end for;
   end propagateSliceAliasStarts;
+
+  type ConstElements = UnorderedMap<ComponentRef, UnorderedMap<Integer, Expression>> "literal values of array elements by flat index";
+
+  function replaceConstantSumElements
+    "Constant elements of arrays, e.g. x[2] = 0, are kept as equations, since only
+    full arrays are replaced. They are replaced in the arguments of sum(), so that
+    the other factors of their terms are no dependencies."
+    input EquationPointers equations;
+  protected
+    ConstElements consts = UnorderedMap.new<ElementStarts>(ComponentRef.hash, ComponentRef.isEqual);
+    Pointer<Boolean> changed = Pointer.create(true);
+    Boolean again = true;
+  algorithm
+    while again loop
+      Pointer.update(changed, false);
+      EquationPointers.map(equations, function collectConstElements(consts = consts, changed = changed));
+      again := Pointer.access(changed);
+    end while;
+    if not UnorderedMap.isEmpty(consts) then
+      EquationPointers.map(equations, function replaceConstSums(consts = consts));
+    end if;
+  end replaceConstantSumElements;
+
+  function iteratorInstances
+    "the values of the iterators for all their combinations, nothing if a range
+    is not literal or there are too many"
+    input Iterator iter;
+    output list<UnorderedMap<ComponentRef, Expression>> instances = {};
+  protected
+    constant Integer max_size = 100000;
+    list<ComponentRef> names;
+    list<Expression> ranges;
+    list<Option<Iterator>> maps;
+    list<list<Integer>> values = {{}};
+    Integer start, step, stop;
+  algorithm
+    (names, ranges, maps) := Iterator.getFrames(iter);
+    for tpl in List.zip3(names, ranges, maps) loop
+      () := match tpl
+        case (_, Expression.RANGE(), NONE()) guard(Expression.isLiteral(Util.tuple32(tpl))) algorithm
+          (start, step, stop) := Expression.getIntegerRange(Util.tuple32(tpl), false);
+          values := List.flatten(list(list(v :: vs for v in List.intRange3(start, step, stop)) for vs in values));
+        then ();
+        else algorithm return; then ();
+      end match;
+      if listLength(values) > max_size then return; end if;
+    end for;
+    instances := list(UnorderedMap.fromLists(names, list(Expression.INTEGER(v) for v in listReverse(vs)), ComponentRef.hash, ComponentRef.isEqual) for vs in values);
+  end iteratorInstances;
+
+  function constElementValue
+    "the literal value of an array element with literal subscripts, if it is known"
+    input Expression exp;
+    input ConstElements consts;
+    output Option<Expression> value = NONE();
+  protected
+    Option<Integer> index;
+  algorithm
+    () := match exp
+      case Expression.CREF() guard(InstNode.isVar(ComponentRef.node(exp.cref))) algorithm
+        index := BVariable.flatIndex(exp.cref);
+        value := match (index, UnorderedMap.get(ComponentRef.stripSubscriptsAll(exp.cref), consts))
+          local
+            UnorderedMap<Integer, Expression> elems;
+          case (SOME(_), SOME(elems)) then UnorderedMap.get(Util.getOption(index), elems);
+          else NONE();
+        end match;
+      then ();
+      else ();
+    end match;
+  end constElementValue;
+
+  function replaceConstElementExp
+    input output Expression exp;
+    input ConstElements consts;
+  algorithm
+    exp := match exp
+      case Expression.CREF() then Util.getOptionOrDefault(constElementValue(exp, consts), exp);
+      else exp;
+    end match;
+  end replaceConstElementExp;
+
+  function isSimpleSum
+    "crefs and literals with + and -"
+    input Expression exp;
+    output Boolean b;
+  algorithm
+    b := match exp
+      case Expression.CREF() then true;
+      case Expression.UNARY() then isSimpleSum(exp.exp);
+      case Expression.BINARY() then isAddOrSub(exp.operator) and isSimpleSum(exp.exp1) and isSimpleSum(exp.exp2);
+      case Expression.MULTARY() then isAddOrSub(exp.operator) and List.all(exp.arguments, isSimpleSum) and List.all(exp.inv_arguments, isSimpleSum);
+      else Expression.isLiteral(exp);
+    end match;
+  end isSimpleSum;
+
+  function isAddOrSub
+    input Operator op;
+    output Boolean b;
+  protected
+    NFOperator.MathClassification mcl = Operator.getMathClassification(op);
+  algorithm
+    b := mcl == NFOperator.MathClassification.ADDITION or mcl == NFOperator.MathClassification.SUBTRACTION;
+  end isAddOrSub;
+
+  function collectCrefExp
+    input Expression exp;
+    input output list<Expression> crefs;
+  algorithm
+    if Expression.isCref(exp) and not List.contains(crefs, exp, Expression.isEqual) then
+      crefs := exp :: crefs;
+    end if;
+  end collectCrefExp;
+
+  function collectConstElements
+    "collects the array elements that are constant: an equation of crefs and
+    literals with + and - that has one unknown left after the known constant
+    elements are inserted, e.g. x[2] = 0 or y[2] + x[2] = 0"
+    input output Equation eqn;
+    input ConstElements consts;
+    input Pointer<Boolean> changed;
+  protected
+    Equation body;
+    list<UnorderedMap<ComponentRef, Expression>> instances;
+    Expression res, inst, x, k0, k1;
+    list<Expression> crefs;
+    Option<Integer> index;
+    UnorderedMap<Integer, Expression> elems;
+    ComponentRef name;
+    Type ty;
+    Real a;
+  algorithm
+    (body, instances) := match eqn
+      case Equation.FOR_EQUATION(body = {body as Equation.SCALAR_EQUATION()}) then (body, iteratorInstances(eqn.iter));
+      case Equation.SCALAR_EQUATION() then (eqn, {UnorderedMap.new<Expression>(ComponentRef.hash, ComponentRef.isEqual)});
+      else (eqn, {});
+    end match;
+    () := match body
+      case Equation.SCALAR_EQUATION() guard(Type.isReal(body.ty) and isSimpleSum(body.lhs) and isSimpleSum(body.rhs)) algorithm
+        ty := body.ty;
+        res := Expression.BINARY(body.lhs, Operator.makeSub(ty), body.rhs);
+        for repl in instances loop
+          inst := SimplifyExp.simplify(Expression.map(res, function Replacements.applySimpleExp(replacements = repl)));
+          inst := SimplifyExp.simplify(Expression.map(inst, function replaceConstElementExp(consts = consts)));
+          crefs := Expression.fold(inst, collectCrefExp, {});
+          if List.hasOneElement(crefs) then
+            x := listHead(crefs);
+            index := BVariable.flatIndex(Expression.toCref(x));
+            if isSome(index) and isElement(x) and isNone(constElementValue(x, consts)) then
+              k0 := SimplifyExp.simplify(Expression.map(inst, function Replacements.applySimpleExp(replacements =
+                UnorderedMap.fromLists({Expression.toCref(x)}, {Expression.makeZero(ty)}, ComponentRef.hash, ComponentRef.isEqual))));
+              k1 := SimplifyExp.simplify(Expression.map(inst, function Replacements.applySimpleExp(replacements =
+                UnorderedMap.fromLists({Expression.toCref(x)}, {Expression.makeOne(ty)}, ComponentRef.hash, ComponentRef.isEqual))));
+              if Expression.isLiteral(k0) and Expression.isLiteral(k1) then
+                a := Expression.realValue(k1) - Expression.realValue(k0);
+                if a <> 0.0 then
+                  name := ComponentRef.stripSubscriptsAll(Expression.toCref(x));
+                  elems := UnorderedMap.getOrDefault(name, consts, UnorderedMap.new<Expression>(Util.id, intEq));
+                  UnorderedMap.add(Util.getOption(index), Expression.REAL(-Expression.realValue(k0) / a), elems);
+                  UnorderedMap.add(name, elems, consts);
+                  Pointer.update(changed, true);
+                end if;
+              end if;
+            end if;
+          end if;
+        end for;
+      then ();
+      else ();
+    end match;
+  end collectConstElements;
+
+  function isElement
+    "an element of an array variable"
+    input Expression exp;
+    output Boolean b;
+  algorithm
+    b := match exp
+      case Expression.CREF() then InstNode.isVar(ComponentRef.node(exp.cref)) and Type.isArray(Variable.typeOf(Pointer.access(BVariable.getVarPointer(exp.cref, sourceInfo()))))
+        and not BVariable.isParamOrConst(BVariable.getVarPointer(exp.cref, sourceInfo()));
+      else false;
+    end match;
+  end isElement;
+
+  function replaceConstSums
+    input output Equation eqn;
+    input ConstElements consts;
+  protected
+    list<UnorderedMap<ComponentRef, Expression>> instances;
+  algorithm
+    instances := match eqn
+      case Equation.FOR_EQUATION() then iteratorInstances(eqn.iter);
+      else {UnorderedMap.new<Expression>(ComponentRef.hash, ComponentRef.isEqual)};
+    end match;
+    if not listEmpty(instances) then
+      eqn := Equation.map(eqn, function replaceConstSum(consts = consts, instances = instances));
+    end if;
+  end replaceConstSums;
+
+  function replaceConstSum
+    "sum(a .* b) with known constant elements of a, as the sum of the element terms"
+    input output Expression exp;
+    input ConstElements consts;
+    input list<UnorderedMap<ComponentRef, Expression>> instances;
+  protected
+    Call call;
+    Expression arg;
+    Pointer<Boolean> changed = Pointer.create(false);
+    Boolean expanded;
+    Type ty;
+    list<Expression> elems;
+    Expression result = exp;
+  algorithm
+    () := match exp
+      case Expression.CALL(call = call as Call.TYPED_CALL(arguments = {arg})) guard(Call.isNamed(call, "sum")) algorithm
+        arg := Expression.map(arg, function replaceConstArray(consts = consts, instances = instances, changed = changed));
+        if Pointer.access(changed) then
+          (arg, expanded) := ExpandExp.expand(arg);
+          if expanded then
+            ty := Type.arrayElementType(Expression.typeOf(arg));
+            elems := Expression.arrayScalarElements(arg);
+            result := if listEmpty(elems) then Expression.makeZero(ty) else SimplifyExp.simplify(Expression.MULTARY(elems, {}, Operator.makeAdd(ty)));
+          end if;
+        end if;
+      then ();
+      else ();
+    end match;
+    exp := result;
+  end replaceConstSum;
+
+  function replaceConstArray
+    "an array variable with constant elements as the array of its elements, the
+    elements that are constant for all iterator values are replaced by their value"
+    input output Expression exp;
+    input ConstElements consts;
+    input list<UnorderedMap<ComponentRef, Expression>> instances;
+    input Pointer<Boolean> changed;
+  protected
+    Expression arr = exp;
+    Boolean expanded;
+    Pointer<Boolean> replaced = Pointer.create(false);
+  algorithm
+    () := match exp
+      case Expression.CREF(ty = Type.ARRAY())
+        guard(InstNode.isVar(ComponentRef.node(exp.cref)) and UnorderedMap.contains(ComponentRef.stripSubscriptsAll(exp.cref), consts)) algorithm
+        (arr, expanded) := ExpandExp.expand(exp);
+        if expanded then
+          arr := Expression.map(arr, function replaceConstElement(consts = consts, instances = instances, replaced = replaced));
+        end if;
+      then ();
+      else ();
+    end match;
+    if Pointer.access(replaced) then
+      exp := arr;
+      Pointer.update(changed, true);
+    end if;
+  end replaceConstArray;
+
+  function replaceConstElement
+    input output Expression exp;
+    input ConstElements consts;
+    input list<UnorderedMap<ComponentRef, Expression>> instances;
+    input Pointer<Boolean> replaced;
+  protected
+    Option<Expression> value = NONE(), inst_value;
+  algorithm
+    if not Expression.isCref(exp) then return; end if;
+    for repl in instances loop
+      inst_value := constElementValue(SimplifyExp.simplify(Expression.map(exp, function Replacements.applySimpleExp(replacements = repl))), consts);
+      if isNone(inst_value) or (isSome(value) and not Expression.isEqual(Util.getOption(value), Util.getOption(inst_value))) then
+        return;
+      end if;
+      value := inst_value;
+    end for;
+    if isSome(value) then
+      exp := Util.getOption(value);
+      Pointer.update(replaced, true);
+    end if;
+  end replaceConstElement;
 
   function conditionalStart
     "{if i1 == s1 and ... then v elseif ... else 0 for ...} of the elements (subscripts, value),

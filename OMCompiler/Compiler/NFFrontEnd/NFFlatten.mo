@@ -1705,7 +1705,10 @@ algorithm
       algorithm
         cr := ComponentRef.mapExpShallow(exp.cref, function flattenExp(prefix = prefix, info = info));
         exp.cref := flattenCref(cr, prefix, info);
-        exp.ty := flattenType(exp.ty, prefix, info);
+        // a split index of a dimension outside the prefix becomes :, e.g. the
+        // start of x[n] in a vectorized component array
+        exp.ty := if ComponentRef.hasSplitSubscripts(cr) then ComponentRef.getSubscriptedType(exp.cref)
+                  else flattenType(exp.ty, prefix, info);
       then
         // the same size parameter everywhere: in loop ranges and indices as in
         // the dimensions, see resizableDimensionAlias

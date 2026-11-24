@@ -1,0 +1,52 @@
+// name: vectorizedStart
+// keywords: NewBackend
+// status: correct
+// The start of an array variable in a component array is the whole parameter
+// array of each element, not one row of it.
+
+loadString("
+package VectorizedStart
+  model Inner
+    parameter Integer n = 3;
+    parameter Real q[n] = ones(n)/n annotation(Evaluate = true);
+    Real x[n](start = q, each fixed = true);
+  equation
+    der(x) = -x;
+  end Inner;
+
+  model Cell
+    parameter Integer n = 3;
+    parameter Real p[n] = ones(n)/n;
+    Inner a(n = n, q = p);
+  end Cell;
+
+  model M
+    parameter Real P[2, 3] = {{0.1, 0.2, 0.7}, {0.3, 0.3, 0.4}};
+    Cell c[2](p = P);
+  end M;
+end VectorizedStart;
+"); getErrorString();
+setCommandLineOptions("--newBackend"); getErrorString();
+simulate(VectorizedStart.M, stopTime = 0.1); getErrorString();
+val(c[1].a.x[1], 0);
+val(c[1].a.x[3], 0);
+val(c[2].a.x[1], 0);
+val(c[2].a.x[3], 0);
+// Result:
+// true
+// ""
+// true
+// ""
+// record SimulationResult
+//     resultFile = "VectorizedStart.M_res.mat",
+//     simulationOptions = "startTime = 0.0, stopTime = 0.1, numberOfIntervals = 500, tolerance = 1e-6, method = 'auto', fileNamePrefix = 'VectorizedStart.M', options = '', outputFormat = 'mat', variableFilter = '.*', cflags = '', simflags = ''",
+//     messages = "LOG_SUCCESS       | info    | The initialization finished successfully without homotopy method.
+// LOG_SUCCESS       | info    | The simulation finished successfully.
+// "
+// end SimulationResult;
+// ""
+// 0.1
+// 0.7
+// 0.3
+// 0.4
+// endResult

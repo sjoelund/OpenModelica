@@ -149,6 +149,7 @@ componentArraySlicedStart.mos \
 resizableConnectDeleted.mos \
 EmptyArrayInComponentArray.mos \
 sparsityRowsArrayComponents.mos \
+vectorizedStart.mos \
 
 # test that currently fail. Move up when fixed.
 # Run make failingtest

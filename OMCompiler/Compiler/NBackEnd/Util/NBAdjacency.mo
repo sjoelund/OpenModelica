@@ -80,6 +80,7 @@ protected
   // Util import
   import Array;
   import BackendUtil = NBBackendUtil;
+  import ErrorExt;
   import BuiltinSystem = System;
   import BackendDAE = NBackendDAE;
   import NFInstNode.InstNode;
@@ -1684,6 +1685,481 @@ public
         print(toString(sparsity) + "\n");
       end if;
     end fullToSparsity;
+
+    function scalarSparsity
+      "The sparsity pattern of the jacobian of an algebraic loop with fixed sizes, from its
+      scalar equations: an inner variable depends on the seeds the equation solving it uses,
+      directly or through other inner variables, and a residual on the seeds its equation
+      uses that way. NONE() if the loop is too large or can not be handled."
+      input VariablePointers vars "seed arrays and inner variables";
+      input list<StrongComponent> comps "inner and residual components";
+      input VariablePointers seedCandidates;
+      input UnorderedSet<ComponentRef> pder_set "residual variables";
+      input UnorderedMap<ComponentRef, ComponentRef> diff_map;
+      output Option<Matrix> sparsity = NONE();
+    algorithm
+      if Flags.getConfigBool(Flags.RESIZABLE_ARRAYS) then
+        return;
+      end if;
+      ErrorExt.setCheckpoint(getInstanceName());
+      try
+        sparsity := SOME(scalarSparsityWork(vars, comps, seedCandidates, pder_set, diff_map));
+        ErrorExt.delCheckpoint(getInstanceName());
+      else
+        ErrorExt.rollBack(getInstanceName());
+        sparsity := NONE();
+      end try;
+      if Flags.isSet(Flags.BLT_MATRIX_DUMP) and isSome(sparsity) then
+        print(toString(Util.getOption(sparsity)) + "\n");
+      end if;
+    end scalarSparsity;
+
+    function scalarSparsityWork
+      "see scalarSparsity, fails if the loop can not be handled"
+      input VariablePointers vars;
+      input list<StrongComponent> comps;
+      input VariablePointers seedCandidates;
+      input UnorderedSet<ComponentRef> pder_set;
+      input UnorderedMap<ComponentRef, ComponentRef> diff_map;
+      output Matrix sparsity;
+    protected
+      constant Integer max_size = 200000;
+      list<tuple<Pointer<Equation>, list<Integer>>> eqn_slices = {};
+      list<Integer> comp_rows, cols;
+      UnorderedMap<ComponentRef, EquationPointer> eqn_map = UnorderedMap.new<EquationPointer>(ComponentRef.hash, ComponentRef.isEqual);
+      UnorderedMap<ComponentRef, ComponentRef> seed_elems = UnorderedMap.new<ComponentRef>(ComponentRef.hash, ComponentRef.isEqual);
+      EquationPointers eqns;
+      Matrix full, adj;
+      IntMatrix m;
+      array<Integer> m_data;
+      Mapping mapping;
+      Integer nE, nV, start, size, idx, n_inner_eqns = 0, n_inner_vars = 0, stamp = 0;
+      array<Boolean> included, is_res, inner_col;
+      array<ComponentRef> res_pder, res_name;
+      array<Option<ComponentRef>> seed_of;
+      list<ComponentRef> elems, res;
+      list<Integer> rows;
+      Option<ComponentRef> oseed;
+      array<Integer> matchE, matchV, visited, prevE, scc_of;
+      array<list<Integer>> succ, direct;
+      array<UnorderedSet<Integer>> scc_deps;
+      UnorderedSet<Integer> row_deps;
+      UnorderedMap<ComponentRef, Dependency> dep_map;
+      list<ComponentRef> eqn_names = {};
+      list<UnorderedMap<ComponentRef, Dependency>> deps = {};
+      list<list<ComponentRef>> solved = {};
+      Pointer<Equation> eqn_ptr;
+      list<Integer> eqn_indices;
+      ComponentRef pder;
+      list<ComponentRef> pder_elems;
+      array<ComponentRef> pder_arr;
+    algorithm
+      for comp in comps loop
+        eqn_slices := listAppend(sparsityCompSlices(comp), eqn_slices);
+      end for;
+      for tpl in eqn_slices loop
+        UnorderedMap.tryAdd(Equation.getEqnName(Util.tuple21(tpl)), Util.tuple21(tpl), eqn_map);
+      end for;
+      eqns := EquationPointers.fromList(UnorderedMap.valueList(eqn_map));
+      full := createFull(vars, eqns);
+      adj := fullToFinal(full, vars.map, eqns.map, eqns, MatrixStrictness.MATCHING);
+      adj := upgrade(adj, full, vars.map, eqns.map, eqns, MatrixStrictness.SORTING);
+      FINAL(m = m, mapping = mapping) := adj;
+      m_data := IntMatrix.entries(m);
+      nE := arrayLength(mapping.eqn_StA);
+      nV := arrayLength(mapping.var_StA);
+      if nE > max_size or nV > max_size then
+        fail();
+      end if;
+
+      for var in VariablePointers.toList(seedCandidates) loop
+        for elem in listReverse(ComponentRef.scalarizeAll(BVariable.getVarName(var), false)) loop
+          oseed := sparsitySeedCref(elem, diff_map);
+          if isSome(oseed) then
+            UnorderedMap.add(elem, Util.getOption(oseed), seed_elems);
+          end if;
+        end for;
+      end for;
+      seed_of := arrayCreate(nV, NONE());
+      for var in VariablePointers.toList(vars) loop
+        idx := UnorderedMap.getSafe(BVariable.getVarName(var), vars.map, sourceInfo());
+        (start, size) := mapping.var_AtS[idx];
+        elems := listReverse(ComponentRef.scalarizeAll(BVariable.getVarName(var), false));
+        if listLength(elems) <> size then
+          fail();
+        end if;
+        for elem in elems loop
+          seed_of[start] := UnorderedMap.get(elem, seed_elems);
+          start := start + 1;
+        end for;
+      end for;
+
+      // the scalar equations and variables the components solve
+      included := arrayCreate(nE, false);
+      for tpl in eqn_slices loop
+        for r in sparsityScalars(Equation.getEqnName(Util.tuple21(tpl)), eqns.map, mapping.eqn_AtS, Util.tuple22(tpl)) loop
+          included[r] := true;
+        end for;
+      end for;
+      inner_col := arrayCreate(nV, false);
+      for comp in comps loop
+        comp_rows := List.flatten(list(sparsityScalars(Equation.getEqnName(Util.tuple21(t)), eqns.map, mapping.eqn_AtS, Util.tuple22(t)) for t in sparsityCompSlices(comp)));
+        for vs in sparsityCompVarSlices(comp) loop
+          if UnorderedMap.contains(Util.tuple21(vs), vars.map) then
+            idx := UnorderedMap.getSafe(Util.tuple21(vs), vars.map, sourceInfo());
+            cols := match Util.tuple22(vs)
+              local
+                list<Integer> indices;
+              case SOME(indices) then sparsityScalars(Util.tuple21(vs), vars.map, mapping.var_AtS, indices);
+              else list(c for c guard(mapping.var_StA[c] == idx) in List.flatten(list(sparsityRow(m, m_data, r) for r in comp_rows)));
+            end match;
+            for c in cols loop
+              inner_col[c] := isNone(seed_of[c]);
+            end for;
+          end if;
+        end for;
+      end for;
+
+      is_res := arrayCreate(nE, false);
+      res_pder := arrayCreate(nE, ComponentRef.EMPTY());
+      res_name := arrayCreate(nE, ComponentRef.EMPTY());
+      for comp in comps loop
+        res := list(c for c guard(UnorderedSet.contains(c, pder_set) or UnorderedSet.contains(ComponentRef.stripSubscriptsAll(c), pder_set))
+          in StrongComponent.getVariableCrefs(comp));
+        if not listEmpty(res) then
+          {(eqn_ptr, eqn_indices)} := sparsityCompSlices(comp);
+          (start, size) := mapping.eqn_AtS[UnorderedMap.getSafe(Equation.getEqnName(eqn_ptr), eqns.map, sourceInfo())];
+          rows := sparsityScalars(Equation.getEqnName(eqn_ptr), eqns.map, mapping.eqn_AtS, eqn_indices);
+          if not List.hasOneElement(res) then
+            fail();
+          end if;
+          pder := BVariable.getPartnerCref(ComponentRef.stripSubscriptsAll(listHead(res)), function BVariable.getVarPDer(isTmp = false));
+          pder_elems := if size == 1 then {pder} else listReverse(ComponentRef.scalarizeAll(pder, false));
+          if listLength(pder_elems) <> size then
+            fail();
+          end if;
+          pder_arr := listArray(pder_elems);
+          for r in rows loop
+            is_res[r] := true;
+            res_pder[r] := pder_arr[r - start + 1];
+            res_name[r] := Equation.getEqnName(eqn_ptr);
+          end for;
+        end if;
+      end for;
+
+      // match the inner equations to the inner variables, the system is square
+      matchE := arrayCreate(nE, -1);
+      matchV := arrayCreate(nV, -1);
+      visited := arrayCreate(nV, 0);
+      prevE := arrayCreate(nV, -1);
+      for r in 1:nE loop
+        if included[r] and not is_res[r] then
+          n_inner_eqns := n_inner_eqns + 1;
+          for c in sparsityRow(m, m_data, r) loop
+            if inner_col[c] and matchV[c] < 0 then
+              matchE[r] := c;
+              matchV[c] := r;
+              break;
+            end if;
+          end for;
+        end if;
+      end for;
+      for c in 1:nV loop
+        if inner_col[c] then
+          n_inner_vars := n_inner_vars + 1;
+        end if;
+      end for;
+      if n_inner_eqns <> n_inner_vars then
+        fail();
+      end if;
+      for r in 1:nE loop
+        if included[r] and not is_res[r] and matchE[r] < 0 then
+          stamp := stamp + 1;
+          if not sparsityAugment(r, m, m_data, inner_col, matchE, matchV, visited, prevE, stamp) then
+            fail();
+          end if;
+        end if;
+      end for;
+
+      succ := arrayCreate(nV, {});
+      direct := arrayCreate(nV, {});
+      for c in 1:nV loop
+        if inner_col[c] then
+          for u in sparsityRow(m, m_data, matchV[c]) loop
+            if isSome(seed_of[u]) then
+              direct[c] := u :: direct[c];
+            elseif inner_col[u] and u <> c then
+              succ[c] := u :: succ[c];
+            end if;
+          end for;
+        end if;
+      end for;
+      (scc_of, scc_deps) := sparsityTarjan(inner_col, succ, direct);
+
+      for r in 1:nE loop
+        if is_res[r] then
+          row_deps := UnorderedSet.new(Util.id, intEq);
+          for u in sparsityRow(m, m_data, r) loop
+            if isSome(seed_of[u]) then
+              UnorderedSet.add(u, row_deps);
+            elseif inner_col[u] then
+              for s in UnorderedSet.toList(scc_deps[scc_of[u]]) loop
+                UnorderedSet.add(s, row_deps);
+              end for;
+            end if;
+          end for;
+          dep_map := UnorderedMap.new<Dependency>(ComponentRef.hash, ComponentRef.isEqual);
+          for s in UnorderedSet.toList(row_deps) loop
+            UnorderedMap.add(Util.getOption(seed_of[s]), Dependency.create(Type.REAL(), 0), dep_map);
+          end for;
+          eqn_names := res_name[r] :: eqn_names;
+          deps := dep_map :: deps;
+          solved := {res_pder[r]} :: solved;
+        end if;
+      end for;
+
+      sparsity := SPARSITY(
+        equation_names      = listArray(listReverse(eqn_names)),
+        equation_iterators  = listArray(list(Iterator.EMPTY() for n in eqn_names)),
+        dependencies        = listArray(listReverse(deps)),
+        repetitions         = listArray(list(UnorderedSet.new(ComponentRef.hash, ComponentRef.isEqual) for n in eqn_names)),
+        solved_crefs        = listArray(listReverse(solved)));
+    end scalarSparsityWork;
+
+    function sparsityCompSlices
+      "the equations of a component with the zero based indices it solves (empty: all)"
+      input StrongComponent comp;
+      output list<tuple<Pointer<Equation>, list<Integer>>> slices;
+    algorithm
+      slices := match comp
+        case StrongComponent.SINGLE_COMPONENT()    then {(comp.eqn, {})};
+        case StrongComponent.MULTI_COMPONENT()     then {(Slice.getT(comp.eqn), comp.eqn.indices)};
+        case StrongComponent.SLICED_COMPONENT()    then {(Slice.getT(comp.eqn), comp.eqn.indices)};
+        case StrongComponent.RESIZABLE_COMPONENT() then {(Slice.getT(comp.eqn), comp.eqn.indices)};
+        case StrongComponent.GENERIC_COMPONENT()   then {(Slice.getT(comp.eqn), comp.eqn.indices)};
+        case StrongComponent.ENTWINED_COMPONENT()  then List.flatten(list(sparsityCompSlices(c) for c in comp.entwined_slices));
+        case StrongComponent.ALGEBRAIC_LOOP()      then listAppend(List.flatten(list(sparsityCompSlices(c) for c in comp.strict.innerEquations)),
+          list((Slice.getT(s), s.indices) for s in comp.strict.residual_eqns));
+        case StrongComponent.ALIAS()               then sparsityCompSlices(comp.original);
+      end match;
+    end sparsityCompSlices;
+
+    function sparsityCompVarSlices
+      "the variables a component solves with the zero based indices (empty: all), NONE() if
+      they are addressed by iterators: then they are taken from the rows of the component"
+      input StrongComponent comp;
+      output list<tuple<ComponentRef, Option<list<Integer>>>> slices;
+    algorithm
+      slices := match comp
+        case StrongComponent.SINGLE_COMPONENT()    then {(BVariable.getVarName(comp.var), SOME({}))};
+        case StrongComponent.MULTI_COMPONENT()     then list((BVariable.getVarName(Slice.getT(v)), SOME(v.indices)) for v in comp.vars);
+        case StrongComponent.SLICED_COMPONENT()    then {sparsityVarSlice(comp.var_cref, comp.var)};
+        case StrongComponent.RESIZABLE_COMPONENT() then {sparsityVarSlice(comp.var_cref, comp.var)};
+        case StrongComponent.GENERIC_COMPONENT()   then {sparsityVarSlice(comp.var_cref, comp.var)};
+        case StrongComponent.ENTWINED_COMPONENT()  then List.flatten(list(sparsityCompVarSlices(c) for c in comp.entwined_slices));
+        case StrongComponent.ALGEBRAIC_LOOP()      then listAppend(List.flatten(list(sparsityCompVarSlices(c) for c in comp.strict.innerEquations)),
+          list((BVariable.getVarName(Slice.getT(v)), SOME(v.indices)) for v in comp.strict.iteration_vars));
+        case StrongComponent.ALIAS()               then sparsityCompVarSlices(comp.original);
+      end match;
+    end sparsityCompVarSlices;
+
+    function sparsityVarSlice
+      "the indices of a sliced variable or the element its cref addresses, NONE() for iterators"
+      input ComponentRef var_cref;
+      input Slice<Pointer<Variable>> var;
+      output tuple<ComponentRef, Option<list<Integer>>> slice;
+    protected
+      Option<Integer> index;
+    algorithm
+      if not listEmpty(var.indices) or not ComponentRef.hasSubscripts(var_cref) then
+        slice := (BVariable.getVarName(Slice.getT(var)), SOME(var.indices));
+      else
+        index := BVariable.flatIndex(var_cref);
+        slice := (BVariable.getVarName(Slice.getT(var)), if isSome(index) then SOME({Util.getOption(index)}) else NONE());
+      end if;
+    end sparsityVarSlice;
+
+    function sparsityScalars
+      "the scalar indices of the zero based indices of an equation or variable (empty: all)"
+      input ComponentRef name;
+      input UnorderedMap<ComponentRef, Integer> map;
+      input array<tuple<Integer,Integer>> AtS;
+      input list<Integer> indices;
+      output list<Integer> scalars;
+    protected
+      Integer start, size;
+    algorithm
+      (start, size) := AtS[UnorderedMap.getSafe(name, map, sourceInfo())];
+      scalars := if listEmpty(indices) then list(i for i in start:start + size - 1) else list(start + i for i in indices);
+    end sparsityScalars;
+
+    function sparsitySeedCref
+      "the seed of an element of an iteration variable"
+      input ComponentRef cref;
+      input UnorderedMap<ComponentRef, ComponentRef> diff_map;
+      output Option<ComponentRef> seed = UnorderedMap.get(cref, diff_map);
+    algorithm
+      if isNone(seed) then
+        seed := match UnorderedMap.get(ComponentRef.stripSubscriptsAll(cref), diff_map)
+          local
+            ComponentRef s;
+          case SOME(s) then SOME(ComponentRef.copySubscripts(cref, ComponentRef.stripSubscriptsAll(s)));
+          else NONE();
+        end match;
+      end if;
+    end sparsitySeedCref;
+
+    function sparsityRow
+      "the entries of a row of a final matrix"
+      input IntMatrix m;
+      input array<Integer> m_data;
+      input Integer r;
+      output list<Integer> entries = {};
+    algorithm
+      for piece in m.first[r]:m.first[r] + m.pieces[r] - 1 loop
+        for p in IntMatrix.pieceBegin(m, piece):IntMatrix.pieceEnd(m, piece) loop
+          entries := m_data[p] :: entries;
+        end for;
+      end for;
+    end sparsityRow;
+
+    function sparsityAugment
+      "an augmenting path from the unmatched equation r0 (breadth first)"
+      input Integer r0;
+      input IntMatrix m;
+      input array<Integer> m_data;
+      input array<Boolean> inner_col;
+      input array<Integer> matchE;
+      input array<Integer> matchV;
+      input array<Integer> visited;
+      input array<Integer> prevE;
+      input Integer stamp;
+      output Boolean found = false;
+    protected
+      list<Integer> queue = {r0}, next;
+      Integer c_end = -1, c, r, c_prev;
+    algorithm
+      while not listEmpty(queue) and not found loop
+        next := {};
+        for q in queue loop
+          for u in sparsityRow(m, m_data, q) loop
+            if inner_col[u] and visited[u] <> stamp then
+              arrayUpdate(visited, u, stamp);
+              arrayUpdate(prevE, u, q);
+              if matchV[u] < 0 then
+                c_end := u;
+                found := true;
+                break;
+              end if;
+              next := matchV[u] :: next;
+            end if;
+          end for;
+          if found then
+            break;
+          end if;
+        end for;
+        queue := next;
+      end while;
+      if found then
+        c := c_end;
+        while c > 0 loop
+          r := prevE[c];
+          c_prev := matchE[r];
+          arrayUpdate(matchE, r, c);
+          arrayUpdate(matchV, c, r);
+          c := c_prev;
+        end while;
+      end if;
+    end sparsityAugment;
+
+    function sparsityTarjan
+      "the strongly connected components of the inner variables (iterative) and the seeds
+      each of them depends on, numbered in completion order. Fails if the seed sets get
+      too large."
+      input array<Boolean> nodes;
+      input array<list<Integer>> succ;
+      input array<list<Integer>> direct;
+      output array<Integer> scc_of;
+      output array<UnorderedSet<Integer>> scc_deps;
+    protected
+      constant Integer max_entries = 10000000;
+      Integer n = arrayLength(nodes), counter = 0, nscc = 0, v, u, p, entries = 0;
+      array<Integer> index = arrayCreate(n, 0), low = arrayCreate(n, 0);
+      array<Boolean> on_stack = arrayCreate(n, false);
+      list<Integer> stack = {}, rest, members;
+      list<tuple<Integer, list<Integer>>> work;
+      UnorderedSet<Integer> set;
+      Boolean done;
+    algorithm
+      scc_of := arrayCreate(n, 0);
+      scc_deps := arrayCreate(n, UnorderedSet.new(Util.id, intEq));
+      for v0 in 1:n loop
+        if nodes[v0] and index[v0] == 0 then
+          counter := counter + 1;
+          index[v0] := counter;
+          low[v0] := counter;
+          stack := v0 :: stack;
+          on_stack[v0] := true;
+          work := {(v0, succ[v0])};
+          while not listEmpty(work) loop
+            (v, rest) := listHead(work);
+            if not listEmpty(rest) then
+              u := listHead(rest);
+              work := (v, listRest(rest)) :: listRest(work);
+              if index[u] == 0 then
+                counter := counter + 1;
+                index[u] := counter;
+                low[u] := counter;
+                stack := u :: stack;
+                on_stack[u] := true;
+                work := (u, succ[u]) :: work;
+              elseif on_stack[u] and index[u] < low[v] then
+                low[v] := index[u];
+              end if;
+            else
+              work := listRest(work);
+              if low[v] == index[v] then
+                nscc := nscc + 1;
+                members := {};
+                done := false;
+                while not done loop
+                  u := listHead(stack);
+                  stack := listRest(stack);
+                  on_stack[u] := false;
+                  scc_of[u] := nscc;
+                  members := u :: members;
+                  done := u == v;
+                end while;
+                set := UnorderedSet.new(Util.id, intEq);
+                for w in members loop
+                  for s in direct[w] loop
+                    UnorderedSet.add(s, set);
+                  end for;
+                  for x in succ[w] loop
+                    if scc_of[x] <> nscc then
+                      for s in UnorderedSet.toList(scc_deps[scc_of[x]]) loop
+                        UnorderedSet.add(s, set);
+                      end for;
+                    end if;
+                  end for;
+                end for;
+                entries := entries + UnorderedSet.size(set);
+                if entries > max_entries then
+                  fail();
+                end if;
+                scc_deps[nscc] := set;
+              end if;
+              if not listEmpty(work) then
+                (p, _) := listHead(work);
+                if low[v] < low[p] then
+                  low[p] := low[v];
+                end if;
+              end if;
+            end if;
+          end while;
+        end if;
+      end for;
+    end sparsityTarjan;
 
     function sparsityElementwise
       "An array equation without for-iterators whose array occurrences are all elementwise

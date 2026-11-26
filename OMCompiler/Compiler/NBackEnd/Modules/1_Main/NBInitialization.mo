@@ -128,6 +128,7 @@ public
             (variables, initialVars, equations, initialEqs) := createStartEquations(varData.discretes, variables, initialVars, equations, initialEqs, eqData.uniqueIndex, algorithm_outputs, varData.aliasVars, "Discrete");
             (variables, initialVars, equations, initialEqs) := createStartEquations(varData.discrete_states, variables, initialVars, equations, initialEqs, eqData.uniqueIndex, algorithm_outputs, varData.aliasVars, "Discrete State");
             (variables, initialVars, equations, initialEqs) := createStartEquations(varData.clocked_states, variables, initialVars, equations, initialEqs, eqData.uniqueIndex, algorithm_outputs, varData.aliasVars, "Clocked State");
+            (variables, initialVars, equations, initialEqs) := createStartEquations(VariablePointers.fromList(list(v for v guard(not (BVariable.isFixed(v) or BVariable.isConst(v) or BVariable.isRecord(v))) in VariablePointers.toList(varData.parameters))), variables, initialVars, equations, initialEqs, eqData.uniqueIndex, algorithm_outputs, varData.aliasVars, "Parameter");
             (parameter_eqs, parameter_vars) := createParameterEquations(varData.parameters, new_iters, eqData.uniqueIndex, {}, {});
             (parameter_eqs, parameter_vars) := createParameterEquations(varData.resizables, new_iters, eqData.uniqueIndex, parameter_eqs, parameter_vars);
             (parameter_eqs, parameter_vars) := createParameterEquations(varData.records, new_iters, eqData.uniqueIndex, parameter_eqs, parameter_vars);

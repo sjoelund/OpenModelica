@@ -27,6 +27,7 @@ initialNoReturnCall.mos \
 TestInversePlant.mos \
 initParamLinearSystem.mos \
 arrayStartIterationVars.mos \
+unfixedParameterStart.mos \
 
 # test that currently fail. Move up when fixed.
 # Run make failingtest

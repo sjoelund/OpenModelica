@@ -183,6 +183,7 @@ public
         (function Inline.main(inline_types = {DAE.NORM_INLINE(), DAE.BUILTIN_EARLY_INLINE(), DAE.EARLY_INLINE(), DAE.DEFAULT_INLINE()}, init = true), "Inline"),
         (function Partitioning.main(kind = NBPartition.Kind.INI),  "Partitioning"),
         (cleanup,                                                  "Cleanup"),
+        (simplifyAfterCleanup,                                     "Simplify After Cleanup"),
         (function Causalize.main(kind = NBPartition.Kind.INI),     "Causalize"),
         (function Tearing.main(kind = NBPartition.Kind.INI),       "Tearing")
       };
@@ -1166,6 +1167,34 @@ public
       else bdae;
     end match;
   end cleanup;
+
+  function simplifyAfterCleanup
+    "Simplifies the initial systems again, as the frontend would have done if
+    initialSimplified() and homotopy() were known there. Only if a lambda=0
+    system exists."
+    extends Module.wrapper;
+  algorithm
+    bdae := match bdae
+      case BackendDAE.MAIN(init_0 = SOME(_)) algorithm
+        bdae.init := list(simplifyPartition(par) for par in bdae.init);
+        bdae.init_0 := SOME(list(simplifyPartition(par) for par in Util.getOption(bdae.init_0)));
+      then bdae;
+      else bdae;
+    end match;
+  end simplifyAfterCleanup;
+
+  function simplifyPartition
+    input output Partition par;
+  algorithm
+    par := Partition.mapEqn(par, simplifyEquation);
+    par := expandIfEquations(par);
+  end simplifyPartition;
+
+  function simplifyEquation
+    input output Equation eq;
+  algorithm
+    eq := Equation.simplify(eq, getInstanceName());
+  end simplifyEquation;
 
   function cleanupInitialCall
     input output Equation eq;

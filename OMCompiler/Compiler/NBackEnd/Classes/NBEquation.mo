@@ -2214,6 +2214,7 @@ public
 
         case FOR_EQUATION() then Inline.inlineForEquation(eq);
         case AUX_EQUATION() then eq;
+        case DUMMY_EQUATION() then eq;
         else algorithm
           Error.addMessage(Error.INTERNAL_ERROR, {getInstanceName() + " failed for: " + toString(eq)});
         then fail();

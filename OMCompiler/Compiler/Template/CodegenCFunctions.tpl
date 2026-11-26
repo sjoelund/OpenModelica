@@ -9077,15 +9077,26 @@ end startArrayGather;
 
 template startArrayScatter(ComponentRef cr, Text type, Text arr, Text &varDecls, Text &varFrees)
  "The dual of startArrayGather. Each scalar owns its start attribute, so there
-  is no array to copy into: write them one at a time."
+  is no array to copy into: write them one at a time. Like the scalar
+  $START.x = e, it also sets the values of x."
 ::=
   let idx = tempDecl("modelica_integer", &varDecls, &varFrees)
+  let elem = '((modelica_<%type%>*)<%arr%>.data)[<%idx%>]'
+  let value = startArrayValueElement(cr, idx)
   <<
   <%startArrayScatterEnsureSize(cr, type, arr)%>
   for (<%idx%> = 0; <%idx%> < base_array_nr_of_elements(<%arr%>); <%idx%>++) {
     <%if stringEq(type, "string")
-       then 'omc_string_store(&(<%startArrayElement(cr, type, idx)%>), ((modelica_string*)<%arr%>.data)[<%idx%>]);'
-       else '<%startArrayElement(cr, type, idx)%> = ((modelica_<%type%>*)<%arr%>.data)[<%idx%>];'%>
+       then
+         <<
+         omc_string_store(&(<%startArrayElement(cr, type, idx)%>), <%elem%>);
+         omc_string_store(&(<%value%>), <%elem%>);
+         >>
+       else
+         <<
+         <%startArrayElement(cr, type, idx)%> = <%elem%>;
+         <%value%> = <%elem%>;
+         >>%>
   }<%\n%>
   >>
 end startArrayScatter;
@@ -9162,6 +9173,15 @@ template startArrayElement(ComponentRef cr, Text type, Text idx)
       let entry = 'data->modelData-><%varArrayName(var)%>Data[<%index%> + <%idx%>].attribute.start'
       '((modelica_<%type%>*)(<%entry%>.data))[0]'
 end startArrayElement;
+
+template startArrayValueElement(ComponentRef cr, Text idx)
+ "The value of element `idx` of the variable whose start attribute is $START cr."
+::=
+  match cref2simvar(crefStripSubs(popCref(cr)), getSimCode())
+  case var as SIMVAR(__) then
+    let &sub = buffer '[<%idx%>]'
+    varArrayNameValues(var, 0, false, false, &sub)
+end startArrayValueElement;
 
 template varArrayName(SimVar var)
 ::=

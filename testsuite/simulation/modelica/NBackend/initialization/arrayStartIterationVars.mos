@@ -1,0 +1,57 @@
+// name: arrayStartIterationVars
+// keywords: NewBackend, initialization, start, array
+// status: correct
+// cflags: --newBackend
+//
+// The start value equation of an array, $START.x = p, sets the values of x too.
+// Newton then starts from p.
+
+loadString("
+package ArrayStartGuess
+  model WholeArray
+    parameter Real p[3] = {1.5, -1.5, 2};
+    Real x[3](start = p);
+  equation
+    for i in 1:3 loop
+      x[i]^3 - x[i] = time;
+    end for;
+  end WholeArray;
+
+  model Matrix
+    parameter Real p[2,2] = [1.5, -1.5; 2, -2];
+    Real x[2,2](start = p);
+  equation
+    for i in 1:2, j in 1:2 loop
+      x[i,j]^3 - x[i,j] = time;
+    end for;
+  end Matrix;
+end ArrayStartGuess;
+"); getErrorString();
+
+simulate(ArrayStartGuess.WholeArray, stopTime = 0); getErrorString();
+{val(x[1], 0), val(x[2], 0), val(x[3], 0)};
+simulate(ArrayStartGuess.Matrix, stopTime = 0); getErrorString();
+{val(x[1,1], 0), val(x[1,2], 0), val(x[2,1], 0), val(x[2,2], 0)};
+
+// Result:
+// true
+// ""
+// record SimulationResult
+//     resultFile = "ArrayStartGuess.WholeArray_res.mat",
+//     simulationOptions = "startTime = 0.0, stopTime = 0.0, numberOfIntervals = 500, tolerance = 1e-6, method = 'auto', fileNamePrefix = 'ArrayStartGuess.WholeArray', options = '', outputFormat = 'mat', variableFilter = '.*', cflags = '', simflags = ''",
+//     messages = "LOG_SUCCESS       | info    | The initialization finished successfully without homotopy method.
+// LOG_SUCCESS       | info    | The simulation finished successfully.
+// "
+// end SimulationResult;
+// ""
+// {1.0, -1.0, 1.0}
+// record SimulationResult
+//     resultFile = "ArrayStartGuess.Matrix_res.mat",
+//     simulationOptions = "startTime = 0.0, stopTime = 0.0, numberOfIntervals = 500, tolerance = 1e-6, method = 'auto', fileNamePrefix = 'ArrayStartGuess.Matrix', options = '', outputFormat = 'mat', variableFilter = '.*', cflags = '', simflags = ''",
+//     messages = "LOG_SUCCESS       | info    | The initialization finished successfully without homotopy method.
+// LOG_SUCCESS       | info    | The simulation finished successfully.
+// "
+// end SimulationResult;
+// ""
+// {1.0, -1.0, 1.0, -1.0}
+// endResult

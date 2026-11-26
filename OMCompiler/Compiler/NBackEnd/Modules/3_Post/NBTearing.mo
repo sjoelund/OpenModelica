@@ -243,7 +243,11 @@ public
         Equation.map(Pointer.access(Slice.getT(comp.eqn)), function Initialization.containsHomotopyCall(b = homotopy));
         new_comp := StrongComponent.ALGEBRAIC_LOOP(
           idx     = index,
-          strict  = singleImplicit(Slice.getT(comp.var), Slice.getT(comp.eqn)),
+          strict  = Tearing.TEARING_SET(
+            iteration_vars  = {comp.var},
+            residual_eqns   = {comp.eqn},
+            innerEquations  = listArray({}),
+            jac             = NONE()),
           casual  = NONE(),
           linear  = isLinearSlice(Slice.getT(comp.eqn), ComponentRef.scalarize(comp.var_cref, false), funcMap),
           mixed   = false,

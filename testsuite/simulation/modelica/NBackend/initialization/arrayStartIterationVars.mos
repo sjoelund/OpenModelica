@@ -4,7 +4,7 @@
 // cflags: --newBackend
 //
 // The start value equation of an array, $START.x = p, sets the values of x too.
-// Newton then starts from p.
+// Newton then starts from p, also for iteration variables that are slices of x.
 
 loadString("
 package ArrayStartGuess
@@ -16,6 +16,16 @@ package ArrayStartGuess
       x[i]^3 - x[i] = time;
     end for;
   end WholeArray;
+
+  model Slice
+    parameter Real p[4] = {9, 1.5, -1.5, 2};
+    Real x[4](start = p);
+  equation
+    x[1] = time;
+    for i in 2:4 loop
+      x[i]^3 - x[i] = time;
+    end for;
+  end Slice;
 
   model Matrix
     parameter Real p[2,2] = [1.5, -1.5; 2, -2];
@@ -30,6 +40,8 @@ end ArrayStartGuess;
 
 simulate(ArrayStartGuess.WholeArray, stopTime = 0); getErrorString();
 {val(x[1], 0), val(x[2], 0), val(x[3], 0)};
+simulate(ArrayStartGuess.Slice, stopTime = 0); getErrorString();
+{val(x[2], 0), val(x[3], 0), val(x[4], 0)};
 simulate(ArrayStartGuess.Matrix, stopTime = 0); getErrorString();
 {val(x[1,1], 0), val(x[1,2], 0), val(x[2,1], 0), val(x[2,2], 0)};
 
@@ -39,6 +51,15 @@ simulate(ArrayStartGuess.Matrix, stopTime = 0); getErrorString();
 // record SimulationResult
 //     resultFile = "ArrayStartGuess.WholeArray_res.mat",
 //     simulationOptions = "startTime = 0.0, stopTime = 0.0, numberOfIntervals = 500, tolerance = 1e-6, method = 'auto', fileNamePrefix = 'ArrayStartGuess.WholeArray', options = '', outputFormat = 'mat', variableFilter = '.*', cflags = '', simflags = ''",
+//     messages = "LOG_SUCCESS       | info    | The initialization finished successfully without homotopy method.
+// LOG_SUCCESS       | info    | The simulation finished successfully.
+// "
+// end SimulationResult;
+// ""
+// {1.0, -1.0, 1.0}
+// record SimulationResult
+//     resultFile = "ArrayStartGuess.Slice_res.mat",
+//     simulationOptions = "startTime = 0.0, stopTime = 0.0, numberOfIntervals = 500, tolerance = 1e-6, method = 'auto', fileNamePrefix = 'ArrayStartGuess.Slice', options = '', outputFormat = 'mat', variableFilter = '.*', cflags = '', simflags = ''",
 //     messages = "LOG_SUCCESS       | info    | The initialization finished successfully without homotopy method.
 // LOG_SUCCESS       | info    | The simulation finished successfully.
 // "

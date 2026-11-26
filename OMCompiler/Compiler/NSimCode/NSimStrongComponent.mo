@@ -1155,9 +1155,9 @@ public
             fail();
           end if;
 
-          if comp.linear and isSome(jacobian) and allLinVarsFound and (kind == NBPartition.Kind.JAC or (not comp.homotopy and not comp.mixed)) then
+          if comp.linear and isSome(jacobian) and allLinVarsFound and (kind == NBPartition.Kind.JAC or not comp.mixed) then
             // Linear torn systems with an analytic Jacobian get solved directly (A*x=b)
-            // instead of via Newton (#16458). Homotopy and mixed (discrete-coupled,
+            // instead of via Newton (#16458). Mixed (discrete-coupled,
             // e.g. ideal-diode switching networks) systems fall back below -- a one-shot direct solve has
             // no damping across the discrete state, and coarser NBackend tearing than OB's
             // for these networks makes that chatter across event iterations instead of

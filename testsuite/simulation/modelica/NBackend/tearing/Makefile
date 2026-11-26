@@ -23,6 +23,7 @@ cellierEntwined.mos \
 cellierParameterCoefficient.mos \
 linearSystemResidualIndex.mos \
 linearIfEquation.mos \
+linearHomotopy.mos \
 
 # test that currently fail. Move up when fixed.
 # Run make failingtest

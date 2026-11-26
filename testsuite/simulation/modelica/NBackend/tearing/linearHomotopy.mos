@@ -1,0 +1,54 @@
+// name: linearHomotopy
+// keywords: NewBackend, tearing, linear, homotopy
+// status: correct
+//
+// A linear loop with homotopy() is a linear system, also in the initial
+// system. HomotopyLinear then has no nonlinear system that needs homotopy.
+// In HomotopyNonlinear, the global homotopy solves the linear system for
+// each lambda.
+
+loadString("
+model HomotopyLinear
+  Real x, y;
+equation
+  x + homotopy(2*y, 3*y) = 1;
+  3*x - y = cos(time);
+end HomotopyLinear;
+
+model HomotopyNonlinear
+  Real x, y, z(start = 2);
+equation
+  x + homotopy(2*y, 3*y) = 1;
+  3*x - y = cos(time);
+  z^3 + z = homotopy(4 + x*z, 4);
+end HomotopyNonlinear;
+"); getErrorString();
+setCommandLineOptions("--newBackend"); getErrorString();
+simulate(HomotopyLinear); getErrorString();
+{val(x, 0), val(y, 0), val(x, 1), val(y, 1)};
+simulate(HomotopyNonlinear); getErrorString();
+{val(x, 0), val(y, 0), val(z, 0), val(z, 1)};
+// Result:
+// true
+// ""
+// true
+// ""
+// record SimulationResult
+//     resultFile = "HomotopyLinear_res.mat",
+//     simulationOptions = "startTime = 0.0, stopTime = 1.0, numberOfIntervals = 500, tolerance = 1e-6, method = 'auto', fileNamePrefix = 'HomotopyLinear', options = '', outputFormat = 'mat', variableFilter = '.*', cflags = '', simflags = ''",
+//     messages = "LOG_SUCCESS       | info    | The initialization finished successfully without homotopy method.
+// LOG_SUCCESS       | info    | The simulation finished successfully.
+// "
+// end SimulationResult;
+// ""
+// {0.4285714285714286, 0.2857142857142857, 0.29722923024803993, 0.35138538487598003}
+// record SimulationResult
+//     resultFile = "HomotopyNonlinear_res.mat",
+//     simulationOptions = "startTime = 0.0, stopTime = 1.0, numberOfIntervals = 500, tolerance = 1e-6, method = 'auto', fileNamePrefix = 'HomotopyNonlinear', options = '', outputFormat = 'mat', variableFilter = '.*', cflags = '', simflags = ''",
+//     messages = "LOG_SUCCESS       | info    | The initialization finished successfully with 3 homotopy steps.
+// LOG_SUCCESS       | info    | The simulation finished successfully.
+// "
+// end SimulationResult;
+// ""
+// {0.4285714285714286, 0.2857142857142858, 1.4676542455625103, 1.4402925833772422}
+// endResult

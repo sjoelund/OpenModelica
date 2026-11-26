@@ -22,6 +22,7 @@ cellierZeroElementSubscript.mos \
 cellierEntwined.mos \
 cellierParameterCoefficient.mos \
 linearSystemResidualIndex.mos \
+linearIfEquation.mos \
 
 # test that currently fail. Move up when fixed.
 # Run make failingtest

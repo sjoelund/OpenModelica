@@ -399,7 +399,7 @@ public
     input UnorderedMap<Path, Function> funcMap;
     output Boolean linear = true;
   protected
-    Option<Expression> residual_opt = Equation.tryGetResidualExp(eqn_ptr);
+    Option<Expression> residual_opt = tryGetResidualExp(eqn_ptr);
     Expression residual;
     Differentiate.DifferentiationArguments diffArgs;
     Expression derivative;
@@ -417,6 +417,7 @@ public
         for cref in occurrences loop
           diffArgs := Differentiate.DifferentiationArguments.simpleCref(cref, funcMap);
           (derivative, diffArgs) := Differentiate.differentiateExpressionDump(residual, diffArgs, getInstanceName());
+          derivative := SimplifyExp.simplifyDump(derivative, true, getInstanceName());
           if Expression.fold(derivative, function containsNamedCref(names = names), false) then
             linear := false;
           end if;
@@ -433,6 +434,41 @@ public
       linear := false;
     end if;
   end isLinearSlice;
+
+  function tryGetResidualExp
+    "like Equation.tryGetResidualExp, but also for if-equations with a single equation per branch"
+    input Pointer<Equation> eqn_ptr;
+    output Option<Expression> residual;
+  algorithm
+    residual := match Pointer.access(eqn_ptr)
+      local
+        BEquation.IfEquationBody body;
+      case Equation.IF_EQUATION(body = body) then tryGetIfResidualExp(body);
+      case Equation.FOR_EQUATION(body = {Equation.IF_EQUATION(body = body)}) then tryGetIfResidualExp(body);
+      else Equation.tryGetResidualExp(eqn_ptr);
+    end match;
+  end tryGetResidualExp;
+
+  function tryGetIfResidualExp
+    "the if-expression of the branch residuals, see IfEquationBody.getResidualExp"
+    input BEquation.IfEquationBody body;
+    output Option<Expression> residual;
+  protected
+    Pointer<Equation> eqn_ptr;
+    Expression then_exp, else_exp;
+  algorithm
+    residual := match body.then_eqns
+      case {eqn_ptr} then tryGetResidualExp(eqn_ptr);
+      else NONE();
+    end match;
+    if isSome(residual) and isSome(body.else_if) then
+      SOME(then_exp) := residual;
+      residual := match tryGetIfResidualExp(Util.getOption(body.else_if))
+        case SOME(else_exp) then SOME(Expression.IF(Expression.typeOf(then_exp), body.condition, then_exp, else_exp));
+        else NONE();
+      end match;
+    end if;
+  end tryGetIfResidualExp;
 
   function getModule
     "Returns the module function that was chosen by the user."
@@ -899,7 +935,7 @@ protected
         // refine the adjacency matrix by updating solvability information
         full := Adjacency.Matrix.refine(full, funcMap, v_all, e_all, variables, equations, vars_set, Partition.kindIsInitial(kind));
 
-        comp.linear := checkLinearity(full, v_all, e_all);
+        comp.linear := checkLinearity(full, v_all, e_all, equations, all_vars_lst, funcMap);
       then (comp, full, index);
       else (comp, full, index);
     end match;
@@ -2708,6 +2744,9 @@ protected
     input Adjacency.Matrix full;
     input UnorderedMap<ComponentRef, Integer> v "variables in the algebraic loop";
     input UnorderedMap<ComponentRef, Integer> e "equations in the algebraic loop";
+    input EquationPointers equations;
+    input list<ComponentRef> loop_vars;
+    input UnorderedMap<Path, Function> funcMap;
     output Boolean linear;
   protected
     function varIsLinear
@@ -2717,16 +2756,38 @@ protected
       output Boolean b = not (UnorderedMap.contains(var, v) and Solvability.isNonlinearOrImplicit(UnorderedMap.getSafe(var, sol, sourceInfo())));
     end varIsLinear;
 
+    function varIsNotNonlinear
+      input ComponentRef var;
+      input UnorderedMap<ComponentRef, Integer> v;
+      input UnorderedMap<ComponentRef, Solvability> sol;
+      output Boolean b = true;
+    algorithm
+      if UnorderedMap.contains(var, v) then
+        b := match UnorderedMap.getSafe(var, sol, sourceInfo())
+          case Solvability.EXPLICIT_NONLINEAR() then false;
+          else true;
+        end match;
+      end if;
+    end varIsNotNonlinear;
+
     function eqnIsLinear
+      "IMPLICIT is also used for linear equations that tearing must not solve, e.g. if-equations"
       input Integer i "equation index";
       input array<UnorderedSet<ComponentRef>> occ;
       input array<UnorderedMap<ComponentRef, Solvability>> sol;
       input UnorderedMap<ComponentRef, Integer> v;
+      input EquationPointers equations;
+      input list<ComponentRef> loop_vars;
+      input UnorderedMap<Path, Function> funcMap;
       output Boolean b = UnorderedSet.all(occ[i], function varIsLinear(v = v, sol = sol[i]));
+    algorithm
+      if not b and UnorderedSet.all(occ[i], function varIsNotNonlinear(v = v, sol = sol[i])) then
+        b := isLinearSlice(EquationPointers.getEqnAt(equations, i), loop_vars, funcMap);
+      end if;
     end eqnIsLinear;
   algorithm
     linear := match full
-      case Adjacency.Matrix.FULL() then UnorderedMap.all(e, function eqnIsLinear(occ = full.occurrences, sol = full.solvabilities, v = v));
+      case Adjacency.Matrix.FULL() then UnorderedMap.all(e, function eqnIsLinear(occ = full.occurrences, sol = full.solvabilities, v = v, equations = equations, loop_vars = loop_vars, funcMap = funcMap));
       else algorithm
         Error.addMessage(Error.INTERNAL_ERROR,{getInstanceName() + " expected type full, got type " + Adjacency.strictnessString(Adjacency.Matrix.getStrictness(full)) + "."});
       then fail();

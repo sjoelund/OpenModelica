@@ -1,0 +1,77 @@
+// name: linearIfEquation
+// keywords: NewBackend, tearing, linear, if-equation
+// status: correct
+//
+// A loop with if-equations is linear if every branch is linear in the
+// iteration variables. It is solved as a linear system.
+
+loadString("
+model IfEquationLoop
+  Real x, y;
+  Real u[2], v[2];
+equation
+  if time > 0.5 then
+    x + 2*y = 1;
+  else
+    x + 3*y = 1;
+  end if;
+  3*x - y = cos(time);
+  for i in 1:2 loop
+    if time > 0.5 then
+      u[i] + 2*v[i] = i;
+    else
+      u[i] + 3*v[i] = i;
+    end if;
+    3*u[i] - v[i] = sin(time);
+  end for;
+end IfEquationLoop;
+"); getErrorString();
+setCommandLineOptions("--newBackend -d=backenddaeinfo"); getErrorString();
+simulate(IfEquationLoop); getErrorString();
+{val(x, 0.25), val(y, 0.25), val(x, 1), val(y, 1)};
+{val(u[2], 0.25), val(v[2], 0.25), val(u[2], 1), val(v[2], 1)};
+// Result:
+// true
+// ""
+// true
+// ""
+// record SimulationResult
+//     resultFile = "IfEquationLoop_res.mat",
+//     simulationOptions = "startTime = 0.0, stopTime = 1.0, numberOfIntervals = 500, tolerance = 1e-6, method = 'auto', fileNamePrefix = 'IfEquationLoop', options = '', outputFormat = 'mat', variableFilter = '.*', cflags = '', simflags = ''",
+//     messages = "LOG_SUCCESS       | info    | The initialization finished successfully without homotopy method.
+// LOG_SUCCESS       | info    | The simulation finished successfully.
+// "
+// end SimulationResult;
+// "Notification: Model statistics after passing the front-end and creating the data structures used by the back-end:
+//  * Number of equations: 6 (4)
+//  * Number of variables: 6 (4)
+// Notification: Partition statistics after passing the back-end:
+//  * Number of ODE partitions: ..................... 0
+//  * Number of algebraic partitions: ............... 0
+//  * Number of ODE event partitions: ............... 0
+//  * Number of algebraic event partitions: ......... 2
+//  * Number of clocked partitions: ................. 0
+//  * Number of initial partitions: ................. 1
+//  * Number of initial(lambda=0) partitions: ....... 0
+// Notification: Variable statistics after passing the back-end:
+//  * Number of states: ............................. 0 (0) ('-d=stateselection' for the list of states)
+//  * Number of discrete states: .................... 0 (0) ('-d=discreteinfo' or '-d=stateselection' for the list of discrete states)
+//  * Number of clocked states: ..................... 0 (0) ('-d=discreteinfo' or '-d=stateselection' for the list of clocked states)
+//  * Number of discrete variables: ................. 3 (2) ('-d=discreteinfo' for the list of discrete variables)
+//  * Number of algorithm local variables: .......... 0 (0) ('-d=discreteinfo' for the list of algorithm local variables)
+//  * Number of clocks: ............................. 0 (0) ('-d=discreteinfo' for the list of clocks variables)
+//  * Number of top-level inputs: ................... 0 (0) ('-d=discreteinfo' for the list of top level inputs)
+// Notification: [Simulation] Strong Component statistics after passing the back-end:
+//  * Number of single strong components: ........... 3 (scalar:3, array:0, record:0)
+//  * Number of multi strong components: ............ 0 (algorithm:0, when:0, if:0, tuple:0)
+//  * Number of for-loop strong components: ......... 1 (resizable: 1, generic: 0, entwined:0)
+//  * Number of algebraic-loop strong components: ... 2 (linear: 2, nonlinear:0)
+// Notification: [Initialization] Strong Component statistics after passing the back-end:
+//  * Number of single strong components: ........... 3 (scalar:3, array:0, record:0)
+//  * Number of multi strong components: ............ 0 (algorithm:0, when:0, if:0, tuple:0)
+//  * Number of for-loop strong components: ......... 1 (resizable: 1, generic: 0, entwined:0)
+//  * Number of algebraic-loop strong components: ... 2 (linear: 2, nonlinear:0)
+// "
+// {0.39067372651319343, 0.2031087578289355, 0.29722923024803993, 0.35138538487598003}
+// {0.27422118777635685, 0.5752596040745477, 0.5261345670879704, 0.7369327164560148}
+// endResult

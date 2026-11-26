@@ -2397,7 +2397,7 @@ protected
     name := BVariable.getVarName(VariablePointers.getVarAt(vars, u));
     rank := cellierRankCached(2 * key, name, solvabilities[eqn_glob[e]], ranks);
     if List.hasOneElement(cellierOccurrences(name, solvabilities[eqn_glob[e]])) then
-      if rank >= 1 and rank <= 4 then
+      if rank >= 1 and rank <= cellierMaxRank() then
         if not UnorderedMap.contains(key, probes) then
           UnorderedMap.add(key, cellierSolvable(EquationPointers.getEqnAt(eqns, e), name, solvabilities[eqn_glob[e]], funcMap), probes);
         end if;
@@ -2482,7 +2482,7 @@ protected
       name := BVariable.getVarName(VariablePointers.getVarAt(vars, listHead(units)));
       key := e * (arrayLength(unit_kind) + 1) + listHead(units);
       rank := cellierRankCached(2 * key, name, solvabilities[eqn_glob[e]], ranks);
-      if rank < 1 or rank > 4 then
+      if rank < 1 or rank > cellierMaxRank() then
         rank := 0;
       else
         // make sure the solver can actually do it
@@ -2496,6 +2496,18 @@ protected
     end if;
     if rank == 0 then units := {}; end if;
   end cellierCanAssign;
+
+  function cellierMaxRank
+    "the worst solvability rank an inner equation may have, see --tearingStrictness.
+    casual: also divide by variables, strict: by parameters, veryStrict: by constants."
+    output Integer r;
+  algorithm
+    r := match Flags.getConfigString(Flags.TEARING_STRICTNESS)
+      case "casual"     then Solvability.rank(Solvability.EXPLICIT_NONLINEAR(true));
+      case "veryStrict" then Solvability.rank(Solvability.EXPLICIT_LINEAR(NONE(), NONE()));
+      else Solvability.rank(Solvability.EXPLICIT_LINEAR(SOME(UnorderedSet.new(ComponentRef.hash, ComponentRef.isEqual)), NONE()));
+    end match;
+  end cellierMaxRank;
 
   function cellierRankCached
     input Integer key;

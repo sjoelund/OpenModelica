@@ -30,6 +30,7 @@ initParamLinearSystem.mos \
 arrayStartIterationVars.mos \
 unfixedParameterStart.mos \
 lambda0Simplify.mos \
+lambda0Tearing.mos \
 
 # test that currently fail. Move up when fixed.
 # Run make failingtest

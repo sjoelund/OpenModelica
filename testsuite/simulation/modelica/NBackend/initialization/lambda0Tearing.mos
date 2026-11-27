@@ -1,0 +1,297 @@
+// name: lambda0Tearing
+// keywords: NewBackend, initialization, homotopy, initialSimplified, tearing
+// status: correct
+//
+// At lambda = 0, initialSimplified() selects the forward equations, so the
+// lambda = 0 system of Backward is the one of Forward. Its tearing must be
+// the same as for Forward (residual v2.b.w + ...) and must not depend on the
+// initialization system with lambda > 0, which is a different problem.
+
+loadString("
+impure function initialSimplified
+  discrete output Boolean isInitialSimplified;
+  external \"builtin\";
+end initialSimplified;
+
+package Lambda0Twin
+  connector Flange
+    flow Real w;
+    Real p;
+  end Flange;
+
+  model Valve
+    parameter Real dpNom = 1e5;
+    parameter Real wNom;
+    Flange a(w(start = wNom)), b;
+    input Real opening;
+  equation
+    a.w + b.w = 0;
+    a.w = homotopy(opening*wNom*sqrt(abs(a.p - b.p)/dpNom)*sign(a.p - b.p), opening*wNom/dpNom*(a.p - b.p));
+  end Valve;
+
+  model Source
+    parameter Real p;
+    Flange port;
+  equation
+    port.p = p;
+  end Source;
+
+  model FlowSensor
+    Flange a, b;
+    output Real w;
+  equation
+    a.w + b.w = 0;
+    a.p = b.p;
+    w = a.w;
+  end FlowSensor;
+
+  model Network
+    parameter Boolean forward = true;
+    parameter Real u0 = 0.5, w0 = 1.2;
+    parameter Real u(fixed = false), wCalc(fixed = false);
+    Source src(p = 3e5), sink(p = 1e5);
+    Valve v1(wNom = 1, opening = u), v2(wNom = 2, opening = 1), v3(wNom = 1, opening = 1);
+    FlowSensor fs;
+  initial equation
+    if initialSimplified() or forward then
+      u = u0;
+      wCalc = fs.w;
+    else
+      fs.w = w0;
+      wCalc = w0;
+    end if;
+  equation
+    connect(src.port, v1.a);
+    connect(v1.b, v2.a);
+    connect(v1.b, v3.a);
+    connect(v2.b, fs.a);
+    connect(v3.b, fs.a);
+    connect(fs.b, sink.port);
+  end Network;
+
+  model Forward = Network(forward = true);
+  model Backward = Network(forward = false);
+end Lambda0Twin;
+"); getErrorString();
+setCommandLineOptions("--newBackend --allowNonStandardModelica=initialSimplified -d=tearingdump"); getErrorString();
+translateModel(Lambda0Twin.Backward); getErrorString();
+// Result:
+// true
+// ""
+// true
+// ""
+// #####################
+//
+//     [INI] Tearing
+//
+// #####################
+//
+// ==========================
+//   [INI] Tearing Result 1
+// ==========================
+//
+// BLOCK: Algebraic Loop (Linear = false, Mixed = true, Homotopy = true, size = 9)
+// ---------------------------------------------------------------------------------
+// Strict Tearing Set
+// ********************
+// ### Iteration Variables:
+//     [ALGB] (1) Real v2.a.p
+// ### Residual Equations:
+//     [SCAL] (1) $RES_SIM_11 = v2.b.w + homotopy($FUN_5*v2.wNom*CAST(Real, $FUN_6), (v2.wNom/v2.dpNom)*(v2.a.p - sink.p)); ($RES_SIM_11)
+// ### Inner Equations:
+//     BLOCK: Single Strong Component (status = Solve.UNPROCESSED, size = 1)
+// -----------------------------------------------------------------------
+// ### Variable:
+// 	Integer $FUN_6
+// ### Equation:
+// 	[SCAL] (1) $FUN_6 = sign(v2.a.p - sink.p); ($RES_AUX_33)
+//
+//   BLOCK: Single Strong Component (status = Solve.UNPROCESSED, size = 1)
+// -----------------------------------------------------------------------
+// ### Variable:
+// 	Integer $FUN_9
+// ### Equation:
+// 	[SCAL] (1) $FUN_9 = sign(v2.a.p - sink.p); ($RES_AUX_30)
+//
+//   BLOCK: Single Strong Component (status = Solve.UNPROCESSED, size = 1)
+// -----------------------------------------------------------------------
+// ### Variable:
+// 	Real $FUN_4
+// ### Equation:
+// 	[SCAL] (1) $FUN_4 = abs(v2.a.p - sink.p); ($RES_AUX_35)
+//
+//   BLOCK: Single Strong Component (status = Solve.UNPROCESSED, size = 1)
+// -----------------------------------------------------------------------
+// ### Variable:
+// 	Real $FUN_7
+// ### Equation:
+// 	[SCAL] (1) $FUN_7 = abs(v2.a.p - sink.p); ($RES_AUX_32)
+//
+//   BLOCK: Single Strong Component (status = Solve.UNPROCESSED, size = 1)
+// -----------------------------------------------------------------------
+// ### Variable:
+// 	Real $FUN_8
+// ### Equation:
+// 	[SCAL] (1) $FUN_8 = sqrt($FUN_7/v3.dpNom); ($RES_AUX_31)
+//
+//   BLOCK: Single Strong Component (status = Solve.UNPROCESSED, size = 1)
+// -----------------------------------------------------------------------
+// ### Variable:
+// 	flow Real v3.b.w
+// ### Equation:
+// 	[SCAL] (1) -v3.b.w = homotopy($FUN_8*v3.wNom*CAST(Real, $FUN_9), (v3.wNom/v3.dpNom)*(v2.a.p - sink.p)); ($RES_SIM_9)
+//
+//   BLOCK: Single Strong Component (status = Solve.UNPROCESSED, size = 1)
+// -----------------------------------------------------------------------
+// ### Variable:
+// 	flow Real v2.b.w
+// ### Equation:
+// 	[SCAL] (1) v2.b.w + v3.b.w + fs.w = 0.0; ($RES_SIM_18)
+//
+//   BLOCK: Single Strong Component (status = Solve.UNPROCESSED, size = 1)
+// -----------------------------------------------------------------------
+// ### Variable:
+// 	Real $FUN_5
+// ### Equation:
+// 	[SCAL] (1) $FUN_5 = sqrt($FUN_4/v2.dpNom); ($RES_AUX_34)
+//
+// ==========================
+//   [INI] Tearing Result 1
+// ==========================
+//
+// BLOCK: Algebraic Loop (Linear = true, Mixed = false, Homotopy = false, size = 4)
+// ----------------------------------------------------------------------------------
+// Strict Tearing Set
+// ********************
+// ### Iteration Variables:
+//     [ALGB] (1) flow Real v1.b.w (start = -v1.wNom)
+// ### Residual Equations:
+//     [SCAL] (1) $RES_SIM_11 = v2.b.w + (v2.wNom/v2.dpNom)*(v2.a.p - sink.p); ($RES_SIM_11)
+// ### Inner Equations:
+//     BLOCK: Single Strong Component (status = Solve.UNPROCESSED, size = 1)
+// -----------------------------------------------------------------------
+// ### Variable:
+// 	Real v2.a.p
+// ### Equation:
+// 	[SCAL] (1) -v1.b.w = ((v1.wNom*u)/v1.dpNom)*(src.p - v2.a.p); ($RES_SIM_13)
+//
+//   BLOCK: Single Strong Component (status = Solve.UNPROCESSED, size = 1)
+// -----------------------------------------------------------------------
+// ### Variable:
+// 	flow Real v3.b.w
+// ### Equation:
+// 	[SCAL] (1) -v3.b.w = (v3.wNom/v3.dpNom)*(v2.a.p - sink.p); ($RES_SIM_9)
+//
+//   BLOCK: Single Strong Component (status = Solve.UNPROCESSED, size = 1)
+// -----------------------------------------------------------------------
+// ### Variable:
+// 	flow Real v2.b.w
+// ### Equation:
+// 	[SCAL] (1) v1.b.w - (v2.b.w + v3.b.w) = 0.0; ($RES_SIM_19)
+//
+// #####################
+//
+//     [ODE] Tearing
+//
+// #####################
+//
+// ==========================
+//   [ODE] Tearing Result 1
+// ==========================
+//
+// BLOCK: Algebraic Loop (Linear = false, Mixed = true, Homotopy = true, size = 13)
+// ----------------------------------------------------------------------------------
+// Strict Tearing Set
+// ********************
+// ### Iteration Variables:
+//     [ALGB] (1) Real v2.a.p
+// ### Residual Equations:
+//     [SCAL] (1) $RES_SIM_19 = -(v1.b.w - (v2.b.w + v3.b.w)); ($RES_SIM_19)
+// ### Inner Equations:
+//     BLOCK: Single Strong Component (status = Solve.UNPROCESSED, size = 1)
+// -----------------------------------------------------------------------
+// ### Variable:
+// 	Integer $FUN_6
+// ### Equation:
+// 	[SCAL] (1) $FUN_6 = sign(v2.a.p - sink.p); ($RES_AUX_33)
+//
+//   BLOCK: Single Strong Component (status = Solve.UNPROCESSED, size = 1)
+// -----------------------------------------------------------------------
+// ### Variable:
+// 	Integer $FUN_3
+// ### Equation:
+// 	[SCAL] (1) $FUN_3 = sign(src.p - v2.a.p); ($RES_AUX_36)
+//
+//   BLOCK: Single Strong Component (status = Solve.UNPROCESSED, size = 1)
+// -----------------------------------------------------------------------
+// ### Variable:
+// 	Integer $FUN_9
+// ### Equation:
+// 	[SCAL] (1) $FUN_9 = sign(v2.a.p - sink.p); ($RES_AUX_30)
+//
+//   BLOCK: Single Strong Component (status = Solve.UNPROCESSED, size = 1)
+// -----------------------------------------------------------------------
+// ### Variable:
+// 	Real $FUN_4
+// ### Equation:
+// 	[SCAL] (1) $FUN_4 = abs(v2.a.p - sink.p); ($RES_AUX_35)
+//
+//   BLOCK: Single Strong Component (status = Solve.UNPROCESSED, size = 1)
+// -----------------------------------------------------------------------
+// ### Variable:
+// 	Real $FUN_1
+// ### Equation:
+// 	[SCAL] (1) $FUN_1 = abs(src.p - v2.a.p); ($RES_AUX_38)
+//
+//   BLOCK: Single Strong Component (status = Solve.UNPROCESSED, size = 1)
+// -----------------------------------------------------------------------
+// ### Variable:
+// 	Real $FUN_7
+// ### Equation:
+// 	[SCAL] (1) $FUN_7 = abs(v2.a.p - sink.p); ($RES_AUX_32)
+//
+//   BLOCK: Single Strong Component (status = Solve.UNPROCESSED, size = 1)
+// -----------------------------------------------------------------------
+// ### Variable:
+// 	Real $FUN_8
+// ### Equation:
+// 	[SCAL] (1) $FUN_8 = sqrt($FUN_7/v3.dpNom); ($RES_AUX_31)
+//
+//   BLOCK: Single Strong Component (status = Solve.UNPROCESSED, size = 1)
+// -----------------------------------------------------------------------
+// ### Variable:
+// 	flow Real v3.b.w
+// ### Equation:
+// 	[SCAL] (1) -v3.b.w = $FUN_8*v3.wNom*CAST(Real, $FUN_9); ($RES_SIM_9)
+//
+//   BLOCK: Single Strong Component (status = Solve.UNPROCESSED, size = 1)
+// -----------------------------------------------------------------------
+// ### Variable:
+// 	Real $FUN_2
+// ### Equation:
+// 	[SCAL] (1) $FUN_2 = sqrt($FUN_1/v1.dpNom); ($RES_AUX_37)
+//
+//   BLOCK: Single Strong Component (status = Solve.UNPROCESSED, size = 1)
+// -----------------------------------------------------------------------
+// ### Variable:
+// 	flow Real v1.b.w
+// ### Equation:
+// 	[SCAL] (1) -v1.b.w = $FUN_2*v1.wNom*u*CAST(Real, $FUN_3); ($RES_SIM_13)
+//
+//   BLOCK: Single Strong Component (status = Solve.UNPROCESSED, size = 1)
+// -----------------------------------------------------------------------
+// ### Variable:
+// 	Real $FUN_5
+// ### Equation:
+// 	[SCAL] (1) $FUN_5 = sqrt($FUN_4/v2.dpNom); ($RES_AUX_34)
+//
+//   BLOCK: Single Strong Component (status = Solve.UNPROCESSED, size = 1)
+// -----------------------------------------------------------------------
+// ### Variable:
+// 	flow Real v2.b.w
+// ### Equation:
+// 	[SCAL] (1) -v2.b.w = $FUN_5*v2.wNom*CAST(Real, $FUN_6); ($RES_SIM_11)
+//
+// true
+// ""
+// endResult

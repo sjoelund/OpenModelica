@@ -3800,7 +3800,8 @@ function typeIfEquation
 protected
   Expression cond;
   list<Equation> eql;
-  Variability accum_var = Variability.CONSTANT, var;
+  Expression select_cond;
+  Variability accum_var = Variability.CONSTANT, var, select_var;
   list<Equation.Branch> bl = {}, bl2 = {};
   InstContext.Type next_context = InstContext.set(context, NFInstContext.IF);
   InstContext.Type cond_context = InstContext.set(next_context, NFInstContext.CONDITION);
@@ -3809,6 +3810,8 @@ algorithm
   for b in branches loop
     Equation.Branch.BRANCH(cond, _, eql) := b;
     (cond, _, var) := typeCondition(cond, cond_context, source, Error.IF_CONDITION_TYPE_ERROR);
+    select_cond := selectionCondition(cond);
+    select_var := if referenceEq(select_cond, cond) then var else Expression.variability(select_cond);
 
     // Conditions on resizable parameters (and iterators over them) are resolved with the connections.
     if (var > Variability.PARAMETER and not (var == Variability.NON_STRUCTURAL_PARAMETER and
@@ -3817,6 +3820,11 @@ algorithm
       // connections in the branch, mark the context so we can check that when
       // typing the body of the branch.
       next_context := InstContext.set(next_context, NFInstContext.NONEXPANDABLE);
+
+      if not referenceEq(select_cond, cond) and select_var == Variability.PARAMETER and
+         accum_var <= Variability.PARAMETER and not Structural.isExpressionNotFixed(select_cond, maxDepth = 100) then
+        Structural.markExp(select_cond);
+      end if;
     elseif var == Variability.PARAMETER and
            (accum_var <= Variability.PARAMETER or Equation.containsList(eql, Equation.isConnection)) then
       // If all conditions up to and including this one are parameter
@@ -3824,7 +3832,7 @@ algorithm
       var := Variability.STRUCTURAL_PARAMETER;
     end if;
 
-    accum_var := Prefixes.variabilityMax(accum_var, var);
+    accum_var := Prefixes.variabilityMax(accum_var, select_var);
     bl := Equation.Branch.BRANCH(cond, var, eql) :: bl;
   end for;
 
@@ -3845,6 +3853,30 @@ algorithm
 
   ifEq := Equation.IF(bl2, scope, source);
 end typeIfEquation;
+
+function selectionCondition
+  "The condition outside of the lambda = 0 system, where initialSimplified() is false."
+  input Expression cond;
+  output Expression selectCond = cond;
+algorithm
+  if Flags.isConfigFlagSet(Flags.ALLOW_NON_STANDARD_MODELICA, "initialSimplified") and
+     Expression.contains(cond, isInitialSimplifiedCall) then
+    selectCond := Expression.map(cond, replaceInitialSimplifiedCall);
+  end if;
+end selectionCondition;
+
+function isInitialSimplifiedCall
+  input Expression exp;
+  output Boolean res = Expression.isCallNamed(exp, "initialSimplified");
+end isInitialSimplifiedCall;
+
+function replaceInitialSimplifiedCall
+  input output Expression exp;
+algorithm
+  if isInitialSimplifiedCall(exp) then
+    exp := Expression.BOOLEAN(false);
+  end if;
+end replaceInitialSimplifiedCall;
 
 function typeWhenEquation
   input list<Equation.Branch> branches;

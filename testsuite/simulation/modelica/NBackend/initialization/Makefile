@@ -9,6 +9,7 @@ whenAlgorithmPre.mos \
 whenAlgorithmPreCondition.mos \
 experimental_initialSimplified.mos \
 initialSimplifiedBranchSizes.mos \
+initialSimplifiedStructural.mos \
 discreteCallArgument.mos \
 functionOutputStart.mos \
 whenTupleInit.mos \

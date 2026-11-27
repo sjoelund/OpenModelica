@@ -1,0 +1,111 @@
+// name: initialSimplifiedStructural
+// keywords: NewBackend, initialization, initialSimplified
+// status: correct
+//
+// The parameters in a condition with initialSimplified() select the branch
+// outside of the lambda=0 system. They are structural, as if the call was
+// false. Forward thus gets the same flat model as with false instead of
+// initialSimplified(). In Backward, the branches have different sizes.
+
+loadString("
+impure function initialSimplified
+  discrete output Boolean isInitialSimplified = false;
+  annotation(Inline = true, __OpenModelica_builtin=true);
+end initialSimplified;
+
+model Forward
+  parameter Integer mode = 1;
+  Real x, y, z;
+equation
+  if initialSimplified() or mode == 1 then
+    z = x;
+  else
+    z = 2*x;
+  end if;
+  x + y = 1 + time;
+  y = if mode == 1 then 2*x else x^3;
+end Forward;
+
+model Backward
+  parameter Integer mode = 2;
+  parameter Real u0 = 1, y0 = 10;
+  parameter Real uc(fixed = false), u2(fixed = false), yc(fixed = false);
+  Real u, y;
+initial equation
+  if initialSimplified() or mode == 1 then
+    uc = u0;
+    u2 = u0;
+  elseif mode == 2 then
+    u2 = u0;
+  end if;
+  if initialSimplified() or mode == 1 then
+    yc = y;
+  else
+    y = homotopy(y0, yc);
+    yc = y0;
+  end if;
+equation
+  u = uc;
+  y = u^3 + u;
+end Backward;
+"); getErrorString();
+setCommandLineOptions("--newBackend --allowNonStandardModelica=initialSimplified"); getErrorString();
+instantiateModel(Forward); getErrorString();
+instantiateModel(Backward); getErrorString();
+simulate(Backward, stopTime = 0); getErrorString();
+{val(u, 0), val(y, 0), val(uc, 0), val(yc, 0)};
+// Result:
+// true
+// ""
+// true
+// ""
+// "class Forward
+//   final parameter Integer mode = 1;
+//   Real x;
+//   Real y;
+//   Real z;
+// equation
+//   z = x;
+//   x + y = 1.0 + time;
+//   y = 2.0 * x;
+// end Forward;
+// "
+// ""
+// "class Backward
+//   final parameter Integer mode = 2;
+//   parameter Real u0 = 1.0;
+//   parameter Real y0 = 10.0;
+//   parameter Real uc(fixed = false);
+//   parameter Real u2(fixed = false);
+//   parameter Real yc(fixed = false);
+//   Real u;
+//   Real y;
+// initial equation
+//   if initialSimplified() then
+//     uc = u0;
+//     u2 = u0;
+//   else
+//     u2 = u0;
+//   end if;
+//   if initialSimplified() then
+//     yc = y;
+//   else
+//     y = homotopy(y0, yc);
+//     yc = y0;
+//   end if;
+// equation
+//   u = uc;
+//   y = u ^ 3.0 + u;
+// end Backward;
+// "
+// ""
+// record SimulationResult
+//     resultFile = "Backward_res.mat",
+//     simulationOptions = "startTime = 0.0, stopTime = 0.0, numberOfIntervals = 500, tolerance = 1e-6, method = 'auto', fileNamePrefix = 'Backward', options = '', outputFormat = 'mat', variableFilter = '.*', cflags = '', simflags = ''",
+//     messages = "LOG_SUCCESS       | info    | The initialization finished successfully with 3 homotopy steps.
+// LOG_SUCCESS       | info    | The simulation finished successfully.
+// "
+// end SimulationResult;
+// ""
+// {2.0, 10.0, 2.0, 10.0}
+// endResult

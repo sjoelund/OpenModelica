@@ -1,6 +1,8 @@
 # Moving omc from MetaModelica to Rust: migration plan
 
-Draft, 2026-11-18. Measured on master `d7a542f7f0` (2026-11-18), with a fresh
+Draft, 2026-11-18, updated 2026-11-27 with the decisions in
+[section 4](#4-decisions-to-make-before-the-branch) and the dates in the
+summary. Measured on master `d7a542f7f0` (2026-11-18), with a fresh
 `mmtorust` transpile of that commit. How each number
 was measured is in the [appendix](#appendix-how-the-numbers-were-measured).
 
@@ -21,12 +23,15 @@ Diagrams (Graphviz; `.dot` sources next to the `.svg`):
 
 - **Order.** (0) Before the branch: make the Rust omc good enough to be the only
   omc, and do every systematic clean-up *in the generator* (mmtorust, Susan),
-  not in the generated code. (1) Right after the branch: the Rust omc becomes the
-  only omc build; FMI 1.0, the old frontend entry points and `-g=MetaModelica`
-  are deleted while the sources are still `.mo`. (2) The flip: the generated Rust
-  is committed, formatted and moved, the `.mo` files are deleted, in one
-  reproducible PR during a short announced `.mo` freeze. (3) Lint burn-down and
-  removal of the leftovers. (4) Redesign.
+  not in the generated code. (1) From the branch to the freeze: the Rust omc
+  becomes the only omc build; the scripting API moves to the new frontend; the
+  old frontend, FMI 1.0 and `-g=MetaModelica` are deleted while the sources are
+  still `.mo`. (2) The flip: the generated Rust is committed, formatted and
+  moved, the `.mo` files are deleted, in one reproducible PR during a short
+  announced `.mo` freeze. (3) Lint burn-down and removal of the leftovers.
+  (4) Redesign.
+- **Dates.** The 1.28 branch is made on 2026-12-01. The flip is planned for
+  2027-02-05 (preliminary), with the `.mo` freeze from 2027-02-03.
 - **Where the code goes.** One cargo workspace with its root at the top of the
   repository. The compiler crates move from `OMCompiler/Compiler/OpenModelica.rs/<crate>`
   to `OMCompiler/Compiler/<crate>`; the simulation runtime crates stay in
@@ -48,7 +53,8 @@ Diagrams (Graphviz; `.dot` sources next to the `.svg`):
   macro input and cargo rolls the crate back. ~112,000 are by design (names,
   `Arc`, type complexity) and stay allowed; ~11,400 need a person. Clippy takes
   about 10 minutes for the workspace (1.7x a `cargo check`). So: fix the
-  high-volume lints **in mmtorust before the flip**, commit the flip with a
+  high-volume lints **in mmtorust before the flip** (done: #18192, #18198),
+  commit the flip with a
   workspace allow-list so that CI can run `cargo clippy -D warnings` from day
   one, then remove one lint from the allow-list per PR in the weeks after the
   flip ([section 6](#6-formatting-and-linting-measured)).
@@ -227,13 +233,14 @@ generator change applies the decision to all 1.3M lines at once.
 | D1 | Directory layout and workspace root | [3.1](#31-directory-layout) | the flip moves every file anyway |
 | D2 | Identifier names (`camelCase` functions, `UPPER` records, `CamelCase` modules) | Keep the MetaModelica names, with `non_snake_case` etc. allowed. If the project wants Rust names, mmtorust must emit them (it knows every definition and reference, and Susan uses the same index); do not rename by hand after the flip | a rename after the flip touches about a million identifiers and every open branch |
 | D3 | Module file names (`NFInst.rs`) | Keep | as D2 |
-| D4 | Integer width | Switch MetaModelica `Integer` to `i64` in mmtorust before the Rust omc becomes the only omc (the web/wasm32 build can keep `i32` through the same switch, or also use `i64`). Decide with a measurement of memory and speed | behaviour change for users of the C omc (63-bit), and it is one type mapping in the generator but a hand edit of thousands of signatures afterwards |
+| D4 | Integer width | **Decided 2026-11-27: keep `i32`.** The tests that fail only because of 32-bit Integers get new expected output when the C omc is removed | behaviour change for users of the C omc (63-bit), and it is one type mapping in the generator but a hand edit of thousands of signatures afterwards |
 | D5 | Templates | Keep `.tpl` + Susan, compiled in `build.rs`, exempt from lints and rustfmt (like any `$OUT_DIR` code). Rewrite generators in Rust later, one at a time (the wasm-jit generator shows how) | committing the 280k lines of Susan output would make every `.tpl` change a double diff |
 | D6 | Lint policy | [section 6.4](#64-when-to-lint) | the flip commit must pass the CI gate |
-| D7 | Traceability | mmtorust writes `// Ported from OMCompiler/Compiler/<dir>/<File>.mo at <sha>` as the first line of each file | `git blame` cannot follow a file across languages |
+| D7 | Traceability | **Decided 2026-11-27: no header line.** The history before the flip is `git log <flip>^ -- <File>.mo` | `git blame` cannot follow a file across languages |
 | D8 | Toolchain | Keep the pinned nightly for now (cranelift dev backend, `-Z build-std` for the FMI3 adapters). Make sure the compiler crates themselves build on stable, so that a distribution can package omc with a stable rustc | generated code must not start to use nightly-only features (for example `deref_patterns` as a replacement for `match_deref!`) without a decision |
 | D9 | `matchcontinue` | Nothing more to do before the flip: `mmtorust --fix` has already converted what it can prove (its report finds 1 more). The other 2,192 become Rust closures that discard errors; 862 go with the old frontend, the rest are rewritten in the redesign | after the flip the conversion is manual, so finish the provable part first |
 | D10 | mmtorust after the flip | Tag it (`mmtorust-final`) and keep it runnable for porting `.mo` PRs and fixes from `maintenance/v1.28` ([5.5](#55-porting-open-mo-prs-and-release-branch-fixes)); delete it from master in phase 3 | it is needed at the flip commit exactly |
+| D11 | Windows toolchain | **Decided 2026-11-27: MSVC.** OpenModelica for Windows is the MSVC build (cross-compiled with clang-cl, as the Rust nightly does); OMDev is not used to build 2.0.0 | the installer and the Windows CI change when the C omc goes |
 
 ## 5. The plan
 
@@ -246,19 +253,24 @@ Nothing in this phase changes `.mo` files, so it does not disturb anyone.
 1. **Make the decisions in [section 4](#4-decisions-to-make-before-the-branch).**
 2. **Generator work in mmtorust and Susan**, driven by the lint data in
    [section 6](#6-formatting-and-linting-measured):
-   - emit code that does not trigger the high-volume lints (see the table there);
+   - emit code that does not trigger the high-volume lints (see the table
+     there; done in #18192 and #18198);
    - remove the per-file `#![allow(warnings)]` and replace it with the
      workspace `[lints]` table (D6);
-   - the D4 Integer switch, the D7 header line, D2 if wanted;
+   - D2 if wanted;
+   - fix the mmtorust problems that must be handled before the flip. Open an
+     issue for each one and add it as a sub-issue of the flip issue, so that
+     it blocks the flip;
    - optional: merge the 2 `*.handwritten.rs` files into their generated files
      (`flip.sh` commits them as they are; the 9 `*.rust.mo` overrides need
      nothing, the transpile has applied them).
 3. **Rust omc at parity, as the release gate for the switch.**
    - CI: the C and C+Rust testsuite lanes run with the Rust omc (today they use
-     the C omc); the list of tests that fail only because of 32-bit Integers is
-     empty (D4).
-   - Windows (MSYS2/UCRT64 *or* the MSVC cross build, decide which one ships),
-     macOS (arm64 and x86_64), Linux packages, the Windows installer.
+     the C omc). This is part of the removal of the C omc: the PR fails CI if a
+     lane does not pass. Tests that fail only because of 32-bit Integers get new
+     expected output (D4).
+   - Windows (the MSVC build, D11), macOS (arm64 and x86_64), Linux packages,
+     the Windows installer. The nightly builds use the Rust omc.
    - OMEdit and the other Qt clients link the Rust `libOpenModelicaCompiler`
      (`OMC_RUST_ABI`), including the OMEdit testsuite lane.
    - `libOMCDLL` (`omcCAPI`) and OMCompiler.jl work against the Rust library, or
@@ -278,13 +290,14 @@ Nothing in this phase changes `.mo` files, so it does not disturb anyone.
    - `port-mo-pr.sh` (to write): turn a `.mo` diff into a Rust diff (see 5.5).
 5. **Fix the 38 deny-level clippy findings** in hand-written code
    ([6.2](#62-what-clippy-reports)); they are bugs today.
-6. **Tell people early.** The date of the freeze, which PRs should be merged
-   before it, the onboarding document
+6. **Tell people early**, in the flip issue and the developer meeting: the
+   date of the freeze, which PRs should be merged before it, the onboarding
+   document
    (`OMCompiler/Compiler/OpenModelica.rs/ONBOARDING.md`) and a short
    "MetaModelica to Rust" cheat sheet. Offer pairing sessions for the 5 people
    who wrote only `.mo` in the last 6 months.
 
-### 5.2 Phase 1: the first two weeks after the branch
+### 5.2 Phase 1: from the branch to the freeze
 
 The branch `maintenance/v1.28` keeps the C omc and the MetaModelica sources.
 
@@ -305,8 +318,7 @@ The branch `maintenance/v1.28` keeps the C omc and the MetaModelica sources.
    `FMIExt.rs`); the OMEdit options; 90 tests. Small and independent; do it
    first so that the old-frontend work does not wait for it. Tracked in
    #6143 ("Drop support for FMI 1.0", open).
-3. **Delete the old frontend and MetaModelica language support, where it is
-   only a deletion.** The old frontend is deprecated already: #17177 proposed
+3. **Delete the old frontend and MetaModelica language support.** The old frontend is deprecated already: #17177 proposed
    removing it after 1.28.0, and #17179 (merged 2026-11-02) added the
    deprecation warning; tests are being moved off `-d=-newInst` in small PRs. Remove the `-d=newInst` switch and the code paths it
    guards, `-g=MetaModelica`, the D group of
@@ -315,15 +327,20 @@ The branch `maintenance/v1.28` keeps the C omc and the MetaModelica sources.
    the tests that switch the old frontend on (301 tests use `-d=-newInst` or
    similar; 157 use `-g=MetaModelica`). This is possible now, and not before,
    because the C omc no longer has to compile itself with the old frontend.
-   mmtorust's unused-function analysis finds what becomes dead. Callers that
-   need a real replacement (the scripting API's `Inst`/`Lookup`/`Static` calls,
-   `Ceval` in the old backend) stay until phase 4; do not redesign in `.mo`.
+   mmtorust's unused-function analysis finds what becomes dead. The parser
+   keeps the parts of the MetaModelica grammar that `ModelicaBuiltin.mo` and
+   `NFModelicaBuiltin.mo` use (`uniontype`, `list<>`, ...), behind an internal
+   flag.
+4. **Move the scripting API to the new frontend.** The scripting API's
+   `Inst`/`Lookup`/`Static` calls ([section 8](#8-what-remains-of-the-old-frontend))
+   move to NF/NFApi, so that the whole old instantiation engine (group D) is
+   deleted before the flip. `Ceval` (group K2) stays with the old backend.
 
 Doing these deletions while the source is still `.mo` has three benefits: the
 reviewers know the language, the flip converts about 120k fewer lines, and
 fixes can still move between `maintenance/v1.28` and master as `.mo` patches.
-Timebox it: if it is not finished in two weeks, flip anyway and delete the rest
-in Rust.
+These deletions block the flip: if they are not finished, the flip date
+moves.
 
 ### 5.3 Phase 2: the flip
 
@@ -337,7 +354,8 @@ OMCompiler/Compiler/OpenModelica.rs/tools/flip.sh -B build-flip
 OMCompiler/Compiler/OpenModelica.rs/tools/check-flip.sh -B build-flip <freeze commit>
 ```
 
-1. Announce the date two weeks before. From T-2 days, no `.mo`/`.tpl` PRs are
+1. Announce the date two weeks before (the flip issue, the developer meeting).
+   From T-2 days, no `.mo`/`.tpl` PRs are
    merged (freeze). Ask the authors of open `.mo` PRs to get them merged before,
    or to port them after with `port-mo-pr.sh`.
 2. At T: run `flip.sh` on master. The commits it makes today:
@@ -579,10 +597,10 @@ editing.
 | 3rdParty that only the C omc links | audit | phase 1 | ColPack (`ColPackBicoloring_omc.cpp`; the Rust omc has no star-bicoloring yet, see `OpenModelica.rs/TODO.md`); the omc side of simdjson, ryu, libzmq (OMEdit still uses them). oneTBB (ParModelica auto) and METIS (Ipopt/MUMPS) stay |
 | FMI 1.0 export and import | `CodegenFMU1.tpl`, ~230 references, ~10 runtime files, 90 tests | phase 1 | nothing |
 | `-g=MetaModelica`, `MetaModelicaBuiltin.mo`, `testsuite/metamodelica` | 223 test files + 157 tests elsewhere | phase 1 | the C omc no longer bootstraps |
-| Old frontend instantiation engine (group D) | 79k lines `.mo` / 119k lines Rust | phase 1 (entry points + dead code), rest in phase 4 | scripting API and SimCodeUtil callers (section 8) |
+| Old frontend instantiation engine (group D) | 79k lines `.mo` / 119k lines Rust | phase 1 | the scripting API and SimCodeUtil callers move first (section 8) |
 | `.mo` sources, `Template/*.mo`, `*.rust.mo`, `*.handwritten.rs`, `rust_src_sync` + mirror, `rust_src_files.txt`, `OpenModelicaScriptingAPI.mo` | ~620k lines `.mo` | phase 2 (the flip) | |
 | mmtorust (49k lines), `external_c_calls.rs` | | phase 3 | the last `.mo` PR is ported |
-| MetaModelica grammar in the Rust parser (`openmodelica_ast`): `match`, `uniontype`, `list<>`, ... | | phase 3, after mmtorust | mmtorust parses the `.mo` sources with this parser. Susan reads `*TV.mo` with its own parser, so the TV files can stay |
+| MetaModelica grammar in the Rust parser (`openmodelica_ast`): `match`, `uniontype`, `list<>`, ... | | phase 3, after mmtorust; keep the parts that `ModelicaBuiltin.mo` and `NFModelicaBuiltin.mo` use, behind an internal flag | mmtorust parses the `.mo` sources with this parser. Susan reads `*TV.mo` with its own parser, so the TV files can stay |
 | MetaModelica-only code generation in `CodegenCFunctions.tpl` (match, uniontypes, lists) and the matching parts of `SimulationRuntime/c/meta` | | phase 3-4 | nothing generates MetaModelica code any more; check what the Modelica function code still uses (strings, boxing, `threadData` and `MMC_TRY`) |
 | Boehm GC in the C simulation runtime | | phase 4, optional | the C runtime's own allocation (it is not needed by omc itself after phase 1) |
 | Old backend (`BackEnd/`: 316k lines Rust incl. `backend_*`), `NFConvertDAE` | | phase 4 | the new backend is the default and covers the testsuite |
@@ -663,10 +681,10 @@ gone completely:
 
 Ordered by value for the effort. None of this should be mixed into the flip.
 
-1. **Scripting API on NF only.** `CevalScript*`/`Interactive` is the largest
-   user of the old frontend and threads `FCore.Cache`/`FGraph.Graph` through
-   everything. Move each API function to NF/NFApi, then drop the dummy
-   parameters. This unblocks removing group D.
+1. **Drop the old-frontend parameters from the scripting API.** The API
+   functions move to NF/NFApi before the flip (phase 1), but
+   `CevalScript*`/`Interactive` still pass `FCore.Cache`/`FGraph.Graph`
+   through everything. Remove them.
 2. **Global state into a context.** `Flags`, `Global` roots
    (`thread_local` in `Globals.rs`), the error buffer and the caches are globals.
    A compile context struct lets OMEdit, the web build and parallel compilation
@@ -710,21 +728,22 @@ Ordered by value for the effort. None of this should be mixed into the flip.
   30 days. Contact those authors with the date.
 - **History stays usable**: rebase-merge for the flip PR, the move in its own
   commit (rename detection), the formatting commit and the mechanical lint
-  commits in `.git-blame-ignore-revs`, and the `// Ported from <file>.mo at <sha>` header to
-  find the history before the flip.
+  commits in `.git-blame-ignore-revs`; `git log <flip>^ -- <file>.mo` shows
+  the history before the flip.
 - **The release branch is the fallback**: `maintenance/v1.28` keeps the C omc;
   users who need FMI 1.0, the old frontend or MetaModelica stay on it.
 - **CI is green from day one** with the allow-list, and the allow-list only
   shrinks.
-- **Deletions before the flip are timeboxed**, so the flip date does not move.
+- **Deletions happen before the flip**, in `.mo`, where the reviewers know the
+  language and fixes still move to `maintenance/v1.28` as `.mo` patches.
 
 ## 11. Risks
 
 | Risk | Mitigation |
 | --- | --- |
 | Slower translation for some models (overall 0.89x, but a third of the models with ≥ 2 s are slower, p90 1.23x; Buildings 1.10x) | keep the OMLT master vs wasm-jit comparison as a gate until the C omc is gone; the release branch keeps the C omc; redesign item 4 |
-| Behaviour changes from `i32` Integers | D4 before the switch |
-| Windows/macOS packaging not ready | gate in 5.1; the MSVC and macOS cross builds exist, MSYS2 needs checking |
+| Behaviour changes from `i32` Integers | D4: keep `i32`; the tests that depend on 63-bit Integers get new expected output |
+| Windows/macOS packaging not ready | gate in 5.1; the MSVC (D11) and macOS cross builds exist |
 | OMEdit or other users of `libOpenModelicaCompiler`/`libOMCDLL` break | gate in 5.1; OMEdit already runs against the Rust library (`OMC_RUST_ABI`) |
 | Contributors who only know MetaModelica stop contributing | onboarding, pairing, keep the generated code close to the `.mo` it came from (D2/D3), review help in the first months |
 | A long tail of `.mo` PRs that nobody ports | port in the first weeks; after that the author re-implements |

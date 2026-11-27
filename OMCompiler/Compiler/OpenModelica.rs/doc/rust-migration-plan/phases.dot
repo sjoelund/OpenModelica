@@ -6,31 +6,32 @@ digraph phases {
 
   subgraph cluster_p0 {
     label="Phase 0 - now, before the branch (master still MetaModelica)"; style="rounded"; color="#888888";
-    p0a [label="Decisions:\nlayout, naming, Integer width,\ntemplates, lint policy"];
-    p0b [label="Generator work in mmtorust/susan:\ntop lints, Integer, names,\nheader comment with .mo origin"];
+    p0a [label="Decisions:\nlayout, naming, templates,\nlint policy, Windows (MSVC)"];
+    p0b [label="Generator work in mmtorust/susan:\ntop lints (done), names,\nmmtorust issues that block the flip"];
     p0c [label="Rust omc at parity:\nall CI lanes + Windows/macOS\n+ OMEdit + installers"];
     p0d [label="Freeze tools:\ntag mmtorust,\nport-a-PR script"];
   }
   br [label="Release branch\nmaintenance/v1.28\n(MetaModelica, C omc)", shape=cds, fillcolor="#e0e0ff"];
   subgraph cluster_p1 {
-    label="Phase 1 - weeks 1-2 after the branch"; style="rounded"; color="#888888";
+    label="Phase 1 - from the branch (2026-12-01) to the freeze"; style="rounded"; color="#888888";
     p1a [label="Rust omc is the only omc:\ndrop bomc / C build of omc"];
-    p1b [label="Delete in .mo:\nFMI 1.0, old frontend entry\npoints, -g=MetaModelica"];
+    p1b [label="Delete in .mo:\nFMI 1.0, old frontend,\n-g=MetaModelica"];
+    p1c [label="Scripting API on NF\n(no Inst, Lookup, Static)"];
   }
   subgraph cluster_p2 {
-    label="Phase 2 - the flip (announced date, 2-3 day .mo freeze)"; style="rounded"; color="#888888";
+    label="Phase 2 - the flip (2027-02-05, preliminary; .mo freeze from 2027-02-03)"; style="rounded"; color="#888888";
     p2a [label="Commit generated Rust,\nrustfmt, delete *.mo,\nmove crates, one workspace"];
     p2b [label="CI: cargo fmt --check +\nclippy -D warnings with the\nworkspace allow-list"];
   }
   subgraph cluster_p3 {
     label="Phase 3 - weeks 1-6 after the flip"; style="rounded"; color="#888888";
     p3a [label="Lint burn-down\n(one lint per PR,\nclippy --fix)"];
-    p3b [label="Remove leftovers:\nmmtorust, Stubs, C runtime\nfor omc, ANTLR parser, ..."];
+    p3b [label="Remove leftovers:\nmmtorust, the MetaModelica\ngrammar (except for builtins), ..."];
     p3c [label="Port open .mo PRs\nwith the frozen mmtorust"];
   }
   subgraph cluster_p4 {
     label="Phase 4 - months after: redesign"; style="rounded"; color="#888888";
-    p4a [label="Scripting API on NF only\n(no FCore/FGraph, no Inst)"];
+    p4a [label="Scripting API: drop the\nFCore/FGraph parameters"];
     p4b [label="Errors, globals, data\nstructures (List/Array/HashTable)"];
     p4c [label="NB default -> remove old\nbackend, DAE, SimCode on NF types"];
     p4d [label="Rewrite code generators\n(drop Susan)"];
@@ -40,6 +41,7 @@ digraph phases {
   p0b -> p0d;
   p0c -> br [style=invis];
   br -> p1a -> p1b -> p2a -> p2b -> p3a;
+  p1c -> p1b;
   p2a -> p3b; p2a -> p3c;
   p3a -> p4b; p3b -> p4a; p4a -> p4c -> p4d;
 }
